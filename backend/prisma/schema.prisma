@@ -56,8 +56,21 @@ model users {
   hackathons          hackathons[]
   bookmarks           bookmarks[]
   organizationMembers organization_members[]
+  sessions            Session[]
 
   @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }
 
 model notifications {
