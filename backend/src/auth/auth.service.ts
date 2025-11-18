@@ -1,9 +1,16 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
@@ -74,6 +81,73 @@ export class AuthService {
     return {
       message: 'User registered successfully',
       data: newUser,
+    };
+  }
+
+  async login(loginDto: LoginDto) {
+    const { identifier, password } = loginDto;
+
+    const isEmail = identifier.includes('@');
+
+    const user = isEmail
+      ? await this.prisma.users.findUnique({
+          where: { email: identifier },
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            email: true,
+            password: true,
+            role: true,
+            createdAt: true,
+          },
+        })
+      : await this.prisma.users.findUnique({
+          where: { username: identifier },
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            email: true,
+            password: true,
+            role: true,
+            createdAt: true,
+          },
+        });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Generate JWT token
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+
+    this.logger.log(`User logged in: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully',
+      token: accessToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
     };
   }
 }
