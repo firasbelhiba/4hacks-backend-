@@ -57,7 +57,14 @@ export class AuthService {
         username,
         role,
       },
-      select: { id: true, username: true, name: true, email: true, role: true },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
     });
 
     this.logger.log(

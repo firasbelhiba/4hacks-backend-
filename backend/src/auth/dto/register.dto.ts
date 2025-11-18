@@ -37,18 +37,11 @@ export class RegisterDto {
 
   @ApiProperty({
     description: 'Password of the user',
-    example: 'strongPassword123',
+    example: 'Ahmed@1234',
     required: true,
   })
   @IsString({ message: 'Password must be a string' })
   @IsNotEmpty({ message: 'Password should not be empty' })
   @MinLength(8, { message: 'Password must be at least 8 characters' })
-  @Matches(/(?=.*[a-z])/, {
-    message: 'Password must contain a lowercase letter',
-  })
-  @Matches(/(?=.*[A-Z])/, {
-    message: 'Password must contain an uppercase letter',
-  })
-  @Matches(/(?=.*\d)/, { message: 'Password must contain a number' })
   password: string;
 }
