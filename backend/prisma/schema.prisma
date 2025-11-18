@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output = "../generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  ORGANIZER
+}
+
+enum OrganizationMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model users {
+  id                  String                 @id @default(cuid())
+  email               String                 @unique
+  username            String                 @unique
+  walletAddress       String?                @unique
+  password            String
+  name                String
+  role                UserRole               @default(USER)
+  image               String?
+  profession          String?
+  bio                 String?
+  location            String?
+  org                 String? // Organization name (school, company, etc.)
+  skills              String[]               @default([])
+  website             String?
+  github              String?
+  linkedin            String?
+  telegram            String?
+  twitter             String?
+  whatsapp            String?
+  otherSocials        String[]               @default([])
+  isEmailVerified     Boolean                @default(false)
+  emailVerifiedAt     DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  activityLogs        activity_logs[]
+  notifications       notifications[]
+  hackathons          hackathons[]
+  bookmarks           bookmarks[]
+  organizationMembers organization_members[]
+
+  @@map("users")
+}
+
+model notifications {
+  id        String   @id @default(cuid())
+  userId    String
+  pusherId  String
+  title     String
+  message   String
+  isSeen    Boolean  @default(false)
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isSeen])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model organizations {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  website     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members organization_members[]
+  usersId String?
+}
+
+model organization_members {
+  id     String                 @id @default(cuid())
+  userId String
+  orgId  String
+  role   OrganizationMemberRole @default(MEMBER)
+
+  user users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId]) // user can’t join same org twice
+}
+
+model activity_logs {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  timestamp DateTime @default(now())
+  user      users    @relation(fields: [userId], references: [id])
+
+  @@map("activity_logs")
+}
+
+model bookmarks {
+  id        String   @id @default(cuid())
+  userId    String
+  itemId    String
+  itemType  String // e.g., hackathon, project, article
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      users    @relation(fields: [userId], references: [id])
+
+  @@map("bookmarks")
+}
+
+model hackathons {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        users    @relation(fields: [userId], references: [id])
+
+  @@map("hackathons")
+}
