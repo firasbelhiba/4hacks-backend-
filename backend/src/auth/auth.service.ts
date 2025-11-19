@@ -21,7 +21,7 @@ import {
   verifyEmailRedisTTL,
 } from './constants';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import * as cacheManager from 'cache-manager';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +30,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-    @Inject(CACHE_MANAGER) private cacheManager: cacheManager.Cache,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -332,12 +332,6 @@ export class AuthService {
   }
 
   async verifyEmailSend(userId: string) {
-    await this.cacheManager.set(
-      'email_verification_test',
-      'success',
-      verifyEmailRedisTTL,
-    );
-
     // Find user by ID
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
@@ -356,19 +350,12 @@ export class AuthService {
     const verificationCode = this.generateVerificationCode();
 
     const redisKey = verifyEmailRedisPrefix + user.id;
-    this.logger.log(`Storing verification code in Redis with key: ${redisKey}`);
 
-    const value = await this.cacheManager.set(
+    await this.cacheManager.set(
       redisKey,
       verificationCode,
       verifyEmailRedisTTL,
     );
-
-    this.logger.log(`Storing verification code in Redis: ${value}`);
-
-    const storedCode = await this.cacheManager.get<number>(redisKey);
-
-    this.logger.log(`Retrieved verification code from Redis: ${storedCode}`);
 
     this.logger.log(
       `Verification code ${verificationCode} stored in Redis for user ID: ${user.id}`,
@@ -408,10 +395,6 @@ export class AuthService {
 
     // Get the verification code from Redis
     const redisKey = verifyEmailRedisPrefix + user.id;
-
-    this.logger.log(
-      `Retrieving verification code from Redis with key: ${redisKey}`,
-    );
 
     const storedCode = await this.cacheManager.get<number>(redisKey);
 
