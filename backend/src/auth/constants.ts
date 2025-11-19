@@ -9,5 +9,7 @@ export const refreshTokenConstants = {
 
 export const authCookiesNames = {
   refreshToken: 'refreshToken',
-  sessionId: 'sessionId',
 };
+
+export const API_PREFIX = process.env.API_PREFIX || 'api';
+export const AUTH_REFRESH_API_PREFIX = `${API_PREFIX}/auth/refresh`;
