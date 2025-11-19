@@ -278,6 +278,31 @@ export class AuthService {
     );
   }
 
+  /**
+   * Validates the user by ID and returns the user details.
+   * @param userId - The ID of the user to validate.
+   * @returns The user details if the user exists, otherwise throws an error.
+   */
+  async validateUserById(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
+  }
+
   private async generateUniqueRefreshToken(): Promise<{
     token: string;
     hashedToken: string;
