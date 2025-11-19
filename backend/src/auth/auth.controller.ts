@@ -365,7 +365,7 @@ export class AuthController {
       'Verifies the email of the authenticated user using a verification code.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Email Verified Successfully',
     schema: {
       example: {
