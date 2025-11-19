@@ -12,8 +12,7 @@ import { UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { randomBytes } from 'crypto';
-import { authCookiesNames, refreshTokenConstants } from './constants';
-import { Request, Response } from 'express';
+import { refreshTokenConstants } from './constants';
 
 @Injectable()
 export class AuthService {
@@ -87,7 +86,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto, res: Response) {
+  async login(loginDto: LoginDto) {
     const { identifier, password } = loginDto;
 
     const isEmail = identifier.includes('@');
@@ -156,27 +155,13 @@ export class AuthService {
       select: { id: true },
     });
 
-    // Set refresh token as HttpOnly cookie
-    res.cookie(authCookiesNames.refreshToken, refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: refreshTokenConstants.expirationSeconds * 1000,
-    });
-
-    // Set Session ID cookie as HttpOnly cookie
-    res.cookie(authCookiesNames.sessionId, newSession.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: refreshTokenConstants.expirationSeconds * 1000,
-    });
-
     this.logger.log(`User logged in: ${user.email}`);
 
-    return res.json({
+    return {
       message: 'User logged in successfully',
-      token: accessToken,
+      accessToken,
+      refreshToken,
+      sessionId: newSession.id,
       user: {
         id: user.id,
         username: user.username,
@@ -185,17 +170,13 @@ export class AuthService {
         role: user.role,
         createdAt: user.createdAt,
       },
-    });
+    };
   }
 
-  async refreshAccessToken(req: Request, res: Response) {
-    const refreshToken = req.cookies[authCookiesNames.refreshToken];
-
+  async refreshAccessToken(refreshToken: string, sessionId: string) {
     if (!refreshToken) {
       throw new BadRequestException('Refresh token cookie is missing');
     }
-
-    const sessionId = req.cookies[authCookiesNames.sessionId];
 
     if (!sessionId) {
       throw new BadRequestException('Session cookie ID is missing');
@@ -257,27 +238,12 @@ export class AuthService {
       },
     });
 
-    // Update refresh token in the HttpOnly cookie
-    res.cookie(authCookiesNames.refreshToken, newPlainRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: refreshTokenConstants.expirationSeconds * 1000,
-    });
-
-    // Renew Session ID cookie as HttpOnly cookie with same session ID (renew happens to avoid expiration of the cookie)
-    res.cookie(authCookiesNames.sessionId, session.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: refreshTokenConstants.expirationSeconds * 1000,
-    });
-
     this.logger.log(`Refresh token rotated for user: ${user.email}`);
 
-    return res.json({
+    return {
       message: 'Access token refreshed successfully',
-      token: accessToken,
+      accessToken,
+      refreshToken: newPlainRefreshToken,
       user: {
         id: user.id,
         username: user.username,
@@ -286,7 +252,7 @@ export class AuthService {
         role: user.role,
         createdAt: user.createdAt,
       },
-    });
+    };
   }
 
   private async generateUniqueRefreshToken(): Promise<{

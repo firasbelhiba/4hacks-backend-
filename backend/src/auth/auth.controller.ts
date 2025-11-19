@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import type { Request, Response } from 'express';
+import { authCookiesNames, refreshTokenConstants } from './constants';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -97,8 +98,33 @@ export class AuthController {
     },
   })
   @Post('login')
-  async login(@Body() loginDto: LoginDto, @Res() res: Response) {
-    return this.authService.login(loginDto, res);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(loginDto);
+
+    // Set refresh token as HttpOnly cookie
+    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+    });
+
+    // Set Session ID cookie as HttpOnly cookie
+    res.cookie(authCookiesNames.sessionId, result.sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+    });
+
+    return {
+      message: result.message,
+      token: result.accessToken,
+      user: result.user,
+    };
   }
 
   @ApiOperation({
@@ -146,7 +172,38 @@ export class AuthController {
     },
   })
   @Post('refresh')
-  async refresh(@Req() req: Request, @Res() res: Response) {
-    return this.authService.refreshAccessToken(req, res);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies[authCookiesNames.refreshToken];
+    const sessionId = req.cookies[authCookiesNames.sessionId];
+
+    const result = await this.authService.refreshAccessToken(
+      refreshToken,
+      sessionId,
+    );
+
+    // Update refresh token in the HttpOnly cookie
+    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+    });
+
+    // Renew Session ID cookie as HttpOnly cookie with same session ID (renew happens to avoid expiration of the cookie)
+    res.cookie(authCookiesNames.sessionId, sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+    });
+
+    return {
+      message: result.message,
+      token: result.accessToken,
+      user: result.user,
+    };
   }
 }
