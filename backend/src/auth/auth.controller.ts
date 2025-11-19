@@ -4,7 +4,11 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import type { Request, Response } from 'express';
-import { authCookiesNames, refreshTokenConstants } from './constants';
+import {
+  AUTH_REFRESH_API_PREFIX,
+  authCookiesNames,
+  refreshTokenConstants,
+} from './constants';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -110,14 +114,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-    });
-
-    // Set Session ID cookie as HttpOnly cookie
-    res.cookie(authCookiesNames.sessionId, result.sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: AUTH_REFRESH_API_PREFIX,
     });
 
     return {
@@ -177,12 +174,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const refreshToken = req.cookies[authCookiesNames.refreshToken];
-    const sessionId = req.cookies[authCookiesNames.sessionId];
 
-    const result = await this.authService.refreshAccessToken(
-      refreshToken,
-      sessionId,
-    );
+    const result = await this.authService.refreshAccessToken(refreshToken);
 
     // Update refresh token in the HttpOnly cookie
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
@@ -190,14 +183,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-    });
-
-    // Renew Session ID cookie as HttpOnly cookie with same session ID (renew happens to avoid expiration of the cookie)
-    res.cookie(authCookiesNames.sessionId, sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: AUTH_REFRESH_API_PREFIX,
     });
 
     return {
