@@ -365,7 +365,7 @@ export class AuthService {
     );
 
     // Send the verification code via email using an email service
-    this.emailService.sendEmail(
+    await this.emailService.sendEmail(
       user.email,
       'Your Email Verification Code',
       VerificationEmailTemplateHtml(verificationCode, user.email),
