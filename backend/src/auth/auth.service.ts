@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -13,7 +14,11 @@ import { SessionStatus, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { createHash, randomBytes } from 'crypto';
-import { refreshTokenConstants } from './constants';
+import {
+  refreshTokenConstants,
+  verifyEmailRedisPrefix,
+  verifyEmailRedisTTL,
+} from './constants';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 
@@ -325,30 +330,49 @@ export class AuthService {
     return user;
   }
 
-  async verifyEmail() {
-    // Use the cache manager to insert test key with ttl of 5 minutes
-    const ttlMilliseconds = 5 * 60 * 1000; // Keyv uses milliseconds
+  async verifyEmailSend(userId: string) {
     await this.cacheManager.set(
       'email_verification_test',
       'success',
-      ttlMilliseconds,
+      verifyEmailRedisTTL,
     );
 
-    this.logger.log('Cache set: email_verification_test = success');
+    // Find user by ID
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, isEmailVerified: true },
+    });
 
-    this.logger.log('All store : ', this.cacheManager.stores);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-    // Get the test key from cache
-    const value = await this.cacheManager.get<string>(
-      'email_verification_test',
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    // Generate a verification code
+    const verificationCode = this.generateVerificationCode();
+
+    const redisKey = verifyEmailRedisPrefix + user.id;
+
+    await this.cacheManager.set(
+      redisKey,
+      verificationCode,
+      verifyEmailRedisTTL,
     );
 
-    this.logger.log(`Cache get value: ${value}`);
+    this.logger.log(
+      `Verification code ${verificationCode} stored in Redis for user ID: ${user.id}`,
+    );
+
+    
+
+    // TODO: Send the verification code via email using an email service
 
     return {
-      message: 'Test endpoint is working!',
-      cachedValue: value,
-      timestamp: new Date().toISOString(),
+      email: user.email,
+      message: 'Verification email sent successfully',
     };
   }
 
@@ -386,5 +410,10 @@ export class AuthService {
    */
   hashRefreshToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private generateVerificationCode(): number {
+    // Generate a random 6-digit number between 100000 and 999999 (inclusive)
+    return Math.floor(Math.random() * 900000) + 100000;
   }
 }

@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { jwtConstants } from '../constants';
 import { AuthService } from '../auth.service';
+import { JwtPayload } from 'src/common/types';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -19,7 +20,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * @param payload - The decoded JWT payload
    * @returns The user object if valid, otherwise throws UnauthorizedException
    */
-  async validate(payload: any) {
+  async validate(payload: JwtPayload) {
     const user = await this.authService.validateUserById(payload.sub);
 
     if (!user) {

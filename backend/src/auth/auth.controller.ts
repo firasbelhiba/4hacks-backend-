@@ -325,8 +325,25 @@ export class AuthController {
     return user;
   }
 
-  @Post('email/verify')
-  async verifyEmail() {
-    return this.authService.verifyEmail();
+  @Post('email/verify/send')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Sends a verification email to the authenticated user',
+    description:
+      'Sends a verification email to the authenticated user containing a verification code.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Email Sent Successfully',
+    schema: {
+      example: {
+        email: 'user@example.com',
+        message: 'Verification email sent successfully',
+      },
+    },
+  })
+  async verifyEmailSend(@CurrentUser('id') userId: string) {
+    return this.authService.verifyEmailSend(userId);
   }
 }
