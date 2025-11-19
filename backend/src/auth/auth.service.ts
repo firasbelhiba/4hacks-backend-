@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -13,6 +14,8 @@ import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { createHash, randomBytes } from 'crypto';
 import { refreshTokenConstants } from './constants';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +24,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -320,6 +324,35 @@ export class AuthService {
 
     return user;
   }
+
+  async verifyEmail() {
+    // Use the cache manager to insert test key with ttl of 5 minutes
+    const ttlMilliseconds = 5 * 60 * 1000; // Keyv uses milliseconds
+    await this.cacheManager.set(
+      'email_verification_test',
+      'success',
+      ttlMilliseconds,
+    );
+
+    this.logger.log('Cache set: email_verification_test = success');
+
+    this.logger.log('All store : ', this.cacheManager.stores);
+
+    // Get the test key from cache
+    const value = await this.cacheManager.get<string>(
+      'email_verification_test',
+    );
+
+    this.logger.log(`Cache get value: ${value}`);
+
+    return {
+      message: 'Test endpoint is working!',
+      cachedValue: value,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  //// Helper Methods ////
 
   private async generateUniqueRefreshToken(): Promise<{
     token: string;

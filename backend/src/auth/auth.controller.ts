@@ -324,4 +324,9 @@ export class AuthController {
   me(@CurrentUser() user: any) {
     return user;
   }
+
+  @Post('email/verify')
+  async verifyEmail() {
+    return this.authService.verifyEmail();
+  }
 }
