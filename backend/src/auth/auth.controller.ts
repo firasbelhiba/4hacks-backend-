@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Post,
   Req,
   Res,
@@ -289,5 +290,38 @@ export class AuthController {
     return {
       message: 'User logged out successfully from all devices',
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  @ApiOperation({ summary: 'Get current authenticated user' })
+  @ApiBearerAuth()
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the currently authenticated user.',
+    schema: {
+      example: {
+        id: 'clxsu9vgo0000lmk7z9h8f1q',
+        username: 'ahmed12',
+        name: 'Ahmed',
+        email: 'ahmed@gmail.com',
+        role: 'USER',
+        createdAt: '2025-10-01T12:34:56.789Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized. Missing or invalid access token.',
+    schema: {
+      example: {
+        statusCode: 401,
+        message: 'Unauthorized',
+        error: 'Unauthorized',
+      },
+    },
+  })
+  me(@CurrentUser() user: any) {
+    return user;
   }
 }
