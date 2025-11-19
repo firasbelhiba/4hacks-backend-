@@ -7,6 +7,7 @@ import { jwtConstants } from './constants';
 import { PassportModule } from '@nestjs/passport';
 import { StringValue } from 'ms';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       secret: jwtConstants.secret,
       signOptions: { expiresIn: jwtConstants.expiresIn as StringValue },
     }),
+    EmailModule,
   ],
 
   controllers: [AuthController],

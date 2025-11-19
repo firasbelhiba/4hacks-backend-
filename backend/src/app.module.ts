@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { CacheModule } from '@nestjs/cache-manager';
+import { EmailModule } from './email/email.module';
 import Keyv from 'keyv';
 import KeyvRedis from '@keyv/redis';
 
@@ -31,6 +32,7 @@ import KeyvRedis from '@keyv/redis';
     }),
     PrismaModule,
     AuthModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

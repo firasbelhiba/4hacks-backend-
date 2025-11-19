@@ -22,6 +22,8 @@ import {
 } from './constants';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
+import { EmailService } from 'src/email/email.service';
+import { VerificationEmailTemplateHtml } from 'src/common/templates/emails.templates.list';
 
 @Injectable()
 export class AuthService {
@@ -30,6 +32,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private readonly emailService: EmailService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -361,7 +364,12 @@ export class AuthService {
       `Verification code ${verificationCode} stored in Redis for user ID: ${user.id}`,
     );
 
-    // TODO: Send the verification code via email using an email service
+    // Send the verification code via email using an email service
+    this.emailService.sendEmail(
+      user.email,
+      'Your Email Verification Code',
+      VerificationEmailTemplateHtml(verificationCode, user.email),
+    );
 
     return {
       email: user.email,
