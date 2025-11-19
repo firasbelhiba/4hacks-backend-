@@ -208,7 +208,22 @@ export class AuthService {
     });
 
     if (!session) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Verify refresh token expiration
+    if (session.expiresAt < new Date()) {
+      throw new UnauthorizedException('Refresh token has expired');
+    }
+
+    // Verify refresh token validity
+    const isRefreshTokenValid = await bcrypt.compare(
+      refreshToken,
+      session.refreshToken,
+    );
+
+    if (!isRefreshTokenValid) {
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
     const user = session.user;
@@ -242,7 +257,7 @@ export class AuthService {
       },
     });
 
-    // Set new refresh token as HttpOnly cookie
+    // Update refresh token in the HttpOnly cookie
     res.cookie(authCookiesNames.refreshToken, newPlainRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -250,7 +265,13 @@ export class AuthService {
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
     });
 
-    // No need to update sessionId cookie as it remains the same
+    // Renew Session ID cookie as HttpOnly cookie with same session ID (renew happens to avoid expiration of the cookie)
+    res.cookie(authCookiesNames.sessionId, session.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+    });
 
     this.logger.log(`Refresh token rotated for user: ${user.email}`);
 
@@ -272,20 +293,10 @@ export class AuthService {
     token: string;
     hashedToken: string;
   }> {
-    while (true) {
-      const token = randomBytes(64).toString('hex');
+    const token = randomBytes(64).toString('hex');
 
-      const hashedToken = await bcrypt.hash(token, 12);
+    const hashedToken = await bcrypt.hash(token, 12);
 
-      const exists = await this.prisma.session.findUnique({
-        where: { refreshToken: hashedToken },
-      });
-
-      if (!exists) {
-        return { token, hashedToken };
-      }
-
-      // if exists, loop continues and generates a new one
-    }
+    return { token, hashedToken };
   }
 }
