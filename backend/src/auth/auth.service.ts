@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   UnauthorizedException,
@@ -356,17 +357,23 @@ export class AuthService {
 
     const redisKey = verifyEmailRedisPrefix + user.id;
 
-    await this.cacheManager.set(
+    const redisCacheStore = await this.getRedisCacheStore();
+
+    const isSetSuccess = await redisCacheStore.set(
       redisKey,
       verificationCode,
       verifyEmailRedisTTL,
     );
 
+    if (!isSetSuccess) {
+      throw new InternalServerErrorException(
+        'Failed to store verification code in Redis',
+      );
+    }
+
     this.logger.log(
       `Verification code ${verificationCode} stored in Redis for user ID: ${user.id}`,
     );
-
-    
 
     // TODO: Send the verification code via email using an email service
 
@@ -415,5 +422,18 @@ export class AuthService {
   private generateVerificationCode(): number {
     // Generate a random 6-digit number between 100000 and 999999 (inclusive)
     return Math.floor(Math.random() * 900000) + 100000;
+  }
+
+  private async getRedisCacheStore() {
+    const allStores = this.cacheManager.stores;
+
+    if (allStores.length === 0) {
+      throw new InternalServerErrorException('No cache stores available');
+    }
+
+    this.logger.log('All Stores Length: ' + allStores.length);
+    this.logger.log('All cache stores: ' + JSON.stringify(allStores));
+
+    return allStores[0];
   }
 }
