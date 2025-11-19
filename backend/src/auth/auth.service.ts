@@ -279,6 +279,24 @@ export class AuthService {
   }
 
   /**
+   * Logs out all active sessions for the specified user.
+   * @param userId - The ID of the user whose sessions are to be logged out.
+   */
+  async logoutAll(userId: string) {
+    // Update all sessions for the user to revoked
+    const result = await this.prisma.session.updateMany({
+      where: { userId, status: SessionStatus.ACTIVE },
+      data: { status: SessionStatus.REVOKED, revokedAt: new Date() },
+    });
+
+    if (result.count === 0) {
+      this.logger.log(`No active sessions found for user ID: ${userId}`);
+    } else {
+      this.logger.log(`All active sessions for user ID: ${userId} logged out`);
+    }
+  }
+
+  /**
    * Validates the user by ID and returns the user details.
    * @param userId - The ID of the user to validate.
    * @returns The user details if the user exists, otherwise throws an error.

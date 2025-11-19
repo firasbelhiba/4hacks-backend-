@@ -5,8 +5,15 @@ import {
   Post,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -16,6 +23,8 @@ import {
   authCookiesNames,
   refreshTokenConstants,
 } from './constants';
+import { JwtAuthGuard } from './guard/jwt.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -80,7 +89,7 @@ export class AuthController {
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'The user has been successfully logged in.',
     schema: {
       example: {
@@ -136,7 +145,7 @@ export class AuthController {
     description: 'Generates a new access token using a refresh token.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'The access token has been successfully refreshed.',
     schema: {
       example: {
@@ -205,7 +214,7 @@ export class AuthController {
     description: 'Logs out a user by invalidating the refresh token.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'The user has been successfully logged out.',
     schema: {
       example: {
@@ -245,6 +254,40 @@ export class AuthController {
 
     return {
       message: 'User logged out successfully',
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Logout from all devices' })
+  @ApiBearerAuth()
+  @ApiResponse({
+    status: 201,
+    description: 'The user has been successfully logged out from all devices.',
+    schema: {
+      example: {
+        message: 'User logged out successfully from all devices',
+      },
+    },
+  })
+  @Post('logout-all')
+  async logoutAll(
+    @CurrentUser('id') userId: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Logout the user from all sessions
+    await this.authService.logoutAll(userId);
+
+    // Clear the Current refresh token cookie
+    res.clearCookie(authCookiesNames.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: AUTH_REFRESH_API_PREFIX,
+    });
+
+    return {
+      message: 'User logged out successfully from all devices',
     };
   }
 }
