@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
@@ -17,6 +17,9 @@ async function bootstrap() {
   // Enable Cookie Parser Middleware
   app.use(cookieParser());
 
+  // Enable Validation Pipe globally
+  app.useGlobalPipes(new ValidationPipe());
+
   // Set Global Prefix for API routes
   app.setGlobalPrefix(process.env.API_PREFIX || 'api');
 
@@ -25,19 +28,16 @@ async function bootstrap() {
     .setTitle('Dorahacks NestJS Backend')
     .setDescription('API documentation for the Dorahacks NestJS backend')
     .setVersion('1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
-      'JWT-auth',
-    )
     .addTag('Authentication', 'Endpoints related to user authentication')
     .addTag('Hackathons', 'Endpoints related to hackathon management')
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+      name: 'JWT Authorization',
+      description: 'Enter JWT token',
+      in: 'header',
+    })
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
