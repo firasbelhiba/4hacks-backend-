@@ -11,7 +11,7 @@ import { RegisterDto } from './dto/register.dto';
 import { UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { refreshTokenConstants } from './constants';
 
 @Injectable()
@@ -146,7 +146,7 @@ export class AuthService {
       Date.now() + refreshTokenConstants.expirationSeconds * 1000,
     );
 
-    const newSession = await this.prisma.session.create({
+    await this.prisma.session.create({
       data: {
         userId: user.id,
         refreshToken: hashedRefreshToken,
@@ -161,7 +161,6 @@ export class AuthService {
       message: 'User logged in successfully',
       accessToken,
       refreshToken,
-      sessionId: newSession.id,
       user: {
         id: user.id,
         username: user.username,
@@ -173,18 +172,16 @@ export class AuthService {
     };
   }
 
-  async refreshAccessToken(refreshToken: string, sessionId: string) {
+  async refreshAccessToken(refreshToken: string) {
     if (!refreshToken) {
       throw new BadRequestException('Refresh token cookie is missing');
     }
 
-    if (!sessionId) {
-      throw new BadRequestException('Session cookie ID is missing');
-    }
+    const hashedToken = this.hashRefreshToken(refreshToken);
 
     // get session by ID
     const session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
+      where: { refreshToken: hashedToken },
       include: { user: true },
     });
 
@@ -195,16 +192,6 @@ export class AuthService {
     // Verify refresh token expiration
     if (session.expiresAt < new Date()) {
       throw new UnauthorizedException('Refresh token has expired');
-    }
-
-    // Verify refresh token validity
-    const isRefreshTokenValid = await bcrypt.compare(
-      refreshToken,
-      session.refreshToken,
-    );
-
-    if (!isRefreshTokenValid) {
-      throw new UnauthorizedException('Invalid refresh token');
     }
 
     const user = session.user;
@@ -259,10 +246,33 @@ export class AuthService {
     token: string;
     hashedToken: string;
   }> {
-    const token = randomBytes(64).toString('hex');
+    while (true) {
+      // Generate a random token
+      const token = randomBytes(64).toString('hex');
 
-    const hashedToken = await bcrypt.hash(token, 12);
+      // Hash the token
+      const hashedToken = this.hashRefreshToken(token);
 
-    return { token, hashedToken };
+      // Check if the hashed token is unique
+      const existingSession = await this.prisma.session.findUnique({
+        where: { refreshToken: hashedToken },
+      });
+
+      if (!existingSession) {
+        return { token, hashedToken };
+      }
+
+      // If not unique, repeat the process
+    }
+  }
+
+  /**
+   * Hashes the refresh token using SHA-256.
+   * We use SHA-256 instead of bcrypt for performance reasons, as refresh tokens need to be verified frequently.
+   * @param token - The plain refresh token to hash.
+   * @returns The hashed refresh token.
+   */
+  hashRefreshToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 }
