@@ -1,4 +1,11 @@
-import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -190,6 +197,54 @@ export class AuthController {
       message: result.message,
       token: result.accessToken,
       user: result.user,
+    };
+  }
+
+  @ApiOperation({
+    summary: 'Logout a user',
+    description: 'Logs out a user by invalidating the refresh token.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'The user has been successfully logged out.',
+    schema: {
+      example: {
+        message: 'User logged out successfully',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request. Refresh token is missing or session not found.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Refresh token is missing',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @Post('logout')
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies[authCookiesNames.refreshToken];
+
+    if (!refreshToken) {
+      throw new BadRequestException('Refresh token is missing');
+    }
+
+    // Logout the user by deleting the session
+    await this.authService.logout(refreshToken);
+
+    // Clear the refresh token cookie
+    res.clearCookie(authCookiesNames.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: AUTH_REFRESH_API_PREFIX,
+    });
+
+    return {
+      message: 'User logged out successfully',
     };
   }
 }

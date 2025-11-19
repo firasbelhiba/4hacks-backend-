@@ -8,7 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
-import { UserRole } from 'generated/prisma';
+import { SessionStatus, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { createHash, randomBytes } from 'crypto';
@@ -172,6 +172,11 @@ export class AuthService {
     };
   }
 
+  /**
+   * Refreshes the access token using the provided refresh token.
+   * @param refreshToken - The refresh token to use for generating a new access token.
+   * @returns An object containing the new access token, refresh token, and user details.
+   */
   async refreshAccessToken(refreshToken: string) {
     if (!refreshToken) {
       throw new BadRequestException('Refresh token cookie is missing');
@@ -187,6 +192,10 @@ export class AuthService {
 
     if (!session) {
       throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (session.status != SessionStatus.ACTIVE) {
+      throw new UnauthorizedException('Session is not active');
     }
 
     // Verify refresh token expiration
@@ -240,6 +249,33 @@ export class AuthService {
         createdAt: user.createdAt,
       },
     };
+  }
+
+  /**
+   * Logs out the user by deleting the session associated with the provided refresh token.
+   * @param refreshToken - The refresh token to invalidate.
+   */
+  async logout(refreshToken: string) {
+    const hashedToken = this.hashRefreshToken(refreshToken);
+
+    // Check if session exists
+    const session = await this.prisma.session.findUnique({
+      where: { refreshToken: hashedToken },
+    });
+
+    if (!session) {
+      throw new BadRequestException('Session not found or already logged out');
+    }
+
+    // Update session status to revoked
+    const deletedSession = await this.prisma.session.update({
+      where: { id: session.id },
+      data: { status: SessionStatus.REVOKED, revokedAt: new Date() },
+    });
+
+    this.logger.log(
+      `Session ID: ${deletedSession.id} with refresh token ${hashedToken} logged out`,
+    );
   }
 
   private async generateUniqueRefreshToken(): Promise<{
