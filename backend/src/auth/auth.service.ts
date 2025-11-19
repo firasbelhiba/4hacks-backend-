@@ -12,7 +12,7 @@ import { UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { randomBytes } from 'crypto';
-import { refreshTokenConstants } from './constants';
+import { authCookiesNames, refreshTokenConstants } from './constants';
 import { Request, Response } from 'express';
 
 @Injectable()
@@ -147,16 +147,25 @@ export class AuthService {
       Date.now() + refreshTokenConstants.expirationSeconds * 1000,
     );
 
-    await this.prisma.session.create({
+    const newSession = await this.prisma.session.create({
       data: {
         userId: user.id,
         refreshToken: hashedRefreshToken,
         expiresAt: refreshTokenExpiration,
       },
+      select: { id: true },
     });
 
     // Set refresh token as HttpOnly cookie
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie(authCookiesNames.refreshToken, refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+    });
+
+    // Set Session ID cookie as HttpOnly cookie
+    res.cookie(authCookiesNames.sessionId, newSession.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
@@ -180,26 +189,23 @@ export class AuthService {
   }
 
   async refreshAccessToken(req: Request, res: Response) {
-    const refreshToken = req.cookies['refreshToken'];
+    const refreshToken = req.cookies[authCookiesNames.refreshToken];
 
     if (!refreshToken) {
-      throw new BadRequestException('Refresh token is missing');
+      throw new BadRequestException('Refresh token cookie is missing');
     }
 
-    // get all unexpired sessions
-    const sessions = await this.prisma.session.findMany({
-      where: { expiresAt: { gt: new Date() } },
+    const sessionId = req.cookies[authCookiesNames.sessionId];
+
+    if (!sessionId) {
+      throw new BadRequestException('Session cookie ID is missing');
+    }
+
+    // get session by ID
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
       include: { user: true },
     });
-
-    if (sessions.length === 0) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
-    }
-
-    // find session by comparing hashed token
-    const session = sessions.find((s) =>
-      bcrypt.compareSync(refreshToken, s.refreshToken),
-    );
 
     if (!session) {
       throw new UnauthorizedException('Invalid or expired refresh token');
@@ -237,12 +243,14 @@ export class AuthService {
     });
 
     // Set new refresh token as HttpOnly cookie
-    res.cookie('refreshToken', newPlainRefreshToken, {
+    res.cookie(authCookiesNames.refreshToken, newPlainRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
     });
+
+    // No need to update sessionId cookie as it remains the same
 
     this.logger.log(`Refresh token rotated for user: ${user.email}`);
 

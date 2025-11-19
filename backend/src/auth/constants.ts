@@ -6,3 +6,8 @@ export const jwtConstants = {
 export const refreshTokenConstants = {
   expirationSeconds: Number(process.env.REFRESH_TOKEN_EXPIRATION) || 604800, // 7 days
 };
+
+export const authCookiesNames = {
+  refreshToken: 'refreshToken',
+  sessionId: 'sessionId',
+};
