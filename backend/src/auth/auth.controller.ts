@@ -26,6 +26,7 @@ import {
 } from './constants';
 import { JwtAuthGuard } from './guard/jwt.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -325,9 +326,6 @@ export class AuthController {
     return user;
   }
 
-  @Post('email/verify/send')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Sends a verification email to the authenticated user',
     description:
@@ -343,7 +341,68 @@ export class AuthController {
       },
     },
   })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized. Missing or invalid access token.',
+    schema: {
+      example: {
+        statusCode: 401,
+        message: 'Unauthorized',
+        error: 'Unauthorized',
+      },
+    },
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('email/verify/send')
   async verifyEmailSend(@CurrentUser('id') userId: string) {
     return this.authService.verifyEmailSend(userId);
+  }
+
+  @ApiOperation({
+    summary: 'Verifies the email of the authenticated user',
+    description:
+      'Verifies the email of the authenticated user using a verification code.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Email Verified Successfully',
+    schema: {
+      example: {
+        message: 'Email verified successfully',
+        email: 'user@example.com',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request. Invalid or expired verification code.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Invalid or expired verification code',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized. Missing or invalid access token.',
+    schema: {
+      example: {
+        statusCode: 401,
+        message: 'Unauthorized',
+        error: 'Unauthorized',
+      },
+    },
+  })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('email/verify')
+  async verifyEmail(
+    @CurrentUser('id') userId: string,
+    @Body() body: VerifyEmailDto,
+  ) {
+    return this.authService.verifyEmail(userId, body.code);
   }
 }

@@ -21,7 +21,7 @@ import {
   verifyEmailRedisTTL,
 } from './constants';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
+import * as cacheManager from 'cache-manager';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +30,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @Inject(CACHE_MANAGER) private cacheManager: cacheManager.Cache,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -356,20 +356,19 @@ export class AuthService {
     const verificationCode = this.generateVerificationCode();
 
     const redisKey = verifyEmailRedisPrefix + user.id;
+    this.logger.log(`Storing verification code in Redis with key: ${redisKey}`);
 
-    const redisCacheStore = await this.getRedisCacheStore();
-
-    const isSetSuccess = await redisCacheStore.set(
+    const value = await this.cacheManager.set(
       redisKey,
       verificationCode,
       verifyEmailRedisTTL,
     );
 
-    if (!isSetSuccess) {
-      throw new InternalServerErrorException(
-        'Failed to store verification code in Redis',
-      );
-    }
+    this.logger.log(`Storing verification code in Redis: ${value}`);
+
+    const storedCode = await this.cacheManager.get<number>(redisKey);
+
+    this.logger.log(`Retrieved verification code from Redis: ${storedCode}`);
 
     this.logger.log(
       `Verification code ${verificationCode} stored in Redis for user ID: ${user.id}`,
@@ -380,6 +379,66 @@ export class AuthService {
     return {
       email: user.email,
       message: 'Verification email sent successfully',
+    };
+  }
+
+  /**
+   * Verifies the user's email using the provided verification code.
+   * @param userId - The ID of the user to verify.
+   * @param code - The verification code to validate.
+   * @returns A success message if the email is verified successfully.
+   */
+  async verifyEmail(
+    userId: string,
+    code: number,
+  ): Promise<{ message: string; email: string }> {
+    // Check if user exists
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { id: true, isEmailVerified: true, email: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    // Get the verification code from Redis
+    const redisKey = verifyEmailRedisPrefix + user.id;
+
+    this.logger.log(
+      `Retrieving verification code from Redis with key: ${redisKey}`,
+    );
+
+    const storedCode = await this.cacheManager.get<number>(redisKey);
+
+    if (!storedCode) {
+      throw new BadRequestException(
+        'Verification code has expired or is invalid',
+      );
+    }
+
+    if (storedCode !== code) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    // Update user's email verification status
+    await this.prisma.users.update({
+      where: { id: userId },
+      data: { isEmailVerified: true, emailVerifiedAt: new Date() },
+    });
+
+    // Delete the verification code from Redis
+    await this.cacheManager.del(redisKey);
+
+    this.logger.log(`User ID: ${userId} email verified successfully`);
+
+    return {
+      message: 'Email verified successfully',
+      email: user.email,
     };
   }
 
@@ -422,18 +481,5 @@ export class AuthService {
   private generateVerificationCode(): number {
     // Generate a random 6-digit number between 100000 and 999999 (inclusive)
     return Math.floor(Math.random() * 900000) + 100000;
-  }
-
-  private async getRedisCacheStore() {
-    const allStores = this.cacheManager.stores;
-
-    if (allStores.length === 0) {
-      throw new InternalServerErrorException('No cache stores available');
-    }
-
-    this.logger.log('All Stores Length: ' + allStores.length);
-    this.logger.log('All cache stores: ' + JSON.stringify(allStores));
-
-    return allStores[0];
   }
 }
