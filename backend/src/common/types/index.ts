@@ -1,4 +1,4 @@
-import { UserRole } from 'generated/prisma';
+import { Provider, UserRole } from 'generated/prisma';
 
 export type JwtPayload = {
   sub: string;
@@ -26,4 +26,5 @@ export type UserMin = {
   email: string;
   role: UserRole;
   createdAt?: Date;
+  providers: Provider[];
 };
