@@ -409,10 +409,20 @@ export class AuthController {
   }
 
   ////// Google OAuth routes here //////
+  @ApiOperation({
+    summary: 'Initiate Google OAuth2 login',
+    description:
+      'Redirects the user to Google for authentication. This ednpoint cannot be tested via Swagger UI. To test it, please use a web browser to navigate to /api/v1/auth/google/login',
+  })
   @UseGuards(GoogleAuthGuard)
   @Get('google/login')
   googleLogin() {}
 
+  @ApiOperation({
+    summary: 'Google OAuth2 callback',
+    description:
+      'Handles the callback from Google after authentication. This endpoint cannot be tested via Swagger UI. It will be called by Google after user authentication using the first /api/v1/auth/google/login endpoint.',
+  })
   @UseGuards(GoogleAuthGuard)
   @Get('google/callback')
   async googleCallback(
