@@ -24,6 +24,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { EmailService } from 'src/email/email.service';
 import { VerificationEmailTemplateHtml } from 'src/common/templates/emails.templates.list';
+import { UserMin } from 'src/common/types';
 
 @Injectable()
 export class AuthService {
@@ -140,6 +141,31 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Generate Access and Refresh Tokens for the user
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user);
+
+    this.logger.log(`User logged in: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
+  private async generateAccessAndRefreshTokens(user: UserMin): Promise<{
+    accessToken: string;
+    refreshToken: string;
+  }> {
     // Generate JWT token
     const payload = {
       sub: user.id,
@@ -168,21 +194,7 @@ export class AuthService {
       select: { id: true },
     });
 
-    this.logger.log(`User logged in: ${user.email}`);
-
-    return {
-      message: 'User logged in successfully',
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt,
-      },
-    };
+    return { accessToken, refreshToken };
   }
 
   /**
@@ -430,6 +442,72 @@ export class AuthService {
     return {
       message: 'Email verified successfully',
       email: user.email,
+    };
+  }
+
+  /// Google OAuth Methods ////
+  async validateGoogleQauthUser(email: string, name: string, image: string) {
+    let user = await this.prisma.users.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (user) {
+      return user;
+    }
+
+    // If user does not exist, create a new user
+    const result = await this.register({
+      name,
+      email,
+      password: '',
+    });
+
+    return result.data;
+  }
+
+  async handleGoogleOAuthCallback(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Generate Access and Refresh Tokens for the user
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user);
+
+    this.logger.log(`User logged in via Google OAuth: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully via Google OAuth',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
     };
   }
 

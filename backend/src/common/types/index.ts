@@ -18,3 +18,12 @@ export type UserFromJWT = {
   role: UserRole;
   createdAt?: string;
 };
+
+export type UserMin = {
+  id: string;
+  username?: string;
+  name?: string;
+  email: string;
+  role: UserRole;
+  createdAt?: Date;
+};

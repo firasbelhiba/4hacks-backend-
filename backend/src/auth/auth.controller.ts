@@ -22,11 +22,13 @@ import type { Request, Response } from 'express';
 import {
   AUTH_REFRESH_API_PREFIX,
   authCookiesNames,
+  FRONTEND_URL,
   refreshTokenConstants,
 } from './constants';
-import { JwtAuthGuard } from './guard/jwt.guard';
+import { JwtAuthGuard } from './guards/jwt.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -404,5 +406,32 @@ export class AuthController {
     @Body() body: VerifyEmailDto,
   ) {
     return this.authService.verifyEmail(userId, body.code);
+  }
+
+  ////// Google OAuth routes here //////
+  @UseGuards(GoogleAuthGuard)
+  @Get('google/login')
+  googleLogin() {}
+
+  @UseGuards(GoogleAuthGuard)
+  @Get('google/callback')
+  async googleCallback(
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    console.log('Google OAuth callback reached for userId:', userId);
+
+    const result = await this.authService.handleGoogleOAuthCallback(userId);
+
+    // Set refresh token as HttpOnly cookie
+    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: AUTH_REFRESH_API_PREFIX,
+    });
+
+    res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
   }
 }
