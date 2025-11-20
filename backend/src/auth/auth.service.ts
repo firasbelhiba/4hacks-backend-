@@ -534,6 +534,90 @@ export class AuthService {
     };
   }
 
+  /// Github OAuth Methods ////
+  async validateGithubOAuthUser(
+    email: string,
+    name: string,
+    image: string,
+  ): Promise<UserMin> {
+    console.log('Validating Github OAuth user');
+    let user = await this.prisma.users.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (user) {
+      // If user exists, ensure Github is listed as a provider
+      if (!user.providers.includes(Provider.GITHUB)) {
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: { providers: { push: Provider.GITHUB } },
+        });
+      }
+      return user;
+    }
+
+    console.log('Creating new user for Github OAuth');
+    // If user does not exist, create a new user
+    const result = await this.register(
+      {
+        name,
+        email,
+        password: '',
+      },
+      Provider.GITHUB,
+    );
+
+    return result.data;
+  }
+
+  async handleGithubOAuthCallback(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Generate Access and Refresh Tokens for the user
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user, Provider.GITHUB);
+
+    this.logger.log(`User logged in via Github OAuth: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully via Github OAuth',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
   //// Helper Methods ////
 
   private async generateUniqueRefreshToken(): Promise<{

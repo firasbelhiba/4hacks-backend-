@@ -29,6 +29,7 @@ import { JwtAuthGuard } from './guards/jwt.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { GithubAuthGuard } from './guards/github.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -432,6 +433,43 @@ export class AuthController {
     console.log('Google OAuth callback reached for userId:', userId);
 
     const result = await this.authService.handleGoogleOAuthCallback(userId);
+
+    // Set refresh token as HttpOnly cookie
+    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: AUTH_REFRESH_API_PREFIX,
+    });
+
+    res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
+  }
+
+  ///// GitHub OAuth routes here //////
+  @ApiOperation({
+    summary: 'Initiate GitHub OAuth2 login',
+    description:
+      'Redirects the user to GitHub for authentication. This ednpoint cannot be tested via Swagger UI. To test it, please use a web browser to navigate to /api/v1/auth/github/login',
+  })
+  @UseGuards(GithubAuthGuard)
+  @Get('github/login')
+  githubLogin() {}
+
+  @ApiOperation({
+    summary: 'GitHub OAuth2 callback',
+    description:
+      'Handles the callback from GitHub after authentication. This endpoint cannot be tested via Swagger UI. It will be called by GitHub after user authentication using the first /api/v1/auth/github/login endpoint.',
+  })
+  @UseGuards(GithubAuthGuard)
+  @Get('github/callback')
+  async githubCallback(
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    console.log('GitHub OAuth callback reached');
+
+    const result = await this.authService.handleGithubOAuthCallback(userId);
 
     // Set refresh token as HttpOnly cookie
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
