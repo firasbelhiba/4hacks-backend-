@@ -14,8 +14,16 @@ import { RegisterDto } from './dto/register.dto';
 import { Provider, SessionStatus, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
-import { createHash, randomBytes } from 'crypto';
 import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from 'crypto';
+import {
+  FRONTEND_URL,
+  passwordResetRedisPrefix,
+  passwordResetRedisTTL,
   refreshTokenConstants,
   verifyEmailRedisPrefix,
   verifyEmailRedisTTL,
@@ -23,12 +31,22 @@ import {
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { EmailService } from 'src/email/email.service';
-import { VerificationEmailTemplateHtml } from 'src/common/templates/emails.templates.list';
+import {
+  PasswordResetConfirmationEmailTemplateHtml,
+  PasswordResetEmailTemplateHtml,
+  VerificationEmailTemplateHtml,
+} from 'src/common/templates/emails.templates.list';
 import { UserMin } from 'src/common/types';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+
+  private readonly ENCRYPTION_KEY = createHash('sha256')
+    .update(process.env.JWT_SECRET || 'fallback-secret-key')
+    .digest(); // 32 bytes for AES-256
+
+  private readonly IV_LENGTH = 16; // AES block size
 
   constructor(
     private prisma: PrismaService,
@@ -620,6 +638,163 @@ export class AuthService {
 
   //// Helper Methods ////
 
+  /**
+   * Requests a password reset by sending a reset link to the user's email.
+   * Only users with CREDENTIAL provider can reset their password.
+   * @param email - The email address of the user requesting password reset.
+   * @returns A success message indicating the email was sent.
+   */
+  async requestPasswordReset(
+    email: string,
+  ): Promise<{ message: string; email: string }> {
+    // Find user by email
+    const user = await this.prisma.users.findUnique({
+      where: { email },
+      select: { id: true, email: true, providers: true, name: true },
+    });
+
+    // For security reasons, always return success even if user doesn't exist
+    // This prevents email enumeration attacks
+    if (!user) {
+      this.logger.warn(
+        `Password reset requested for non-existent email: ${email}`,
+      );
+      return {
+        email,
+        message:
+          'If an account with that email exists, a password reset link has been sent',
+      };
+    }
+
+    // Check if user has CREDENTIAL provider
+    if (!user.providers.includes(Provider.CREDENTIAL)) {
+      this.logger.warn(
+        `Password reset requested for OAuth-only user: ${email}`,
+      );
+      // Don't reveal that the account exists but uses OAuth
+      return {
+        email,
+        message:
+          'If an account with that email exists, a password reset link has been sent',
+      };
+    }
+
+    // Generate token with embedded userId (using the new private method)
+    const { fullToken, randomPart } = this.generatePasswordResetToken(user.id);
+
+    // Hash only the random part for Redis storage
+    const hashedToken = createHash('sha256').update(randomPart).digest('hex');
+
+    // Store hashed token in Redis with TTL
+    const redisKey = passwordResetRedisPrefix + user.id;
+    await this.cacheManager.set(redisKey, hashedToken, passwordResetRedisTTL);
+
+    this.logger.log(`Password reset token generated for user ID: ${user.id}`);
+
+    // Create reset link with the plain token (not hashed)
+    const resetLink = `${FRONTEND_URL}/reset-password?token=${fullToken}`;
+
+    // Send password reset email
+    await this.emailService.sendEmail(
+      user.email,
+      'Password Reset Request',
+      PasswordResetEmailTemplateHtml(resetLink, user.email),
+    );
+
+    this.logger.log(`Password reset email sent to: ${user.email}`);
+
+    return {
+      email,
+      message:
+        'If an account with that email exists, a password reset link has been sent',
+    };
+  }
+
+  /**
+   * Resets the user's password using a valid reset token.
+   * Invalidates all existing sessions for security.
+   * @param userId - The ID of the user resetting their password.
+   * @param token - The password reset token from the email.
+   * @param newPassword - The new password to set.
+   * @returns A success message.
+   */
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    // Decrypt token to extract userId
+    const userId = this.decryptPasswordResetToken(token);
+
+    // Extract random part for Redis validation
+    const [randomPart] = token.split('.');
+
+    if (!randomPart) {
+      throw new BadRequestException('Invalid reset token format');
+    }
+
+    // Verify user exists
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, providers: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Verify user has CREDENTIAL provider
+    if (!user.providers.includes(Provider.CREDENTIAL)) {
+      throw new BadRequestException(
+        'Password reset is not available for accounts that only use social login providers',
+      );
+    }
+
+    // Get stored hashed token from Redis
+    const redisKey = passwordResetRedisPrefix + userId;
+    const storedHashedToken = await this.cacheManager.get<string>(redisKey);
+
+    if (!storedHashedToken) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Hash the random part from the token and compare with stored hash
+    const hashedToken = createHash('sha256').update(randomPart).digest('hex');
+
+    if (hashedToken !== storedHashedToken) {
+      this.logger.warn(`Invalid reset token attempt for user ID: ${userId}`);
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update user's password
+    await this.prisma.users.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    // Delete the reset token from Redis
+    await this.cacheManager.del(redisKey);
+
+    // Invalidate all active sessions for security
+    await this.logoutAll(userId);
+
+    this.logger.log(`Password reset successfully for user ID: ${userId}`);
+
+    // Send confirmation email
+    await this.emailService.sendEmail(
+      user.email,
+      'Password Changed Successfully',
+      PasswordResetConfirmationEmailTemplateHtml(user.email),
+    );
+
+    return {
+      message:
+        'Password reset successful. All sessions have been logged out for security',
+    };
+  }
+
   private async generateUniqueRefreshToken(): Promise<{
     token: string;
     hashedToken: string;
@@ -657,5 +832,108 @@ export class AuthService {
   private generateVerificationCode(): number {
     // Generate a random 6-digit number between 100000 and 999999 (inclusive)
     return Math.floor(Math.random() * 900000) + 100000;
+  }
+
+  /**
+   * Generates a secure password reset token with embedded userId.
+   * Token format: {randomPart}.{encryptedPayload}
+   * @param userId - The user ID to embed in the token
+   * @returns Object containing the full token and the random part for hashing
+   */
+  private generatePasswordResetToken(userId: string): {
+    fullToken: string;
+    randomPart: string;
+  } {
+    // Generate 64 random bytes for the first part (128 hex characters)
+    const randomPart = randomBytes(64).toString('hex');
+
+    // Create payload with userId and timestamp
+    const payload = JSON.stringify({
+      userId,
+      createdAt: Date.now(),
+    });
+
+    // Generate random IV (Initialization Vector) for encryption
+    const iv = randomBytes(this.IV_LENGTH);
+
+    // Encrypt the payload using AES-256-CBC
+    const cipher = createCipheriv('aes-256-cbc', this.ENCRYPTION_KEY, iv);
+    let encrypted = cipher.update(payload, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+
+    // Combine IV + encrypted data and encode as base64url
+    const encryptedPayload = Buffer.from(
+      iv.toString('hex') + encrypted,
+    ).toString('base64url');
+
+    // Format: {randomPart}.{encryptedPayload}
+    const fullToken = `${randomPart}.${encryptedPayload}`;
+
+    return { fullToken, randomPart };
+  }
+
+  /**
+   * Decrypts and validates a password reset token, extracting the userId.
+   * @param token - The full password reset token
+   * @returns The userId extracted from the token
+   * @throws BadRequestException if token format is invalid or decryption fails
+   */
+  private decryptPasswordResetToken(token: string): string {
+    try {
+      // Split token into parts
+      const parts = token.split('.');
+      if (parts.length !== 2) {
+        throw new BadRequestException('Invalid reset token format');
+      }
+
+      const [randomPart, encryptedPayload] = parts;
+
+      // Validate random part length (should be 128 hex characters for 64 bytes)
+      if (randomPart.length !== 128) {
+        throw new BadRequestException('Invalid reset token format');
+      }
+
+      // Decode the encrypted payload
+      const combined = Buffer.from(encryptedPayload, 'base64url').toString(
+        'utf8',
+      );
+
+      // Extract IV (first 32 hex characters = 16 bytes)
+      const ivHex = combined.slice(0, this.IV_LENGTH * 2);
+      const encrypted = combined.slice(this.IV_LENGTH * 2);
+
+      const iv = Buffer.from(ivHex, 'hex');
+
+      // Decrypt the payload using AES-256-CBC
+      const decipher = createDecipheriv('aes-256-cbc', this.ENCRYPTION_KEY, iv);
+      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+
+      // Parse the payload
+      const payload = JSON.parse(decrypted);
+
+      if (!payload.userId || !payload.createdAt) {
+        throw new BadRequestException('Invalid token payload');
+      }
+
+      // Optional: Add additional time-based validation
+      const tokenAge = Date.now() - payload.createdAt;
+      const maxAge = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+      if (tokenAge > maxAge) {
+        this.logger.warn(
+          `Expired token attempt for user ID: ${payload.userId}`,
+        );
+        throw new BadRequestException('Reset token has expired');
+      }
+
+      return payload.userId;
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error('Failed to decrypt password reset token', error.stack);
+      throw new BadRequestException('Invalid or corrupted reset token');
+    }
   }
 }

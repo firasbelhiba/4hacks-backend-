@@ -29,7 +29,104 @@ export const VerificationEmailTemplateHtml = (code: number, email: string) => {
           </p>
 
           <p style="margin: 24px 0 0 0; font-size: 14px; color: #666;">
-            If you didn’t ask for this, just ignore the message.
+            If you didn't ask for this, just ignore the message.
+          </p>
+
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+export const PasswordResetEmailTemplateHtml = (
+  resetLink: string,
+  email: string,
+  expirationMinutes = 15,
+) => {
+  return `
+    <html>
+      <body style="font-family: Arial, sans-serif; padding: 20px; color: #222;">
+        <div style="max-width: 600px; margin: auto; background-color: #f9fafb; padding: 24px; border-radius: 8px;">
+          <h2 style="color: #3b82f6; margin-bottom: 16px;">
+            Password Reset Request
+          </h2>
+
+          <p style="margin: 0 0 16px 0;">
+            Hey ${email},
+          </p>
+
+          <p style="margin: 0 0 16px 0;">
+            We received a request to reset your password. Click the button below to reset it:
+          </p>
+
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${resetLink}" 
+               style="
+                 background-color: #3b82f6;
+                 color: white;
+                 padding: 12px 32px;
+                 text-decoration: none;
+                 border-radius: 6px;
+                 display: inline-block;
+                 font-weight: bold;
+               ">
+              Reset Password
+            </a>
+          </div>
+
+          <p style="margin: 16px 0; font-size: 14px; color: #666;">
+            Or copy and paste this link into your browser:
+          </p>
+          
+          <p style="
+            margin: 0 0 24px 0;
+            padding: 12px;
+            background-color: #fff;
+            border-radius: 4px;
+            word-break: break-all;
+            font-size: 13px;
+            color: #3b82f6;
+          ">
+            ${resetLink}
+          </p>
+
+          <p style="margin: 24px 0 8px 0; font-size: 14px; color: #666;">
+            This link will expire in ${expirationMinutes} minutes.
+          </p>
+
+          <p style="margin: 0; font-size: 14px; color: #666;">
+            If you didn't request a password reset, please ignore this email or contact support if you have concerns.
+          </p>
+
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+export const PasswordResetConfirmationEmailTemplateHtml = (email: string) => {
+  return `
+    <html>
+      <body style="font-family: Arial, sans-serif; padding: 20px; color: #222;">
+        <div style="max-width: 600px; margin: auto; background-color: #f9fafb; padding: 24px; border-radius: 8px;">
+          <h2 style="color: #10b981; margin-bottom: 16px;">
+            Password Changed Successfully
+          </h2>
+
+          <p style="margin: 0 0 16px 0;">
+            Hey ${email},
+          </p>
+
+          <p style="margin: 0 0 16px 0;">
+            Your password has been successfully changed. You can now log in with your new password.
+          </p>
+
+          <p style="margin: 16px 0; font-size: 14px; color: #666;">
+            For your security, all active sessions have been logged out. Please log in again with your new password.
+          </p>
+
+          <p style="margin: 24px 0 0 0; font-size: 14px; color: #666;">
+            If you didn't make this change, please contact our support team immediately.
           </p>
 
         </div>
