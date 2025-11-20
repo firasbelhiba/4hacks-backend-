@@ -17,6 +17,9 @@ export const AUTH_REFRESH_API_PREFIX = `${API_PREFIX}/auth`;
 export const verifyEmailRedisTTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 export const verifyEmailRedisPrefix = 'verif_em_';
 
+export const passwordResetRedisTTL = 15 * 60 * 1000; // 15 minutes in milliseconds
+export const passwordResetRedisPrefix = 'pwd_reset_';
+
 export const googleOAuthConstants = {
   clientID: process.env.GOOGLE_CLIENT_ID || '',
   clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
