@@ -11,7 +11,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
-import { SessionStatus, UserRole } from 'generated/prisma';
+import { Provider, SessionStatus, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { createHash, randomBytes } from 'crypto';
@@ -24,6 +24,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { EmailService } from 'src/email/email.service';
 import { VerificationEmailTemplateHtml } from 'src/common/templates/emails.templates.list';
+import { UserMin } from 'src/common/types';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +37,10 @@ export class AuthService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(
+    registerDto: RegisterDto,
+    provider: Provider = Provider.CREDENTIAL,
+  ) {
     const { name, email, password, username: usernameBody } = registerDto;
 
     const existingUser = await this.prisma.users.findUnique({
@@ -78,6 +82,7 @@ export class AuthService {
         password: hashedPassword,
         username,
         role,
+        providers: [provider],
       },
       select: {
         id: true,
@@ -86,6 +91,7 @@ export class AuthService {
         email: true,
         role: true,
         createdAt: true,
+        providers: true,
       },
     });
 
@@ -115,6 +121,7 @@ export class AuthService {
             password: true,
             role: true,
             createdAt: true,
+            providers: true,
           },
         })
       : await this.prisma.users.findUnique({
@@ -127,6 +134,7 @@ export class AuthService {
             password: true,
             role: true,
             createdAt: true,
+            providers: true,
           },
         });
 
@@ -140,6 +148,34 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Generate Access and Refresh Tokens for the user
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user);
+
+    this.logger.log(`User logged in: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
+  private async generateAccessAndRefreshTokens(
+    user: UserMin,
+    provider: Provider = Provider.CREDENTIAL,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+  }> {
     // Generate JWT token
     const payload = {
       sub: user.id,
@@ -164,25 +200,12 @@ export class AuthService {
         userId: user.id,
         refreshToken: hashedRefreshToken,
         expiresAt: refreshTokenExpiration,
+        provider,
       },
       select: { id: true },
     });
 
-    this.logger.log(`User logged in: ${user.email}`);
-
-    return {
-      message: 'User logged in successfully',
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt,
-      },
-    };
+    return { accessToken, refreshToken };
   }
 
   /**
@@ -430,6 +453,84 @@ export class AuthService {
     return {
       message: 'Email verified successfully',
       email: user.email,
+    };
+  }
+
+  /// Google OAuth Methods ////
+  async validateGoogleQauthUser(email: string, name: string, image: string) {
+    let user = await this.prisma.users.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (user) {
+      // If user exists, ensure Google is listed as a provider
+      if (!user.providers.includes(Provider.GOOGLE)) {
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: { providers: { push: Provider.GOOGLE } },
+        });
+      }
+      return user;
+    }
+
+    // If user does not exist, create a new user
+    const result = await this.register(
+      {
+        name,
+        email,
+        password: '',
+      },
+      Provider.GOOGLE,
+    );
+
+    return result.data;
+  }
+
+  async handleGoogleOAuthCallback(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Generate Access and Refresh Tokens for the user
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user, Provider.GOOGLE);
+
+    this.logger.log(`User logged in via Google OAuth: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully via Google OAuth',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
     };
   }
 

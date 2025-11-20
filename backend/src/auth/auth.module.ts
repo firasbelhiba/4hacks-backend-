@@ -8,6 +8,7 @@ import { PassportModule } from '@nestjs/passport';
 import { StringValue } from 'ms';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { EmailModule } from 'src/email/email.module';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
   imports: [
@@ -21,6 +22,6 @@ import { EmailModule } from 'src/email/email.module';
   ],
 
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, GoogleStrategy],
 })
 export class AuthModule {}

@@ -21,7 +21,7 @@ import KeyvRedis from '@keyv/redis';
         const redisUrl =
           configService.get('REDIS_URL') || 'redis://localhost:6379';
 
-        // Create Keyv instance with Redis store
+        // Create Keyv instance with Redis stores
         const keyvRedisStore = new KeyvRedis(redisUrl);
 
         return {
