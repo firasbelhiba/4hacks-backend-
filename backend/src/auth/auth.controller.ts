@@ -30,6 +30,8 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GithubAuthGuard } from './guards/github.guard';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -407,6 +409,71 @@ export class AuthController {
     @Body() body: VerifyEmailDto,
   ) {
     return this.authService.verifyEmail(userId, body.code);
+  }
+
+  @ApiOperation({
+    summary: 'Request password reset',
+    description:
+      'Sends a password reset email with a secure token link. Only available for users with credential-based accounts.',
+  })
+  @ApiBody({ type: RequestPasswordResetDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Password reset email sent (if account exists)',
+    schema: {
+      example: {
+        message:
+          'If an account with that email exists, a password reset link has been sent',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request. Invalid email format.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: ['Please provide a valid email address'],
+        error: 'Bad Request',
+      },
+    },
+  })
+  @Post('password/reset/request')
+  async requestPasswordReset(@Body() body: RequestPasswordResetDto) {
+    return this.authService.requestPasswordReset(body.email);
+  }
+
+  @ApiOperation({
+    summary: 'Reset password with token',
+    description:
+      'Resets the user password using the token received via email. All active sessions will be invalidated for security.',
+  })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Password reset successfully',
+    schema: {
+      example: {
+        message:
+          'Password reset successful. All sessions have been logged out for security',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Bad Request. Invalid/expired token, OAuth-only account, or validation errors.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Invalid or expired reset token',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @Post('password/reset')
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    return this.authService.resetPassword(body.token, body.newPassword);
   }
 
   ////// Google OAuth routes here //////
