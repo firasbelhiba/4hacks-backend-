@@ -636,6 +636,90 @@ export class AuthService {
     };
   }
 
+  /// LinkedIn OAuth Methods ////
+  async validateLinkedinOAuthUser(
+    email: string,
+    name: string,
+    image: string,
+  ): Promise<UserMin> {
+    console.log('Validating LinkedIn OAuth user');
+    let user = await this.prisma.users.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (user) {
+      // If user exists, ensure LinkedIn is listed as a provider
+      if (!user.providers.includes(Provider.LINKEDIN)) {
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: { providers: { push: Provider.LINKEDIN } },
+        });
+      }
+      return user;
+    }
+
+    console.log('Creating new user for LinkedIn OAuth');
+    // If user does not exist, create a new user
+    const result = await this.register(
+      {
+        name,
+        email,
+        password: '',
+      },
+      Provider.LINKEDIN,
+    );
+
+    return result.data;
+  }
+
+  async handleLinkedinOAuthCallback(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Generate Access and Refresh Tokens for the user
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user, Provider.LINKEDIN);
+
+    this.logger.log(`User logged in via LinkedIn OAuth: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully via LinkedIn OAuth',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
   //// Helper Methods ////
 
   /**
