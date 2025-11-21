@@ -39,34 +39,38 @@ enum Provider {
 }
 
 model users {
-  id              String     @id @default(cuid())
-  email           String     @unique
-  username        String     @unique
-  walletAddress   String?    @unique
+  id              String        @id @default(cuid())
+  email           String        @unique
+  username        String        @unique
+  walletAddress   String?       @unique
   password        String
   name            String
-  role            UserRole   @default(USER)
+  role            UserRole      @default(USER)
   image           String?
-  providers       Provider[] @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
+  providers       Provider[]    @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
   profession      String?
   bio             String?
   location        String?
   org             String? // Organization name (school, company, etc.)
-  skills          String[]   @default([])
+  skills          String[]      @default([])
   website         String?
   github          String?
   linkedin        String?
   telegram        String?
   twitter         String?
   whatsapp        String?
-  otherSocials    String[]   @default([])
-  isEmailVerified Boolean    @default(false)
+  otherSocials    String[]      @default([])
+  isEmailVerified Boolean       @default(false)
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   sessions        Session[]
+  revokedSessions Session[]     @relation("RevokedSessions")
+  failedLogins    FailedLogin[]
 
+  @@index([email])
+  @@index([username])
   @@map("users")
 }
 
@@ -78,10 +82,28 @@ model Session {
   expiresAt    DateTime
   status       SessionStatus @default(ACTIVE)
   revokedAt    DateTime?
+  revokedById  String? // userId who revoked the session
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      users  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revokedBy users? @relation("RevokedSessions", fields: [revokedById], references: [id], onDelete: SetNull)
 
+  @@index([userId])
   @@map("sessions")
+}
+
+model FailedLogin {
+  id        String   @id @default(cuid())
+  userId    String? // null if the email doesn't exist
+  email     String // email used in attempt
+  reason    String? // short message: "wrong-password", "no-user", etc.
+  createdAt DateTime @default(now())
+
+  user users? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("failed_logins")
 }
