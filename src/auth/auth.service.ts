@@ -162,12 +162,26 @@ export class AuthService {
         });
 
     if (!user) {
+      await this.prisma.failedLogin.create({
+        data: {
+          identifier,
+          reason: 'no-user',
+        },
+      });
+
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
+      await this.prisma.failedLogin.create({
+        data: {
+          userId: user.id,
+          identifier,
+          reason: 'wrong-password',
+        },
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 

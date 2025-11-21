@@ -94,15 +94,15 @@ model Session {
 }
 
 model FailedLogin {
-  id        String   @id @default(cuid())
-  userId    String? // null if the email doesn't exist
-  email     String // email used in attempt
-  reason    String? // short message: "wrong-password", "no-user", etc.
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String? // null if the user doesn't exist
+  identifier String // email or username used in attempt
+  reason     String? // short message: "wrong-password", "no-user", etc.
+  createdAt  DateTime @default(now())
 
   user users? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([email])
+  @@index([identifier])
   @@index([userId])
   @@index([createdAt])
   @@map("failed_logins")
