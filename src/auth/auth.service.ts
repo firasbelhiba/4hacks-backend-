@@ -329,7 +329,11 @@ export class AuthService {
     // Update session status to revoked
     const deletedSession = await this.prisma.session.update({
       where: { id: session.id },
-      data: { status: SessionStatus.REVOKED, revokedAt: new Date() },
+      data: {
+        status: SessionStatus.REVOKED,
+        revokedAt: new Date(),
+        revokedById: session.userId,
+      },
     });
 
     this.logger.log(
@@ -345,7 +349,11 @@ export class AuthService {
     // Update all sessions for the user to revoked
     const result = await this.prisma.session.updateMany({
       where: { userId, status: SessionStatus.ACTIVE },
-      data: { status: SessionStatus.REVOKED, revokedAt: new Date() },
+      data: {
+        status: SessionStatus.REVOKED,
+        revokedAt: new Date(),
+        revokedById: userId,
+      },
     });
 
     if (result.count === 0) {
