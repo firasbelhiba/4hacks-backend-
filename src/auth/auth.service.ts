@@ -92,6 +92,10 @@ export class AuthService {
     // Hash the password before storing
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // If registration is through OAuth, auto-verify email since OAuth providers verify emails
+    // If registration is through credentials, keep email unverified (user must verify manually)
+    const isOAuthProvider = provider !== Provider.CREDENTIAL;
+
     // Create the new user
     const newUser = await this.prisma.users.create({
       data: {
@@ -101,6 +105,8 @@ export class AuthService {
         username,
         role,
         providers: [provider],
+        isEmailVerified: isOAuthProvider,
+        emailVerifiedAt: isOAuthProvider ? new Date() : null,
       },
       select: {
         id: true,
