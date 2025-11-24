@@ -173,3 +173,21 @@ export class TwoFactorCodeDto {
   @Matches(/^\d{6}$/)
   code: string;
 }
+
+export class DisableAccountDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  password?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/)
+  twoFactorCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}

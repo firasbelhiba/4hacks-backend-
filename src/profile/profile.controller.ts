@@ -26,6 +26,7 @@ import { ProfileService } from './profile.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import {
+  DisableAccountDto,
   TwoFactorCodeDto,
   UpdatePasswordDto,
   UpdateProfileDto,
@@ -357,5 +358,53 @@ export class ProfileController {
     @Body() codeDto: TwoFactorCodeDto,
   ) {
     return await this.profileService.verifyTwoFactorDisable(userId, codeDto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Disable user account',
+    description:
+      'Permanently disables the authenticated user account. Requires password or 2FA code confirmation. All sessions will be revoked.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Account disabled successfully.',
+    schema: {
+      example: {
+        message: 'Account has been disabled successfully',
+        disabledAt: '2025-11-24T15:30:00.000Z',
+        reason: 'No longer using the platform',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Validation or business rule violated.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Account is already disabled',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Invalid password or 2FA code.',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'Invalid password',
+        error: 'Forbidden',
+      },
+    },
+  })
+  @Post('disable')
+  async disableAccount(
+    @CurrentUser('id') userId: string,
+    @Body() disableDto: DisableAccountDto,
+  ) {
+    return await this.profileService.disableAccount(userId, disableDto);
   }
 }

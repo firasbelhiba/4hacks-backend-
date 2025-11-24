@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -156,6 +157,7 @@ export class AuthService {
             createdAt: true,
             providers: true,
             twoFactorEnabled: true,
+            isDisabled: true,
           },
         })
       : await this.prisma.users.findUnique({
@@ -170,6 +172,7 @@ export class AuthService {
             createdAt: true,
             providers: true,
             twoFactorEnabled: true,
+            isDisabled: true,
           },
         });
 
@@ -182,6 +185,20 @@ export class AuthService {
       });
 
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.isDisabled) {
+      await this.prisma.failedLogin.create({
+        data: {
+          userId: user.id,
+          identifier,
+          reason: 'account-disabled',
+        },
+      });
+
+      throw new ForbiddenException(
+        'This account has been disabled. Please contact support if you believe this is an error.',
+      );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);

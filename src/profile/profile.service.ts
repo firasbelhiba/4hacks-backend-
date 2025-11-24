@@ -9,6 +9,7 @@ import {
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
+  DisableAccountDto,
   TwoFactorCodeDto,
   UpdatePasswordDto,
   UpdateProfileDto,
@@ -26,6 +27,7 @@ import * as bcrypt from 'bcrypt';
 import { EmailService } from 'src/email/email.service';
 import { Provider, SessionStatus } from 'generated/prisma';
 import {
+  AccountDisabledEmailTemplateHtml,
   PasswordChangedEmailTemplateHtml,
   TwoFactorEmailCodeTemplateHtml,
 } from 'src/common/templates/emails.templates.list';
@@ -380,5 +382,124 @@ export class ProfileService {
 
   private getTwoFactorRedisKey(prefix: string, userId: string) {
     return `${prefix}${userId}`;
+  }
+
+  async disableAccount(userId: string, disableDto: DisableAccountDto) {
+    const { password, twoFactorCode, reason } = disableDto;
+
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        providers: true,
+        twoFactorEnabled: true,
+        isDisabled: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isDisabled) {
+      throw new BadRequestException('Account is already disabled');
+    }
+
+    // Validate credentials - require password OR 2FA code
+    if (!password && !twoFactorCode) {
+      throw new BadRequestException(
+        'Either password or two-factor authentication code is required',
+      );
+    }
+
+    let isAuthenticated = false;
+
+    // Check password if provided and user has CREDENTIAL provider
+    if (password) {
+      if (!user.providers.includes(Provider.CREDENTIAL)) {
+        throw new BadRequestException(
+          'Password authentication is not available for this account',
+        );
+      }
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (isPasswordValid) {
+        isAuthenticated = true;
+      } else {
+        throw new ForbiddenException('Invalid password');
+      }
+    }
+
+    // Check 2FA code if provided and user has 2FA enabled
+    if (twoFactorCode && !isAuthenticated) {
+      if (!user.twoFactorEnabled) {
+        throw new BadRequestException(
+          'Two-factor authentication is not enabled for this account',
+        );
+      }
+
+      // Verify 2FA code - user should have requested it via 2FA disable endpoint first
+      // For MVP, we'll check if there's a pending code in Redis from 2FA disable flow
+      const storedCode = await this.getTwoFactorCode(
+        twoFactorDisableRedisPrefix,
+        userId,
+      );
+
+      if (!storedCode) {
+        throw new BadRequestException(
+          'Two-factor code not found. Please request a code first via the 2FA disable endpoint, or use your password.',
+        );
+      }
+
+      if (storedCode !== twoFactorCode) {
+        throw new ForbiddenException('Invalid two-factor authentication code');
+      }
+
+      isAuthenticated = true;
+      // Delete the code after use
+      await this.deleteTwoFactorCode(twoFactorDisableRedisPrefix, userId);
+    }
+
+    if (!isAuthenticated) {
+      throw new ForbiddenException('Authentication failed');
+    }
+
+    const disabledAt = new Date();
+
+    // Update account and revoke all sessions
+    await this.prisma.$transaction([
+      this.prisma.users.update({
+        where: { id: userId },
+        data: {
+          isDisabled: true,
+          disabledAt,
+          disabledReason: reason || null,
+        },
+      }),
+      this.prisma.session.updateMany({
+        where: { userId, status: SessionStatus.ACTIVE },
+        data: {
+          status: SessionStatus.REVOKED,
+          revokedAt: disabledAt,
+          revokedById: userId,
+        },
+      }),
+    ]);
+
+    // Send email notification
+    await this.emailService.sendEmail(
+      user.email,
+      'Account Disabled',
+      AccountDisabledEmailTemplateHtml(user.email, reason),
+    );
+
+    this.logger.log(`Account disabled for user: ${userId}`);
+
+    return {
+      message: 'Account has been disabled successfully',
+      disabledAt,
+      reason: reason || null,
+    };
   }
 }
