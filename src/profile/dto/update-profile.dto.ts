@@ -8,6 +8,7 @@ import {
   MinLength,
   Matches,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class UpdateProfileDto {
   @ApiPropertyOptional({
@@ -68,7 +69,12 @@ export class UpdateProfileDto {
     type: [String],
   })
   @IsOptional()
-
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((item) => item.trim());
+    }
+    return value;
+  })
   skills?: string[];
 
   @ApiPropertyOptional({
@@ -133,5 +139,11 @@ export class UpdateProfileDto {
     type: [String],
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((item) => item.trim());
+    }
+    return value;
+  })
   otherSocials?: string[];
 }

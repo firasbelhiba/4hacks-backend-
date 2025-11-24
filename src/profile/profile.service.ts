@@ -92,17 +92,7 @@ export class ProfileService {
     const updatedProfile = await this.prisma.users.update({
       where: { id: userId },
       data: {
-        name: updateProfileDto.name,
-        bio: updateProfileDto.bio,
-        profession: updateProfileDto.profession,
-        location: updateProfileDto.location,
-        org: updateProfileDto.org,
-        website: updateProfileDto.website,
-        github: updateProfileDto.github,
-        linkedin: updateProfileDto.linkedin,
-        telegram: updateProfileDto.telegram,
-        twitter: updateProfileDto.twitter,
-        whatsapp: updateProfileDto.whatsapp,
+        ...updateProfileDto,
         image: imageUrl,
       },
     });

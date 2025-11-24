@@ -32,7 +32,6 @@ export class FileUploadService {
    * @returns The URL or path of the uploaded image.
    */
   async uploadProfileImage(file: Express.Multer.File): Promise<string> {
-    console.log('Uploading profile image2...');
     // Validate file type
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedMimeTypes.includes(file.mimetype)) {
