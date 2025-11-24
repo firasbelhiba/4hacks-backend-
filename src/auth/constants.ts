@@ -36,4 +36,12 @@ export const githubOAuthConstants = {
     'http://localhost:8080/api/v1/auth/github/callback',
 };
 
+export const linkedinOAuthConstants = {
+  clientID: process.env.LINKEDIN_CLIENT_ID || '',
+  clientSecret: process.env.LINKEDIN_CLIENT_SECRET || '',
+  callbackURL:
+    process.env.LINKEDIN_CALLBACK_URL ||
+    'http://localhost:8080/api/v1/auth/linkedin/callback',
+};
+
 export const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';

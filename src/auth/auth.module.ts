@@ -10,6 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { EmailModule } from 'src/email/email.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GithubStrategy } from './strategies/github.strategy';
+import { LinkedinStrategy } from './strategies/linkedin.strategy';
 
 @Module({
   imports: [
@@ -23,6 +24,12 @@ import { GithubStrategy } from './strategies/github.strategy';
   ],
 
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, GoogleStrategy, GithubStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    GoogleStrategy,
+    GithubStrategy,
+    LinkedinStrategy,
+  ],
 })
 export class AuthModule {}
