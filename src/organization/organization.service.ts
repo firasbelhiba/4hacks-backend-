@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateOrganizationDto } from './dto/create.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -47,6 +53,33 @@ export class OrganizationService {
 
     return {
       message: 'Organization created successfully',
+      data: organization,
+    };
+  }
+
+  async findOne(identifier: string) {
+    const organization = await this.prismaService.organization.findFirst({
+      where: {
+        OR: [{ id: identifier }, { slug: identifier }, { name: identifier }],
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    return {
+      message: 'Organization fetched successfully',
       data: organization,
     };
   }

@@ -1,7 +1,8 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -63,5 +64,54 @@ export class OrganizationController {
     @Body() createOrganizationDto: CreateOrganizationDto,
   ) {
     return await this.organizationService.create(userId, createOrganizationDto);
+  }
+
+  @ApiOperation({
+    summary: 'Get organization by id, slug or name',
+    description: 'Get organization by id, slug or name',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Organization fetched successfully',
+    schema: {
+      example: {
+        message: 'Organization fetched successfully',
+        data: {
+          id: '1',
+          name: 'Organization 1',
+          slug: 'organization-1',
+          logo: 'https://example.com/logo.png',
+          tagline: 'Tagline 1',
+          description: 'Description 1',
+          location: 'Location 1',
+          website: 'https://example.com',
+          github: 'https://github.com/organization-1',
+          twitter: 'https://twitter.com/organization-1',
+          ownerId: '1',
+          createdAt: '2022-01-01T00:00:00.000Z',
+          updatedAt: '2022-01-01T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Organization not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'Organization not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'Organization id, slug or name',
+    type: 'string',
+  })
+  @Get(':identifier')
+  async findOne(@Param('identifier') identifier: string) {
+    return await this.organizationService.findOne(identifier);
   }
 }
