@@ -74,19 +74,24 @@ export class AuthService {
     const role = isFirstUser ? UserRole.ADMIN : UserRole.USER;
 
     // Generate a default username from email
-    const username = usernameBody
-      ? usernameBody.toLowerCase()
-      : email.split('@')[0].toLowerCase();
+    const isGenratingNewUsername = !usernameBody;
 
-    // Check if the generated username is unique
-    const isUsernameExists = await this.prisma.users.findUnique({
-      where: { username },
-    });
+    // If username is not provided, generate unique one from email
+    const username = isGenratingNewUsername
+      ? await this.generateUniqueUsername(email.split('@')[0])
+      : usernameBody;
 
-    if (isUsernameExists) {
-      throw new ConflictException(
-        'Username already exists. Please Provide another one.',
-      );
+    // Check if the provided username is unique if it is given inside the request body
+    if (!isGenratingNewUsername) {
+      const isUsernameExists = await this.prisma.users.findUnique({
+        where: { username },
+      });
+
+      if (isUsernameExists) {
+        throw new ConflictException(
+          'Username already exists. Please Provide another one.',
+        );
+      }
     }
 
     // Hash the password before storing
@@ -157,12 +162,26 @@ export class AuthService {
         });
 
     if (!user) {
+      await this.prisma.failedLogin.create({
+        data: {
+          identifier,
+          reason: 'no-user',
+        },
+      });
+
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
+      await this.prisma.failedLogin.create({
+        data: {
+          userId: user.id,
+          identifier,
+          reason: 'wrong-password',
+        },
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -324,7 +343,11 @@ export class AuthService {
     // Update session status to revoked
     const deletedSession = await this.prisma.session.update({
       where: { id: session.id },
-      data: { status: SessionStatus.REVOKED, revokedAt: new Date() },
+      data: {
+        status: SessionStatus.REVOKED,
+        revokedAt: new Date(),
+        revokedById: session.userId,
+      },
     });
 
     this.logger.log(
@@ -340,7 +363,11 @@ export class AuthService {
     // Update all sessions for the user to revoked
     const result = await this.prisma.session.updateMany({
       where: { userId, status: SessionStatus.ACTIVE },
-      data: { status: SessionStatus.REVOKED, revokedAt: new Date() },
+      data: {
+        status: SessionStatus.REVOKED,
+        revokedAt: new Date(),
+        revokedById: userId,
+      },
     });
 
     if (result.count === 0) {
@@ -934,6 +961,59 @@ export class AuthService {
       }
       this.logger.error('Failed to decrypt password reset token', error.stack);
       throw new BadRequestException('Invalid or corrupted reset token');
+    }
+  }
+
+  private async generateUniqueUsername(
+    defaultUsername: string,
+  ): Promise<string> {
+    try {
+      // First, check if the default username already exists
+      const isDefaultUsernameExists = await this.prisma.users.findUnique({
+        where: { username: defaultUsername },
+        select: { username: true },
+      });
+
+      if (!isDefaultUsernameExists) {
+        // If the default username is unique, return it immediately
+        return defaultUsername;
+      }
+
+      // If the default username exists, generate a batch of potential usernames
+      const batchSize = 5;
+
+      // Number suffixes to append to the default username are between 0 and 9999
+      const potentialUsernames = Array.from(
+        { length: batchSize },
+        () => `${defaultUsername}${Math.floor(Math.random() * 10000)}`,
+      );
+
+      // Check which usernames already exist in a single query
+      const existingUsernames = await this.prisma.users.findMany({
+        where: { username: { in: potentialUsernames } },
+        select: { username: true },
+      });
+
+      // Create a set of existing usernames for quick lookup
+      const existingSet = new Set(existingUsernames.map((u) => u.username));
+
+      // Find the first unique username
+      const uniqueUsername = potentialUsernames.find(
+        (username) => !existingSet.has(username),
+      );
+
+      if (uniqueUsername) {
+        return uniqueUsername;
+      }
+
+      throw new BadRequestException(
+        'Failed to generate a unique username. Try to provide a different one.',
+      );
+    } catch (error) {
+      this.logger.error('Error checking username uniqueness', error);
+      throw new InternalServerErrorException(
+        'Could not generate a unique username',
+      );
     }
   }
 }
