@@ -97,6 +97,10 @@ export class AuthService {
     // Hash the password before storing
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // If registration is through OAuth, auto-verify email since OAuth providers verify emails
+    // If registration is through credentials, keep email unverified (user must verify manually)
+    const isOAuthProvider = provider !== Provider.CREDENTIAL;
+
     // Create the new user
     const newUser = await this.prisma.users.create({
       data: {
@@ -106,6 +110,8 @@ export class AuthService {
         username,
         role,
         providers: [provider],
+        isEmailVerified: isOAuthProvider,
+        emailVerifiedAt: isOAuthProvider ? new Date() : null,
       },
       select: {
         id: true,
@@ -650,6 +656,90 @@ export class AuthService {
 
     return {
       message: 'User logged in successfully via Github OAuth',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
+  /// LinkedIn OAuth Methods ////
+  async validateLinkedinOAuthUser(
+    email: string,
+    name: string,
+    image: string,
+  ): Promise<UserMin> {
+    console.log('Validating LinkedIn OAuth user');
+    let user = await this.prisma.users.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (user) {
+      // If user exists, ensure LinkedIn is listed as a provider
+      if (!user.providers.includes(Provider.LINKEDIN)) {
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: { providers: { push: Provider.LINKEDIN } },
+        });
+      }
+      return user;
+    }
+
+    console.log('Creating new user for LinkedIn OAuth');
+    // If user does not exist, create a new user
+    const result = await this.register(
+      {
+        name,
+        email,
+        password: '',
+      },
+      Provider.LINKEDIN,
+    );
+
+    return result.data;
+  }
+
+  async handleLinkedinOAuthCallback(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Generate Access and Refresh Tokens for the user
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user, Provider.LINKEDIN);
+
+    this.logger.log(`User logged in via LinkedIn OAuth: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully via LinkedIn OAuth',
       accessToken,
       refreshToken,
       user: {

@@ -30,6 +30,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GithubAuthGuard } from './guards/github.guard';
+import { LinkedinAuthGuard } from './guards/linkedin.guard';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
@@ -537,6 +538,43 @@ export class AuthController {
     console.log('GitHub OAuth callback reached');
 
     const result = await this.authService.handleGithubOAuthCallback(userId);
+
+    // Set refresh token as HttpOnly cookie
+    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: AUTH_REFRESH_API_PREFIX,
+    });
+
+    res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
+  }
+
+  ///// LinkedIn OAuth routes here //////
+  @ApiOperation({
+    summary: 'Initiate LinkedIn OAuth2 login',
+    description:
+      'Redirects the user to LinkedIn for authentication. This endpoint cannot be tested via Swagger UI. To test it, please use a web browser to navigate to /api/v1/auth/linkedin/login',
+  })
+  @UseGuards(LinkedinAuthGuard)
+  @Get('linkedin/login')
+  linkedinLogin() {}
+
+  @ApiOperation({
+    summary: 'LinkedIn OAuth2 callback',
+    description:
+      'Handles the callback from LinkedIn after authentication. This endpoint cannot be tested via Swagger UI. It will be called by LinkedIn after user authentication using the first /api/v1/auth/linkedin/login endpoint.',
+  })
+  @UseGuards(LinkedinAuthGuard)
+  @Get('linkedin/callback')
+  async linkedinCallback(
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    console.log('LinkedIn OAuth callback reached');
+
+    const result = await this.authService.handleLinkedinOAuthCallback(userId);
 
     // Set refresh token as HttpOnly cookie
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
