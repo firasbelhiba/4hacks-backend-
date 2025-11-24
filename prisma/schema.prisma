@@ -11,18 +11,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
   ADMIN
   USER
-}
-
-enum OrganizationMemberRole {
-  OWNER
-  ADMIN
-  MEMBER
 }
 
 enum SessionStatus {
@@ -39,35 +33,36 @@ enum Provider {
 }
 
 model users {
-  id              String        @id @default(cuid())
-  email           String        @unique
-  username        String        @unique
-  walletAddress   String?       @unique
+  id              String         @id @default(cuid())
+  email           String         @unique
+  username        String         @unique
+  walletAddress   String?        @unique
   password        String
   name            String
-  role            UserRole      @default(USER)
+  role            UserRole       @default(USER)
   image           String?
-  providers       Provider[]    @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
+  providers       Provider[]     @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
   profession      String?
   bio             String?
   location        String?
   org             String? // Organization name (school, company, etc.)
-  skills          String[]      @default([])
+  skills          String[]       @default([])
   website         String?
   github          String?
   linkedin        String?
   telegram        String?
   twitter         String?
   whatsapp        String?
-  otherSocials    String[]      @default([])
-  isEmailVerified Boolean       @default(false)
+  otherSocials    String[]       @default([])
+  isEmailVerified Boolean        @default(false)
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
   sessions        Session[]
-  revokedSessions Session[]     @relation("RevokedSessions")
+  revokedSessions Session[]      @relation("RevokedSessions")
   failedLogins    FailedLogin[]
+  organizations   Organization[] // USER can create multiple organizations
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([email])
   @@index([username])
@@ -106,4 +101,26 @@ model FailedLogin {
   @@index([userId])
   @@index([createdAt])
   @@map("failed_logins")
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  logo        String?
+  tagline     String?
+  description String?
+  location    String?
+  website     String?
+  github      String?
+  twitter     String?
+  ownerId     String
+  owner       users    @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([name])
+  @@index([slug])
+  @@map("organizations")
 }
