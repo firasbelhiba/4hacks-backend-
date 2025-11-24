@@ -104,7 +104,7 @@ export const PasswordResetEmailTemplateHtml = (
   `;
 };
 
-export const PasswordResetConfirmationEmailTemplateHtml = (email: string) => {
+export const PasswordChangedEmailTemplateHtml = (email: string) => {
   return `
     <html>
       <body style="font-family: Arial, sans-serif; padding: 20px; color: #222;">
@@ -129,6 +129,51 @@ export const PasswordResetConfirmationEmailTemplateHtml = (email: string) => {
             If you didn't make this change, please contact our support team immediately.
           </p>
 
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+export const TwoFactorEmailCodeTemplateHtml = (
+  code: string,
+  action: 'enable' | 'disable' | 'login',
+) => {
+  const actionText =
+    action === 'login'
+      ? 'complete your login'
+      : action === 'enable'
+        ? 'enable two-factor authentication'
+        : 'disable two-factor authentication';
+
+  return `
+    <html>
+      <body style="font-family: Arial, sans-serif; padding: 20px; color: #222;">
+        <div style="max-width: 480px; margin: auto;">
+          <h2 style="color: #3b82f6; margin-bottom: 16px;">
+            2FA Verification Code
+          </h2>
+
+          <p style="margin: 0 0 12px 0;">
+            Use the following code to ${actionText} on 4Hacks:
+          </p>
+
+          <div style="
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 6px;
+            padding: 12px 0;
+          ">
+            ${code}
+          </div>
+
+          <p style="margin: 0 0 12px 0;">
+            This code expires in 5 minutes.
+          </p>
+
+          <p style="margin: 24px 0 0 0; font-size: 14px; color: #666;">
+            If you did not request this code, you can safely ignore this email.
+          </p>
         </div>
       </body>
     </html>

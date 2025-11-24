@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
 import { PrismaModule } from 'src/prisma/prisma.module';
-import { FileUploadService } from 'src/file-upload/file-upload.service';
 import { FileUploadModule } from 'src/file-upload/file-upload.module';
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
-  imports: [PrismaModule, FileUploadModule],
+  imports: [PrismaModule, FileUploadModule, EmailModule],
   controllers: [ProfileController],
   providers: [ProfileService],
 })

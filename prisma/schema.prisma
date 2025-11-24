@@ -63,6 +63,14 @@ model users {
   isEmailVerified Boolean       @default(false)
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
+  passwordUpdatedAt DateTime?
+  twoFactorEnabled Boolean       @default(false)
+  twoFactorSecret  String?
+  twoFactorBackupCodes String[]  @default([])
+  twoFactorConfirmedAt DateTime?
+  isDisabled      Boolean        @default(false)
+  disabledAt      DateTime?
+  disabledReason  String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   sessions        Session[]

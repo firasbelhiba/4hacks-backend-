@@ -1,4 +1,9 @@
-import { IsNotEmpty, IsString, IsStrongPassword } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsStrongPassword,
+  Matches,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -32,4 +37,24 @@ export class LoginDto {
     },
   )
   password: string;
+}
+
+export class VerifyTwoFactorLoginDto {
+  @ApiProperty({
+    description: 'Challenge identifier returned by the login endpoint',
+    required: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  challengeId: string;
+
+  @ApiProperty({
+    description: '6-digit code sent to the user email',
+    example: '123456',
+    required: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/)
+  code: string;
 }

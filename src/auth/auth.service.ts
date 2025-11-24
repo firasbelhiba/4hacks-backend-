@@ -13,15 +13,18 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { Provider, SessionStatus, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
-import { LoginDto } from './dto/login.dto';
+import { LoginDto, VerifyTwoFactorLoginDto } from './dto/login.dto';
 import {
   createCipheriv,
   createDecipheriv,
   createHash,
   randomBytes,
+  randomUUID,
 } from 'crypto';
 import {
   FRONTEND_URL,
+  twoFactorEmailRedisTTL,
+  twoFactorLoginRedisPrefix,
   passwordResetRedisPrefix,
   passwordResetRedisTTL,
   refreshTokenConstants,
@@ -32,8 +35,9 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { EmailService } from 'src/email/email.service';
 import {
-  PasswordResetConfirmationEmailTemplateHtml,
+  PasswordChangedEmailTemplateHtml,
   PasswordResetEmailTemplateHtml,
+  TwoFactorEmailCodeTemplateHtml,
   VerificationEmailTemplateHtml,
 } from 'src/common/templates/emails.templates.list';
 import { UserMin } from 'src/common/types';
@@ -151,6 +155,7 @@ export class AuthService {
             role: true,
             createdAt: true,
             providers: true,
+            twoFactorEnabled: true,
           },
         })
       : await this.prisma.users.findUnique({
@@ -164,6 +169,7 @@ export class AuthService {
             role: true,
             createdAt: true,
             providers: true,
+            twoFactorEnabled: true,
           },
         });
 
@@ -191,6 +197,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.twoFactorEnabled) {
+      const challengeId = await this.createTwoFactorLoginChallenge(user);
+      return {
+        message:
+          'Two-factor authentication required. Enter the code sent to your email.',
+        requiresTwoFactor: true,
+        challengeId,
+      };
+    }
+
     // Generate Access and Refresh Tokens for the user
     const { accessToken, refreshToken } =
       await this.generateAccessAndRefreshTokens(user);
@@ -210,6 +226,85 @@ export class AuthService {
         createdAt: user.createdAt,
       },
     };
+  }
+
+  async verifyLoginTwoFactor(dto: VerifyTwoFactorLoginDto) {
+    const cacheKey = this.getTwoFactorLoginRedisKey(dto.challengeId);
+    const challenge = await this.cacheManager.get<{
+      userId: string;
+      code: string;
+    }>(cacheKey);
+
+    if (!challenge) {
+      throw new BadRequestException(
+        'Two-factor challenge expired or does not exist',
+      );
+    }
+
+    if (challenge.code !== dto.code) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    await this.cacheManager.del(cacheKey);
+
+    const user = await this.prisma.users.findUnique({
+      where: { id: challenge.userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user);
+
+    this.logger.log(`User completed 2FA login: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
+  private async createTwoFactorLoginChallenge(
+    user: UserMin & { email: string },
+  ) {
+    const code = this.generateVerificationCode().toString();
+    const challengeId = randomUUID();
+
+    await this.cacheManager.set(
+      this.getTwoFactorLoginRedisKey(challengeId),
+      { userId: user.id, code },
+      twoFactorEmailRedisTTL,
+    );
+
+    await this.emailService.sendEmail(
+      user.email,
+      'Your 2FA login code',
+      TwoFactorEmailCodeTemplateHtml(code, 'login'),
+    );
+
+    this.logger.log(`Two-factor login code sent to: ${user.email}`);
+
+    return challengeId;
   }
 
   private async generateAccessAndRefreshTokens(
@@ -903,7 +998,7 @@ export class AuthService {
     await this.emailService.sendEmail(
       user.email,
       'Password Changed Successfully',
-      PasswordResetConfirmationEmailTemplateHtml(user.email),
+      PasswordChangedEmailTemplateHtml(user.email),
     );
 
     return {
@@ -1052,6 +1147,10 @@ export class AuthService {
       this.logger.error('Failed to decrypt password reset token', error.stack);
       throw new BadRequestException('Invalid or corrupted reset token');
     }
+  }
+
+  private getTwoFactorLoginRedisKey(challengeId: string) {
+    return `${twoFactorLoginRedisPrefix}${challengeId}`;
   }
 
   private async generateUniqueUsername(

@@ -1,14 +1,15 @@
 import {
+  Body,
   Controller,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
-  Body,
+  Post,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
-  UploadedFile,
-  ParseFilePipe,
-  MaxFileSizeValidator,
   FileTypeValidator,
 } from '@nestjs/common';
 import {
@@ -24,7 +25,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ProfileService } from './profile.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import {
+  TwoFactorCodeDto,
+  UpdatePasswordDto,
+  UpdateProfileDto,
+} from './dto/update-profile.dto';
 
 @ApiTags('Profile Management')
 @Controller('profile')
@@ -243,5 +248,114 @@ export class ProfileController {
       updateProfileDto,
       image,
     );
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Update account password',
+    description:
+      'Allow the authenticated user to change their password. Requires current password confirmation.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password updated successfully.',
+    schema: {
+      example: {
+        message:
+          'Password updated successfully. All sessions have been revoked.',
+        passwordUpdatedAt: '2025-11-24T13:30:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Validation or business rule violated.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'New password must be different from the current password',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Current password incorrect.',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'Current password is incorrect',
+        error: 'Forbidden',
+      },
+    },
+  })
+  @Patch('password')
+  async updatePassword(
+    @CurrentUser('id') userId: string,
+    @Body() updatePasswordDto: UpdatePasswordDto,
+  ) {
+    return await this.profileService.updatePassword(userId, updatePasswordDto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Request 2FA enable code',
+    description:
+      'Sends a 6-digit verification code to the user email to enable two-factor authentication.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification code sent to email.',
+    schema: {
+      example: {
+        message: 'Verification code sent to your email address.',
+      },
+    },
+  })
+  @Post('2fa/enable')
+  async sendTwoFactorEnableCode(@CurrentUser('id') userId: string) {
+    return await this.profileService.sendTwoFactorEnableCode(userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Verify 2FA enable code',
+    description: 'Validates the emailed verification code and enables 2FA.',
+  })
+  @Post('2fa/enable/verify')
+  async verifyTwoFactorEnable(
+    @CurrentUser('id') userId: string,
+    @Body() codeDto: TwoFactorCodeDto,
+  ) {
+    return await this.profileService.verifyTwoFactorEnable(userId, codeDto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Request 2FA disable code',
+    description:
+      'Sends a 6-digit verification code to the user email to disable two-factor authentication.',
+  })
+  @Post('2fa/disable')
+  async sendTwoFactorDisableCode(@CurrentUser('id') userId: string) {
+    return await this.profileService.sendTwoFactorDisableCode(userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Verify 2FA disable code',
+    description: 'Validates the emailed verification code and disables 2FA.',
+  })
+  @Post('2fa/disable/verify')
+  async verifyTwoFactorDisable(
+    @CurrentUser('id') userId: string,
+    @Body() codeDto: TwoFactorCodeDto,
+  ) {
+    return await this.profileService.verifyTwoFactorDisable(userId, codeDto);
   }
 }
