@@ -115,7 +115,7 @@ model Organization {
   github      String?
   twitter     String?
   ownerId     String
-  owner       users    @relation(fields: [ownerId], references: [id])
+  owner       users    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
