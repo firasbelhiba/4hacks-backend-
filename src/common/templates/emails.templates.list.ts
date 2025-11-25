@@ -137,14 +137,16 @@ export const PasswordChangedEmailTemplateHtml = (email: string) => {
 
 export const TwoFactorEmailCodeTemplateHtml = (
   code: string,
-  action: 'enable' | 'disable' | 'login',
+  action: 'enable' | 'disable' | 'login' | 'change-email',
 ) => {
   const actionText =
     action === 'login'
       ? 'complete your login'
       : action === 'enable'
         ? 'enable two-factor authentication'
-        : 'disable two-factor authentication';
+        : action === 'disable'
+          ? 'disable two-factor authentication'
+          : 'change your email address';
 
   return `
     <html>

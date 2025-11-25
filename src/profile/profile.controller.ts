@@ -28,6 +28,7 @@ import { ProfileService } from './profile.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import {
+  ChangeEmailDto,
   DisableAccountDto,
   TwoFactorCodeDto,
   UpdatePasswordDto,
@@ -333,6 +334,140 @@ export class ProfileController {
     @Body() updatePasswordDto: UpdatePasswordDto,
   ) {
     return await this.profileService.updatePassword(userId, updatePasswordDto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Request email change verification code',
+    description:
+      'Sends a 6-digit verification code to the user current email address. Required only if two-factor authentication is enabled. Users who created their account using OAuth providers (Google, GitHub, LinkedIn) cannot change their email.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Verification code sent to current email address.',
+    schema: {
+      example: {
+        message:
+          'Verification code sent to your current email address. Use this code to complete the email change.',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Bad Request - User cannot change email or 2FA is not enabled.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message:
+          'Email change is only available for users who created their account with credentials',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token.',
+    schema: {
+      example: {
+        statusCode: 401,
+        message: 'Unauthorized access',
+        error: 'Unauthorized',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found.',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'User not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @Post('email/change-code')
+  async sendChangeEmailCode(@CurrentUser('id') userId: string) {
+    return await this.profileService.sendChangeEmailCode(userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Change user email address',
+    description:
+      'Changes the authenticated user email address. Requires current password verification. Only users who created their account with credentials (not OAuth providers) can change email. If 2FA is enabled, a verification code sent to the old email is also required. The new email will be marked as unverified after the change. Users can request a code using the /email/change-code endpoint first.',
+  })
+  @ApiBody({
+    type: ChangeEmailDto,
+    description:
+      'Current password, new email address, and optional 2FA code (required if 2FA is enabled)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Email changed successfully.',
+    schema: {
+      example: {
+        message: 'Email address changed successfully',
+        newEmail: 'newemail@example.com',
+        isEmailVerified: false,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Validation or business rule violated.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message:
+          'Email change is only available for users who created their account with credentials',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description:
+      'Forbidden - Invalid password or 2FA verification code.',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'Current password is incorrect',
+        error: 'Forbidden',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token.',
+    schema: {
+      example: {
+        statusCode: 401,
+        message: 'Unauthorized access',
+        error: 'Unauthorized',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found.',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'User not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @Patch('email')
+  async changeEmail(
+    @CurrentUser('id') userId: string,
+    @Body() changeEmailDto: ChangeEmailDto,
+  ) {
+    return await this.profileService.changeEmail(userId, changeEmailDto);
   }
 
   @ApiBearerAuth()

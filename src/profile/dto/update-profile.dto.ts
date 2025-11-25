@@ -8,6 +8,7 @@ import {
   MinLength,
   Matches,
   IsNotEmpty,
+  IsEmail,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -228,4 +229,36 @@ export class DisableAccountDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+}
+
+export class ChangeEmailDto {
+  @ApiProperty({
+    description: 'Current password for verification',
+    example: 'currentPassword123',
+  })
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+
+  @ApiProperty({
+    description: 'New email address to change to',
+    example: 'newemail@example.com',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsEmail({}, { message: 'New email must be a valid email address' })
+  newEmail: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Two-factor authentication code (required if 2FA is enabled). This code is sent to your current email address.',
+    example: '123456',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/, {
+    message: 'Two-factor code must be a 6-digit number',
+  })
+  twoFactorCode?: string;
 }
