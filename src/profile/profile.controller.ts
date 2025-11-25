@@ -1,14 +1,15 @@
 import {
+  Body,
   Controller,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
-  Body,
+  Post,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
-  UploadedFile,
-  ParseFilePipe,
-  MaxFileSizeValidator,
   FileTypeValidator,
 } from '@nestjs/common';
 import {
@@ -24,7 +25,12 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ProfileService } from './profile.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import {
+  DisableAccountDto,
+  TwoFactorCodeDto,
+  UpdatePasswordDto,
+  UpdateProfileDto,
+} from './dto/update-profile.dto';
 
 @ApiTags('Profile Management')
 @Controller('profile')
@@ -52,7 +58,30 @@ export class ProfileController {
         email: 'ayoub@gmail.com',
         role: 'USER',
         bio: 'Full-stack developer and tech enthusiast.',
-        avatarUrl: 'https://example.com/avatars/ayoubbuoya.png',
+        image: 'https://example.com/avatars/ayoubbuoya.png',
+        profession: 'Senior Engineer',
+        location: 'San Francisco, USA',
+        org: 'Google',
+        skills: ['JavaScript', 'TypeScript'],
+        website: 'https://ayoubbuoya.com',
+        github: 'https://github.com/ayoubbuoya',
+        linkedin: 'https://linkedin.com/in/ayoubbuoya',
+        telegram: '@ayoubbuoya',
+        twitter: 'https://twitter.com/ayoubbuoya',
+        whatsapp: '+1234567890',
+        otherSocials: ['https://instagram.com/ayoubbuoya'],
+        providers: ['CREDENTIAL', 'GOOGLE'],
+        isEmailVerified: true,
+        emailVerifiedAt: '2025-11-21T10:30:00.000Z',
+        lastLoginAt: '2025-11-23T09:00:00.000Z',
+        passwordUpdatedAt: '2025-11-24T10:00:00.000Z',
+        twoFactorEnabled: true,
+        twoFactorConfirmedAt: '2025-11-24T11:00:00.000Z',
+        isDisabled: false,
+        disabledAt: null,
+        disabledReason: null,
+        createdAt: '2025-11-01T08:00:00.000Z',
+        updatedAt: '2025-11-24T12:00:00.000Z',
       },
     },
   })
@@ -183,7 +212,18 @@ export class ProfileController {
         twitter: 'https://twitter.com/ayoubbuoya',
         whatsapp: '+1234567890',
         otherSocials: ['https://instagram.com/ayoubbuoya'],
-        updatedAt: '2025-11-21T10:30:00.000Z',
+        providers: ['CREDENTIAL', 'GOOGLE'],
+        isEmailVerified: true,
+        emailVerifiedAt: '2025-11-21T10:30:00.000Z',
+        lastLoginAt: '2025-11-23T09:00:00.000Z',
+        passwordUpdatedAt: '2025-11-24T10:00:00.000Z',
+        twoFactorEnabled: true,
+        twoFactorConfirmedAt: '2025-11-24T11:00:00.000Z',
+        isDisabled: false,
+        disabledAt: null,
+        disabledReason: null,
+        createdAt: '2025-11-01T08:00:00.000Z',
+        updatedAt: '2025-11-24T12:30:00.000Z',
       },
     },
   })
@@ -243,5 +283,174 @@ export class ProfileController {
       updateProfileDto,
       image,
     );
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Update account password',
+    description:
+      'Allow the authenticated user to change their password. Requires current password confirmation.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password updated successfully.',
+    schema: {
+      example: {
+        message:
+          'Password updated successfully. All sessions have been revoked.',
+        passwordUpdatedAt: '2025-11-24T13:30:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Validation or business rule violated.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'New password must be different from the current password',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Current password incorrect.',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'Current password is incorrect',
+        error: 'Forbidden',
+      },
+    },
+  })
+  @Patch('password')
+  async updatePassword(
+    @CurrentUser('id') userId: string,
+    @Body() updatePasswordDto: UpdatePasswordDto,
+  ) {
+    return await this.profileService.updatePassword(userId, updatePasswordDto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Request 2FA enable code',
+    description:
+      'Sends a 6-digit verification code to the user email to enable two-factor authentication.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification code sent to email.',
+    schema: {
+      example: {
+        message: 'Verification code sent to your email address.',
+      },
+    },
+  })
+  @Post('2fa/enable')
+  async sendTwoFactorEnableCode(@CurrentUser('id') userId: string) {
+    return await this.profileService.sendTwoFactorEnableCode(userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Verify 2FA enable code',
+    description: 'Validates the emailed verification code and enables 2FA.',
+  })
+  @Post('2fa/enable/verify')
+  async verifyTwoFactorEnable(
+    @CurrentUser('id') userId: string,
+    @Body() codeDto: TwoFactorCodeDto,
+  ) {
+    return await this.profileService.verifyTwoFactorEnable(userId, codeDto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Request 2FA disable code',
+    description:
+      'Sends a 6-digit verification code to the user email to disable two-factor authentication.',
+  })
+  @Post('2fa/disable')
+  async sendTwoFactorDisableCode(@CurrentUser('id') userId: string) {
+    return await this.profileService.sendTwoFactorDisableCode(userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Verify 2FA disable code',
+    description: 'Validates the emailed verification code and disables 2FA.',
+  })
+  @Post('2fa/disable/verify')
+  async verifyTwoFactorDisable(
+    @CurrentUser('id') userId: string,
+    @Body() codeDto: TwoFactorCodeDto,
+  ) {
+    return await this.profileService.verifyTwoFactorDisable(userId, codeDto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Request account disable code',
+    description:
+      'Sends a verification code to confirm account disable. Required when 2FA is enabled or when the account was created via social login (no password).',
+  })
+  @Post('disable/code')
+  async sendAccountDisableCode(@CurrentUser('id') userId: string) {
+    return await this.profileService.sendAccountDisableCode(userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Disable user account',
+    description:
+      'Permanently disables the authenticated user account. Requires a 2FA code when 2FA is enabled, a password when 2FA is disabled with credentials, or an email verification code for social-only accounts. All sessions will be revoked.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Account disabled successfully.',
+    schema: {
+      example: {
+        message: 'Account has been disabled successfully',
+        disabledAt: '2025-11-24T15:30:00.000Z',
+        reason: 'No longer using the platform',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Validation or business rule violated.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Account is already disabled',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Invalid password or 2FA code.',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'Invalid password',
+        error: 'Forbidden',
+      },
+    },
+  })
+  @Post('disable')
+  async disableAccount(
+    @CurrentUser('id') userId: string,
+    @Body() disableDto: DisableAccountDto,
+  ) {
+    return await this.profileService.disableAccount(userId, disableDto);
   }
 }

@@ -7,6 +7,7 @@ import {
   MaxLength,
   MinLength,
   Matches,
+  IsNotEmpty,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -146,4 +147,53 @@ export class UpdateProfileDto {
     return value;
   })
   otherSocials?: string[];
+}
+
+export class UpdatePasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  currentPassword: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
+    message: 'New password must contain at least one letter and one number',
+  })
+  newPassword: string;
+
+  @IsString()
+  @IsNotEmpty()
+  confirmPassword: string;
+}
+
+export class TwoFactorCodeDto {
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/)
+  code: string;
+}
+
+export class DisableAccountDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  password?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/)
+  twoFactorCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/)
+  emailCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }

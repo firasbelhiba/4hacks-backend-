@@ -17,7 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
+import { LoginDto, VerifyTwoFactorLoginDto } from './dto/login.dto';
 import type { Request, Response } from 'express';
 import {
   AUTH_REFRESH_API_PREFIX,
@@ -132,7 +132,42 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto);
 
+    if (result.requiresTwoFactor) {
+      return {
+        message: result.message,
+        requiresTwoFactor: true,
+        challengeId: result.challengeId,
+      };
+    }
+
     // Set refresh token as HttpOnly cookie
+    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: AUTH_REFRESH_API_PREFIX,
+    });
+
+    return {
+      message: result.message,
+      token: result.accessToken,
+      user: result.user,
+    };
+  }
+
+  @ApiOperation({
+    summary: 'Verify two-factor login code',
+    description: 'Verifies the emailed 2FA code and completes the login.',
+  })
+  @ApiBody({ type: VerifyTwoFactorLoginDto })
+  @Post('2fa/verify-login')
+  async verifyTwoFactorLogin(
+    @Body() dto: VerifyTwoFactorLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyLoginTwoFactor(dto);
+
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
