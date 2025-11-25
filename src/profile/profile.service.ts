@@ -9,6 +9,7 @@ import {
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
+  ChangeEmailDto,
   DisableAccountDto,
   TwoFactorCodeDto,
   UpdatePasswordDto,
@@ -27,6 +28,7 @@ import {
 import type { Cache } from 'cache-manager';
 import {
   accountDisableRedisPrefix,
+  changeEmailRedisPrefix,
   twoFactorDisableRedisPrefix,
   twoFactorEnableRedisPrefix,
   twoFactorEmailRedisTTL,
@@ -635,6 +637,166 @@ export class ProfileService {
       message: 'Account has been disabled successfully',
       disabledAt,
       reason: reason || null,
+    };
+  }
+
+  /**
+   * Sends a 2FA verification code to the user's current email address.
+   * This is required before changing email if 2FA is enabled.
+   * @param userId - The ID of the user requesting email change.
+   * @returns A success message confirming the code was sent.
+   */
+  async sendChangeEmailCode(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        twoFactorEnabled: true,
+        providers: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if user is allowed to change email (only credential-based users)
+    if (!user.providers.includes(Provider.CREDENTIAL)) {
+      throw new BadRequestException(
+        'Email change is only available for users who created their account with credentials',
+      );
+    }
+
+    if (!user.twoFactorEnabled) {
+      throw new BadRequestException(
+        'Two-factor authentication is not enabled. You can change your email directly without a verification code.',
+      );
+    }
+
+    const code = this.generateVerificationCode();
+    await this.saveTwoFactorCode(changeEmailRedisPrefix, userId, code);
+
+    await this.emailService.sendEmail(
+      user.email,
+      'Email Change Verification Code',
+      TwoFactorEmailCodeTemplateHtml(code, 'change-email'),
+    );
+
+    this.logger.log(
+      `Email change verification code sent to: ${user.email} for user: ${userId}`,
+    );
+
+    return {
+      message:
+        'Verification code sent to your current email address. Use this code to complete the email change.',
+    };
+  }
+
+  /**
+   * Changes the user's email address.
+   * - Only users with credential-based accounts (not OAuth-only) can change email.
+   * - If 2FA is enabled, requires a verification code sent to the old email.
+   * - The new email is always marked as unverified after the change.
+   * @param userId - The ID of the user changing their email.
+   * @param changeEmailDto - Contains the new email and optional 2FA code.
+   * @returns A success message with the new email address.
+   */
+  async changeEmail(userId: string, changeEmailDto: ChangeEmailDto) {
+    const { newEmail, twoFactorCode, password } = changeEmailDto;
+
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        twoFactorEnabled: true,
+        providers: true,
+        isEmailVerified: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if user is allowed to change email (only credential-based users)
+    if (!user.providers.includes(Provider.CREDENTIAL)) {
+      throw new BadRequestException(
+        'Email change is only available for users who created their account with credentials',
+      );
+    }
+
+    // Validate current password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      throw new ForbiddenException('Current password is incorrect');
+    }
+
+    // Check if new email is different from current email
+    if (user.email.toLowerCase() === newEmail.toLowerCase()) {
+      throw new BadRequestException(
+        'New email must be different from your current email address',
+      );
+    }
+
+    // Check if new email is already taken
+    const emailExists = await this.prisma.users.findUnique({
+      where: { email: newEmail },
+      select: { id: true },
+    });
+
+    if (emailExists) {
+      throw new BadRequestException('This email address is already in use');
+    }
+
+    // If 2FA is enabled, require and validate the code
+    if (user.twoFactorEnabled) {
+      if (!twoFactorCode) {
+        throw new BadRequestException(
+          'Two-factor authentication code is required to change your email. Please request a code first.',
+        );
+      }
+
+      const storedCode = await this.getTwoFactorCode(
+        changeEmailRedisPrefix,
+        userId,
+      );
+
+      if (!storedCode) {
+        throw new BadRequestException(
+          'Verification code has expired or was not requested. Please request a new code.',
+        );
+      }
+
+      if (storedCode !== twoFactorCode) {
+        throw new ForbiddenException('Invalid verification code');
+      }
+
+      // Delete the code after successful validation
+      await this.deleteTwoFactorCode(changeEmailRedisPrefix, userId);
+    }
+
+    // Update the email and mark as unverified
+    await this.prisma.users.update({
+      where: { id: userId },
+      data: {
+        email: newEmail.toLowerCase(),
+        isEmailVerified: false,
+        emailVerifiedAt: null,
+      },
+    });
+
+    this.logger.log(
+      `Email changed for user: ${userId} from ${user.email} to ${newEmail}`,
+    );
+
+    return {
+      message: 'Email address changed successfully',
+      newEmail: newEmail.toLowerCase(),
+      isEmailVerified: false,
     };
   }
 }
