@@ -9,6 +9,8 @@ import { EmailModule } from './email/email.module';
 import { ProfileModule } from './profile/profile.module';
 import { FileUploadService } from './file-upload/file-upload.service';
 import { FileUploadModule } from './file-upload/file-upload.module';
+import { OrganizationModule } from './organization/organization.module';
+import { HackathonModule } from './hackathon/hackathon.module';
 import Keyv from 'keyv';
 import KeyvRedis from '@keyv/redis';
 
@@ -38,6 +40,8 @@ import KeyvRedis from '@keyv/redis';
     EmailModule,
     ProfileModule,
     FileUploadModule,
+    OrganizationModule,
+    HackathonModule,
   ],
   controllers: [AppController],
   providers: [AppService],

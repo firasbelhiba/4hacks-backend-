@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -34,14 +35,15 @@ async function bootstrap() {
 
   // Swagger Configuration
   const config = new DocumentBuilder()
-    .setTitle('Dorahacks NestJS Backend')
-    .setDescription('API documentation for the Dorahacks NestJS backend')
+    .setTitle('4Hacks NestJS Backend')
+    .setDescription('API documentation for the 4Hacks NestJS backend')
     .setVersion('1.0')
     .addTag('Authentication', 'Endpoints related to user authentication')
     .addTag(
       'Profile Management',
       'Endpoints related to user profile management',
     )
+    .addTag('Organizations', 'Endpoints related to organization management')
     .addTag('Hackathons', 'Endpoints related to hackathon management')
     .addBearerAuth({
       type: 'http',
