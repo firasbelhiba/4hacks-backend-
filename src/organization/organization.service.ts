@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { CreateOrganizationDto } from './dto/create.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { HackathonStatus } from 'generated/prisma';
 
 @Injectable()
 export class OrganizationService {
@@ -72,6 +73,9 @@ export class OrganizationService {
           },
         },
         hackathons: {
+          where: {
+            status: { not: HackathonStatus.DRAFT },
+          },
           select: {
             id: true,
             slug: true,
