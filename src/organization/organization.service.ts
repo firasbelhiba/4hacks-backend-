@@ -71,6 +71,14 @@ export class OrganizationService {
             image: true,
           },
         },
+        hackathons: {
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            organizationId: true,
+          },
+        },
       },
     });
 

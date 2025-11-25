@@ -90,6 +90,20 @@ export class OrganizationController {
           ownerId: '1',
           createdAt: '2022-01-01T00:00:00.000Z',
           updatedAt: '2022-01-01T00:00:00.000Z',
+          owner: {
+            id: '1',
+            name: 'User 1',
+            email: 'user1@example.com',
+            image: 'https://example.com/image.png',
+          },
+          hackathons: [
+            {
+              id: '1',
+              slug: 'hackathon-1',
+              title: 'Hackathon 1',
+              organizationId: '1',
+            },
+          ],
         },
       },
     },
