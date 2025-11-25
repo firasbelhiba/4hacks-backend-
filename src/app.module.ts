@@ -6,6 +6,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { EmailModule } from './email/email.module';
+import { ProfileModule } from './profile/profile.module';
+import { FileUploadService } from './file-upload/file-upload.service';
+import { FileUploadModule } from './file-upload/file-upload.module';
 import Keyv from 'keyv';
 import KeyvRedis from '@keyv/redis';
 
@@ -33,6 +36,8 @@ import KeyvRedis from '@keyv/redis';
     PrismaModule,
     AuthModule,
     EmailModule,
+    ProfileModule,
+    FileUploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

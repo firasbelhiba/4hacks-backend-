@@ -38,6 +38,10 @@ async function bootstrap() {
     .setDescription('API documentation for the Dorahacks NestJS backend')
     .setVersion('1.0')
     .addTag('Authentication', 'Endpoints related to user authentication')
+    .addTag(
+      'Profile Management',
+      'Endpoints related to user profile management',
+    )
     .addTag('Hackathons', 'Endpoints related to hackathon management')
     .addBearerAuth({
       type: 'http',
