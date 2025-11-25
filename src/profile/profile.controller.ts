@@ -363,9 +363,21 @@ export class ProfileController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
+    summary: 'Request account disable code',
+    description:
+      'Sends a verification code to the user email to confirm account disable (when 2FA is enabled).',
+  })
+  @Post('disable/code')
+  async sendAccountDisableCode(@CurrentUser('id') userId: string) {
+    return await this.profileService.sendAccountDisableCode(userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
     summary: 'Disable user account',
     description:
-      'Permanently disables the authenticated user account. Requires password or 2FA code confirmation. All sessions will be revoked.',
+      'Permanently disables the authenticated user account. Requires a password if 2FA is disabled, or a 2FA disable code if 2FA is enabled. All sessions will be revoked.',
   })
   @ApiResponse({
     status: 200,

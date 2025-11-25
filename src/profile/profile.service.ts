@@ -27,12 +27,14 @@ import * as bcrypt from 'bcrypt';
 import { EmailService } from 'src/email/email.service';
 import { Provider, SessionStatus } from 'generated/prisma';
 import {
+  AccountDisableVerificationEmailTemplateHtml,
   AccountDisabledEmailTemplateHtml,
   PasswordChangedEmailTemplateHtml,
   TwoFactorEmailCodeTemplateHtml,
 } from 'src/common/templates/emails.templates.list';
 import type { Cache } from 'cache-manager';
 import {
+  accountDisableRedisPrefix,
   twoFactorDisableRedisPrefix,
   twoFactorEnableRedisPrefix,
   twoFactorEmailRedisTTL,
@@ -358,6 +360,45 @@ export class ProfileService {
     };
   }
 
+  async sendAccountDisableCode(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        twoFactorEnabled: true,
+        isDisabled: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isDisabled) {
+      throw new BadRequestException('Account is already disabled');
+    }
+
+    if (!user.twoFactorEnabled) {
+      throw new BadRequestException(
+        'Account disable code is only required when two-factor authentication is enabled',
+      );
+    }
+
+    const code = this.generateVerificationCode();
+    await this.saveTwoFactorCode(accountDisableRedisPrefix, userId, code);
+
+    await this.emailService.sendEmail(
+      user.email,
+      'Confirm Account Disable',
+      AccountDisableVerificationEmailTemplateHtml(code),
+    );
+
+    return {
+      message: 'Account disable verification code sent to your email address.',
+    };
+  }
+
   private generateVerificationCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
@@ -407,48 +448,21 @@ export class ProfileService {
       throw new BadRequestException('Account is already disabled');
     }
 
-    // Validate credentials - require password OR 2FA code
-    if (!password && !twoFactorCode) {
-      throw new BadRequestException(
-        'Either password or two-factor authentication code is required',
-      );
-    }
-
-    let isAuthenticated = false;
-
-    // Check password if provided and user has CREDENTIAL provider
-    if (password) {
-      if (!user.providers.includes(Provider.CREDENTIAL)) {
+    if (user.twoFactorEnabled) {
+      if (!twoFactorCode) {
         throw new BadRequestException(
-          'Password authentication is not available for this account',
-        );
-      }
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (isPasswordValid) {
-        isAuthenticated = true;
-      } else {
-        throw new ForbiddenException('Invalid password');
-      }
-    }
-
-    // Check 2FA code if provided and user has 2FA enabled
-    if (twoFactorCode && !isAuthenticated) {
-      if (!user.twoFactorEnabled) {
-        throw new BadRequestException(
-          'Two-factor authentication is not enabled for this account',
+          'Two-factor authentication code is required to disable this account',
         );
       }
 
-      // Verify 2FA code - user should have requested it via 2FA disable endpoint first
-      // For MVP, we'll check if there's a pending code in Redis from 2FA disable flow
       const storedCode = await this.getTwoFactorCode(
-        twoFactorDisableRedisPrefix,
+        accountDisableRedisPrefix,
         userId,
       );
 
       if (!storedCode) {
         throw new BadRequestException(
-          'Two-factor code not found. Please request a code first via the 2FA disable endpoint, or use your password.',
+          'Account disable code has expired or was not requested. Please request a new code.',
         );
       }
 
@@ -456,13 +470,23 @@ export class ProfileService {
         throw new ForbiddenException('Invalid two-factor authentication code');
       }
 
-      isAuthenticated = true;
-      // Delete the code after use
-      await this.deleteTwoFactorCode(twoFactorDisableRedisPrefix, userId);
-    }
+      await this.deleteTwoFactorCode(accountDisableRedisPrefix, userId);
+    } else {
+      if (!password) {
+        throw new BadRequestException('Password is required to disable account');
+      }
 
-    if (!isAuthenticated) {
-      throw new ForbiddenException('Authentication failed');
+      if (!user.providers.includes(Provider.CREDENTIAL)) {
+        throw new BadRequestException(
+          'Password authentication is not available for this account. Please contact support.',
+        );
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (!isPasswordValid) {
+        throw new ForbiddenException('Invalid password');
+      }
     }
 
     const disabledAt = new Date();

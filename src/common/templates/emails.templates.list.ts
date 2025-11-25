@@ -180,6 +180,43 @@ export const TwoFactorEmailCodeTemplateHtml = (
   `;
 };
 
+export const AccountDisableVerificationEmailTemplateHtml = (
+  code: string,
+) => {
+  return `
+    <html>
+      <body style="font-family: Arial, sans-serif; padding: 20px; color: #222;">
+        <div style="max-width: 480px; margin: auto;">
+          <h2 style="color: #ef4444; margin-bottom: 16px;">
+            Confirm Account Disable
+          </h2>
+
+          <p style="margin: 0 0 12px 0;">
+            Use the following code to confirm you want to disable your 4Hacks account:
+          </p>
+
+          <div style="
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 6px;
+            padding: 12px 0;
+          ">
+            ${code}
+          </div>
+
+          <p style="margin: 0 0 12px 0;">
+            This code expires in 5 minutes. Once confirmed, your account will be disabled and you will be logged out of all sessions.
+          </p>
+
+          <p style="margin: 24px 0 0 0; font-size: 14px; color: #666;">
+            If you did not request to disable your account, you can safely ignore this email.
+          </p>
+        </div>
+      </body>
+    </html>
+  `;
+};
+
 export const AccountDisabledEmailTemplateHtml = (
   email: string,
   reason?: string,
