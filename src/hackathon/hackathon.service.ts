@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateHackathonDto } from './dto/create.dto';
+import { UpdateHackathonDto } from './dto/update.dto';
 
 @Injectable()
 export class HackathonService {
@@ -76,6 +77,51 @@ export class HackathonService {
     return {
       message: 'Hackathon created successfully',
       data: hackathon,
+    };
+  }
+  
+  async update(
+    hackathonId: string,
+    userId: string,
+    updateHackathonDto: UpdateHackathonDto,
+  ) {
+    // Check if hackathon exists
+    const hackathon = await this.prisma.hackathon.findUnique({
+      where: {
+        id: hackathonId,
+      },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            ownerId: true,
+          },
+        },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check if user is owner of hackathon
+    if (hackathon.organization.ownerId !== userId) {
+      throw new UnauthorizedException(
+        'You are not authorized to update this hackathon',
+      );
+    }
+
+    // Update hackathon
+    const updatedHackathon = await this.prisma.hackathon.update({
+      where: {
+        id: hackathonId,
+      },
+      data: updateHackathonDto,
+    });
+
+    return {
+      message: 'Hackathon updated successfully',
+      data: updatedHackathon,
     };
   }
 }
