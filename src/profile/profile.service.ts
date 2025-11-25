@@ -31,6 +31,7 @@ import {
   twoFactorEnableRedisPrefix,
   twoFactorEmailRedisTTL,
 } from 'src/auth/constants';
+import { UpdateUsernameDto } from './dto/update-username.dto';
 
 @Injectable()
 export class ProfileService {
@@ -246,6 +247,60 @@ export class ProfileService {
     return {
       message: 'Password updated successfully. All sessions have been revoked.',
       passwordUpdatedAt,
+    };
+  }
+
+  /**
+   * Updates the username of a user.
+   * @param userId - The ID of the user to update.
+   * @param updateUsernameDto - The data to update.
+   * @returns The updated user profile.
+   */
+  async updateUsername(userId: string, updateUsernameDto: UpdateUsernameDto) {
+    const { username } = updateUsernameDto;
+
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.username === username) {
+      throw new BadRequestException(
+        'New username must be different from the current username',
+      );
+    }
+
+    // Check if the username is already in use
+    const existingUser = await this.prisma.users.findUnique({
+      where: { username },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Username is already in use');
+    }
+
+    // Update the username
+    const updatedUser = await this.prisma.users.update({
+      where: { id: userId },
+      data: { username },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        isEmailVerified: true,
+      },
+    });
+
+    this.logger.log(`Username updated for user: ${updatedUser.username}`);
+
+    return {
+      message: 'Username updated successfully.',
+      data: updatedUser,
     };
   }
 

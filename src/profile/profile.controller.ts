@@ -33,6 +33,7 @@ import {
   UpdatePasswordDto,
   UpdateProfileDto,
 } from './dto/update-profile.dto';
+import { UpdateUsernameDto } from './dto/update-username.dto';
 
 @ApiTags('Profile Management')
 @Controller('profile')
@@ -333,6 +334,43 @@ export class ProfileController {
     @Body() updatePasswordDto: UpdatePasswordDto,
   ) {
     return await this.profileService.updatePassword(userId, updatePasswordDto);
+  }
+
+  @ApiOperation({
+    summary: 'Update account username',
+    description: 'Allow the authenticated user to change their username.',
+  })
+  @ApiBody({
+    type: UpdateUsernameDto,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Username updated successfully.',
+    schema: {
+      example: {
+        message: 'Username updated successfully.',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Validation or business rule violated.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Username is already in use',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch('username')
+  async updateUsername(
+    @CurrentUser('id') userId: string,
+    @Body() updateUsernameDto: UpdateUsernameDto,
+  ) {
+    return await this.profileService.updateUsername(userId, updateUsernameDto);
   }
 
   @ApiBearerAuth()

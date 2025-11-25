@@ -37,6 +37,7 @@
     "@nestjs/swagger": "^11.2.3",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
+    "@prisma/client-runtime-utils": "^7.0.1",
     "@types/ms": "^2.1.0",
     "bcrypt": "^6.0.0",
     "cache-manager": "^7.2.5",
