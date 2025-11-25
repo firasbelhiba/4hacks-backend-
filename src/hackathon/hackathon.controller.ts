@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +24,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CreateHackathonDto } from './dto/create.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateHackathonDto } from './dto/update.dto';
+import { ManageTracksDto } from './dto/track.dto';
 
 @ApiTags('Hackathons')
 @Controller('hackathon')
@@ -142,5 +145,82 @@ export class HackathonController {
       userId,
       updateHackathonDto,
     );
+  }
+
+  @ApiOperation({
+    summary: 'Manage tracks',
+    description:
+      'Manage all tracks for a hackathon (create, update, delete). Send the full list of desired tracks.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the hackathon',
+    required: true,
+    type: String,
+  })
+  @ApiBody({
+    type: ManageTracksDto,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tracks updated successfully.',
+    example: {
+      message: 'Tracks updated successfully',
+      data: [
+        {
+          id: 'cuid',
+          name: 'Track 1',
+          description: 'Description 1',
+          judgingCriteria: 'Criteria 1',
+          order: 1,
+        },
+        {
+          id: 'cuid',
+          name: 'Track 2',
+          description: 'Description 2',
+          judgingCriteria: 'Criteria 2',
+          order: 2,
+        },
+      ],
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Put(':id/tracks')
+  async manageTracks(
+    @Param('id') hackathonId: string,
+    @CurrentUser('id') userId: string,
+    @Body() manageTracksDto: ManageTracksDto,
+  ) {
+    return await this.hackathonService.manageTracks(
+      hackathonId,
+      userId,
+      manageTracksDto,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Get all tracks',
+    description: 'Get all tracks for a specific hackathon.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the hackathon',
+    required: true,
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tracks retrieved successfully.',
+  })
+  @Get(':id/tracks')
+  async getTracks(@Param('id') hackathonId: string) {
+    return await this.hackathonService.getTracks(hackathonId);
   }
 }
