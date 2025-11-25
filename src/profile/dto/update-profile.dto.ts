@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsOptional,
@@ -150,10 +150,18 @@ export class UpdateProfileDto {
 }
 
 export class UpdatePasswordDto {
+  @ApiProperty({
+    description: 'Current password',
+    example: 'currentPassword',
+  })
   @IsString()
   @IsNotEmpty()
   currentPassword: string;
 
+  @ApiProperty({
+    description: 'New password',
+    example: 'newPassword',
+  })
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
@@ -162,12 +170,20 @@ export class UpdatePasswordDto {
   })
   newPassword: string;
 
+  @ApiProperty({
+    description: 'New Password confirmation',
+    example: 'newPassword',
+  })
   @IsString()
   @IsNotEmpty()
   confirmPassword: string;
 }
 
 export class TwoFactorCodeDto {
+  @ApiProperty({
+    description: '2FA code',
+    example: '123456',
+  })
   @IsString()
   @IsNotEmpty()
   @Matches(/^\d{6}$/)
@@ -175,23 +191,39 @@ export class TwoFactorCodeDto {
 }
 
 export class DisableAccountDto {
+  @ApiPropertyOptional({
+    description: 'Password',
+    example: 'password',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   password?: string;
 
+  @ApiPropertyOptional({
+    description: '2FA code',
+    example: '123456',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   @Matches(/^\d{6}$/)
   twoFactorCode?: string;
 
+  @ApiPropertyOptional({
+    description: 'Email code',
+    example: '123456',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   @Matches(/^\d{6}$/)
   emailCode?: string;
 
+  @ApiPropertyOptional({
+    description: 'Reason for disabling the account',
+    example: 'reason',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)
