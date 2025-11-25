@@ -69,12 +69,27 @@ export class ProfileService {
         image: true,
         profession: true,
         location: true,
+        org: true,
         skills: true,
         website: true,
         github: true,
         linkedin: true,
+        telegram: true,
+        twitter: true,
+        whatsapp: true,
         otherSocials: true,
+        providers: true,
+        isEmailVerified: true,
+        emailVerifiedAt: true,
+        lastLoginAt: true,
+        passwordUpdatedAt: true,
         twoFactorEnabled: true,
+        twoFactorConfirmedAt: true,
+        isDisabled: true,
+        disabledAt: true,
+        disabledReason: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -124,7 +139,39 @@ export class ProfileService {
       where: { id: userId },
       data: {
         ...updateProfileDto,
-        image: imageUrl,
+        ...(imageUrl ? { image: imageUrl } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        email: true,
+        role: true,
+        bio: true,
+        image: true,
+        profession: true,
+        location: true,
+        org: true,
+        skills: true,
+        website: true,
+        github: true,
+        linkedin: true,
+        telegram: true,
+        twitter: true,
+        whatsapp: true,
+        otherSocials: true,
+        providers: true,
+        isEmailVerified: true,
+        emailVerifiedAt: true,
+        lastLoginAt: true,
+        passwordUpdatedAt: true,
+        twoFactorEnabled: true,
+        twoFactorConfirmedAt: true,
+        isDisabled: true,
+        disabledAt: true,
+        disabledReason: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -368,6 +415,7 @@ export class ProfileService {
         email: true,
         twoFactorEnabled: true,
         isDisabled: true,
+        providers: true,
       },
     });
 
@@ -379,9 +427,11 @@ export class ProfileService {
       throw new BadRequestException('Account is already disabled');
     }
 
-    if (!user.twoFactorEnabled) {
+    const hasPassword = user.providers.includes(Provider.CREDENTIAL);
+
+    if (!user.twoFactorEnabled && hasPassword) {
       throw new BadRequestException(
-        'Account disable code is only required when two-factor authentication is enabled',
+        'Use your password to disable the account. No verification code is required.',
       );
     }
 
@@ -425,8 +475,27 @@ export class ProfileService {
     return `${prefix}${userId}`;
   }
 
+  private async validateAccountDisableCode(userId: string, code: string) {
+    const storedCode = await this.getTwoFactorCode(
+      accountDisableRedisPrefix,
+      userId,
+    );
+
+    if (!storedCode) {
+      throw new BadRequestException(
+        'Account disable code has expired or was not requested. Please request a new code.',
+      );
+    }
+
+    if (storedCode !== code) {
+      throw new ForbiddenException('Invalid verification code');
+    }
+
+    await this.deleteTwoFactorCode(accountDisableRedisPrefix, userId);
+  }
+
   async disableAccount(userId: string, disableDto: DisableAccountDto) {
-    const { password, twoFactorCode, reason } = disableDto;
+    const { password, twoFactorCode, emailCode, reason } = disableDto;
 
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
@@ -448,6 +517,8 @@ export class ProfileService {
       throw new BadRequestException('Account is already disabled');
     }
 
+    const hasPassword = user.providers.includes(Provider.CREDENTIAL);
+
     if (user.twoFactorEnabled) {
       if (!twoFactorCode) {
         throw new BadRequestException(
@@ -455,31 +526,10 @@ export class ProfileService {
         );
       }
 
-      const storedCode = await this.getTwoFactorCode(
-        accountDisableRedisPrefix,
-        userId,
-      );
-
-      if (!storedCode) {
-        throw new BadRequestException(
-          'Account disable code has expired or was not requested. Please request a new code.',
-        );
-      }
-
-      if (storedCode !== twoFactorCode) {
-        throw new ForbiddenException('Invalid two-factor authentication code');
-      }
-
-      await this.deleteTwoFactorCode(accountDisableRedisPrefix, userId);
-    } else {
+      await this.validateAccountDisableCode(userId, twoFactorCode);
+    } else if (hasPassword) {
       if (!password) {
         throw new BadRequestException('Password is required to disable account');
-      }
-
-      if (!user.providers.includes(Provider.CREDENTIAL)) {
-        throw new BadRequestException(
-          'Password authentication is not available for this account. Please contact support.',
-        );
       }
 
       const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -487,6 +537,14 @@ export class ProfileService {
       if (!isPasswordValid) {
         throw new ForbiddenException('Invalid password');
       }
+    } else {
+      if (!emailCode) {
+        throw new BadRequestException(
+          'Email verification code is required to disable this account',
+        );
+      }
+
+      await this.validateAccountDisableCode(userId, emailCode);
     }
 
     const disabledAt = new Date();

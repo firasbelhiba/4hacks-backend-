@@ -188,6 +188,12 @@ export class DisableAccountDto {
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/)
+  emailCode?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(500)
   reason?: string;
 }

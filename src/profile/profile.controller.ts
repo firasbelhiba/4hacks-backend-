@@ -58,7 +58,30 @@ export class ProfileController {
         email: 'ayoub@gmail.com',
         role: 'USER',
         bio: 'Full-stack developer and tech enthusiast.',
-        avatarUrl: 'https://example.com/avatars/ayoubbuoya.png',
+        image: 'https://example.com/avatars/ayoubbuoya.png',
+        profession: 'Senior Engineer',
+        location: 'San Francisco, USA',
+        org: 'Google',
+        skills: ['JavaScript', 'TypeScript'],
+        website: 'https://ayoubbuoya.com',
+        github: 'https://github.com/ayoubbuoya',
+        linkedin: 'https://linkedin.com/in/ayoubbuoya',
+        telegram: '@ayoubbuoya',
+        twitter: 'https://twitter.com/ayoubbuoya',
+        whatsapp: '+1234567890',
+        otherSocials: ['https://instagram.com/ayoubbuoya'],
+        providers: ['CREDENTIAL', 'GOOGLE'],
+        isEmailVerified: true,
+        emailVerifiedAt: '2025-11-21T10:30:00.000Z',
+        lastLoginAt: '2025-11-23T09:00:00.000Z',
+        passwordUpdatedAt: '2025-11-24T10:00:00.000Z',
+        twoFactorEnabled: true,
+        twoFactorConfirmedAt: '2025-11-24T11:00:00.000Z',
+        isDisabled: false,
+        disabledAt: null,
+        disabledReason: null,
+        createdAt: '2025-11-01T08:00:00.000Z',
+        updatedAt: '2025-11-24T12:00:00.000Z',
       },
     },
   })
@@ -189,7 +212,18 @@ export class ProfileController {
         twitter: 'https://twitter.com/ayoubbuoya',
         whatsapp: '+1234567890',
         otherSocials: ['https://instagram.com/ayoubbuoya'],
-        updatedAt: '2025-11-21T10:30:00.000Z',
+        providers: ['CREDENTIAL', 'GOOGLE'],
+        isEmailVerified: true,
+        emailVerifiedAt: '2025-11-21T10:30:00.000Z',
+        lastLoginAt: '2025-11-23T09:00:00.000Z',
+        passwordUpdatedAt: '2025-11-24T10:00:00.000Z',
+        twoFactorEnabled: true,
+        twoFactorConfirmedAt: '2025-11-24T11:00:00.000Z',
+        isDisabled: false,
+        disabledAt: null,
+        disabledReason: null,
+        createdAt: '2025-11-01T08:00:00.000Z',
+        updatedAt: '2025-11-24T12:30:00.000Z',
       },
     },
   })
@@ -365,7 +399,7 @@ export class ProfileController {
   @ApiOperation({
     summary: 'Request account disable code',
     description:
-      'Sends a verification code to the user email to confirm account disable (when 2FA is enabled).',
+      'Sends a verification code to confirm account disable. Required when 2FA is enabled or when the account was created via social login (no password).',
   })
   @Post('disable/code')
   async sendAccountDisableCode(@CurrentUser('id') userId: string) {
@@ -377,7 +411,7 @@ export class ProfileController {
   @ApiOperation({
     summary: 'Disable user account',
     description:
-      'Permanently disables the authenticated user account. Requires a password if 2FA is disabled, or a 2FA disable code if 2FA is enabled. All sessions will be revoked.',
+      'Permanently disables the authenticated user account. Requires a 2FA code when 2FA is enabled, a password when 2FA is disabled with credentials, or an email verification code for social-only accounts. All sessions will be revoked.',
   })
   @ApiResponse({
     status: 200,
