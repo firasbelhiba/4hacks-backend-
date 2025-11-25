@@ -11,7 +11,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  
+}
+
+enum TeamRole {
+  LEADER
+  MEMBER
 }
 
 enum UserRole {
@@ -30,6 +35,37 @@ enum Provider {
   GOOGLE
   GITHUB
   LINKEDIN
+}
+
+enum HackathonStatus {
+  DRAFT
+  UPCOMING
+  REGISTRATION
+  ACTIVE
+  JUDGING
+  COMPLETED
+  CANCELLED
+}
+
+enum HackathonType {
+  IN_PERSON
+  VIRTUAL
+  HYBRID
+}
+
+enum ProjectStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  DISQUALIFIED
+  WINNER
+  FINALIST
+  PARTICIPANT
+}
+
+enum HackathonCategory {
+  WEB3
+  AI
 }
 
 model users {
@@ -63,6 +99,8 @@ model users {
   organizations   Organization[] // USER can create multiple organizations
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  teamMembers     TeamMember[]
+  projects        Project[]
 
   @@index([email])
   @@index([username])
@@ -104,9 +142,9 @@ model FailedLogin {
 }
 
 model Organization {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  slug        String   @unique
+  id          String      @id @default(cuid())
+  name        String      @unique
+  slug        String      @unique
   logo        String?
   tagline     String?
   description String?
@@ -115,12 +153,152 @@ model Organization {
   github      String?
   twitter     String?
   ownerId     String
-  owner       users    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  owner       users       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  hackathons  Hackathon[]
 
   @@index([ownerId])
   @@index([name])
   @@index([slug])
   @@map("organizations")
+}
+
+model Hackathon {
+  id          String            @id @default(cuid())
+  title       String
+  slug        String            @unique
+  banner      String?
+  description String            @default("") @db.Text
+  location    String?
+  category    HackathonCategory
+  type        HackathonType     @default(VIRTUAL)
+  status      HackathonStatus   @default(DRAFT)
+  tags        String[]          @default([])
+  prizePool   Float             @default(0)
+  prizeToken  String            @default("USD")
+
+  // Dates
+  registrationStart DateTime
+  registrationEnd   DateTime
+  startDate         DateTime
+  endDate           DateTime
+  judgingStart      DateTime?
+  judgingEnd        DateTime?
+
+  // Settings
+  maxTeamSize      Int     @default(4)
+  minTeamSize      Int     @default(1)
+  maxParticipants  Int?
+  requiresApproval Boolean @default(false)
+  isPrivate        Boolean @default(false)
+
+  // Stats (denormalized for performance)
+  participantCount Int @default(0)
+  projectCount     Int @default(0)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Virtual Relations
+  tracks   Track[]
+  projects Project[]
+
+  @@index([slug])
+  @@index([organizationId])
+  @@index([status, isPrivate])
+  @@index([startDate, endDate])
+  @@map("hackathons")
+}
+
+model Track {
+  id              String @id @default(cuid())
+  hackathonId     String
+  name            String
+  description     String @default("") @db.Text
+  judgingCriteria String @default("")
+  order           Int    @default(0)
+
+  hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+
+  projects Project[]
+
+  @@index([hackathonId])
+  @@map("tracks")
+}
+
+model Project {
+  id          String  @id @default(cuid())
+  hackathonId String
+  teamId      String
+  creatorId   String
+  trackId     String?
+
+  title       String
+  tagline     String?
+  description String  @db.Text
+  logo        String?
+
+  // Submission
+  status      ProjectStatus @default(DRAFT)
+  submittedAt DateTime?
+
+  // Links
+  demoUrl  String?
+  videoUrl String?
+  repoUrl  String?
+  pitchUrl String?
+
+  // Tech Stack
+  technologies String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  creator   users     @relation(fields: [creatorId], references: [id])
+  track     Track?    @relation(fields: [trackId], references: [id], onDelete: SetNull)
+
+  @@index([hackathonId, status])
+  @@index([trackId])
+  @@index([creatorId])
+  @@index([submittedAt])
+  @@map("projects")
+}
+
+model Team {
+  id          String  @id @default(cuid())
+  hackathonId String
+  name        String
+  tagline     String?
+  avatar      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  TeamMember[]
+  projects Project[]
+
+  @@index([hackathonId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  userId   String
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
 }
