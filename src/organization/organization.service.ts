@@ -58,7 +58,7 @@ export class OrganizationService {
     };
   }
 
-  async findOne(identifier: string) {
+  async findOne(identifier: string, userId?: string) {
     const organization = await this.prismaService.organization.findFirst({
       where: {
         OR: [{ id: identifier }, { slug: identifier }, { name: identifier }],
@@ -74,7 +74,17 @@ export class OrganizationService {
         },
         hackathons: {
           where: {
-            status: { not: HackathonStatus.DRAFT },
+            OR: [
+              { status: { not: HackathonStatus.DRAFT } }, // always show non draft ones
+              ...(userId
+                ? [
+                    {
+                      status: HackathonStatus.DRAFT,
+                      organization: { ownerId: userId },
+                    },
+                  ]
+                : []), // if logged in, show drafts only if user is owner
+            ],
           },
           select: {
             id: true,

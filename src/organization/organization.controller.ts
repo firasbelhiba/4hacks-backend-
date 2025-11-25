@@ -10,6 +10,7 @@ import { CreateOrganizationDto } from './dto/create.dto';
 import { OrganizationService } from './organization.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 
 @ApiTags('Organizations')
 @Controller('organization')
@@ -68,7 +69,8 @@ export class OrganizationController {
 
   @ApiOperation({
     summary: 'Get organization by id, slug or name',
-    description: 'Get organization by id, slug or name',
+    description:
+      'Get organization by id, slug or name. this endpoint is public but if you are logged in with specific user provide the jwt access token, you will get more details',
   })
   @ApiResponse({
     status: 200,
@@ -124,8 +126,13 @@ export class OrganizationController {
     description: 'Organization id, slug or name',
     type: 'string',
   })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':identifier')
-  async findOne(@Param('identifier') identifier: string) {
-    return await this.organizationService.findOne(identifier);
+  async findOne(
+    @Param('identifier') identifier: string,
+    @CurrentUser('id') userId?: string,
+  ) {
+    return await this.organizationService.findOne(identifier, userId);
   }
 }
