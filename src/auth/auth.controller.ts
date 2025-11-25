@@ -20,7 +20,6 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto, VerifyTwoFactorLoginDto } from './dto/login.dto';
 import type { Request, Response } from 'express';
 import {
-  AUTH_REFRESH_API_PREFIX,
   authCookiesNames,
   FRONTEND_URL,
   refreshTokenConstants,
@@ -144,9 +143,9 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
+      path: '/',
     });
 
     return {
@@ -189,9 +188,9 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
+      path: '/',
     });
 
     return {
@@ -251,6 +250,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const refreshToken = req.cookies[authCookiesNames.refreshToken];
+    console.log('Cookies', req.cookies);
 
     const result = await this.authService.refreshAccessToken(refreshToken);
 
@@ -258,9 +258,9 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
+      path: '/',
     });
 
     return {
@@ -309,8 +309,8 @@ export class AuthController {
     res.clearCookie(authCookiesNames.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: AUTH_REFRESH_API_PREFIX,
+      sameSite: 'lax',
+      path: '/',
     });
 
     return {
@@ -343,8 +343,8 @@ export class AuthController {
     res.clearCookie(authCookiesNames.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: AUTH_REFRESH_API_PREFIX,
+      sameSite: 'lax',
+      path: '/',
     });
 
     return {
@@ -559,9 +559,9 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
+      path: '/',
     });
 
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
@@ -593,13 +593,17 @@ export class AuthController {
     const result = await this.authService.handleGithubOAuthCallback(userId);
 
     // Set refresh token as HttpOnly cookie
-    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
-    });
+    const result2 = res.cookie(
+      authCookiesNames.refreshToken,
+      result.refreshToken,
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: refreshTokenConstants.expirationSeconds * 1000,
+        path: '/',
+      },
+    );
 
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
   }
@@ -633,11 +637,29 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
+      path: '/',
     });
 
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
+  }
+
+  @ApiOperation({
+    summary: 'Clear all ccokies',
+    description: 'clears all cookies.',
+  })
+  @Post('clear')
+  async clearCookies(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie(authCookiesNames.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    });
+
+    return {
+      message: 'User logged out successfully',
+    };
   }
 }
