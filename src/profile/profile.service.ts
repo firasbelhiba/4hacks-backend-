@@ -15,14 +15,6 @@ import {
   UpdateProfileDto,
 } from './dto/update-profile.dto';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
-import {
-  createWriteStream,
-  existsSync,
-  mkdirSync,
-  writeFileSync,
-} from 'fs';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
 import * as bcrypt from 'bcrypt';
 import { EmailService } from 'src/email/email.service';
 import { Provider, SessionStatus } from 'generated/prisma';
@@ -180,12 +172,8 @@ export class ProfileService {
     return updatedProfile;
   }
 
-  async updatePassword(
-    userId: string,
-    updatePasswordDto: UpdatePasswordDto,
-  ) {
-    const { currentPassword, newPassword, confirmPassword } =
-      updatePasswordDto;
+  async updatePassword(userId: string, updatePasswordDto: UpdatePasswordDto) {
+    const { currentPassword, newPassword, confirmPassword } = updatePasswordDto;
 
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
@@ -201,10 +189,7 @@ export class ProfileService {
       throw new NotFoundException('User not found');
     }
 
-    if (
-      !user.providers ||
-      !user.providers.includes(Provider.CREDENTIAL)
-    ) {
+    if (!user.providers || !user.providers.includes(Provider.CREDENTIAL)) {
       throw new BadRequestException(
         'Password updates are only available for credential-based accounts',
       );
@@ -226,9 +211,7 @@ export class ProfileService {
     }
 
     if (newPassword !== confirmPassword) {
-      throw new BadRequestException(
-        'New password confirmation does not match',
-      );
+      throw new BadRequestException('New password confirmation does not match');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
@@ -261,8 +244,7 @@ export class ProfileService {
     this.logger.log(`Password updated for user: ${userId}`);
 
     return {
-      message:
-        'Password updated successfully. All sessions have been revoked.',
+      message: 'Password updated successfully. All sessions have been revoked.',
       passwordUpdatedAt,
     };
   }
@@ -278,7 +260,9 @@ export class ProfileService {
     }
 
     if (user.twoFactorEnabled) {
-      throw new BadRequestException('Two-factor authentication is already enabled');
+      throw new BadRequestException(
+        'Two-factor authentication is already enabled',
+      );
     }
 
     const code = this.generateVerificationCode();
@@ -306,10 +290,15 @@ export class ProfileService {
     }
 
     if (user.twoFactorEnabled) {
-      throw new BadRequestException('Two-factor authentication is already enabled');
+      throw new BadRequestException(
+        'Two-factor authentication is already enabled',
+      );
     }
 
-    const storedCode = await this.getTwoFactorCode(twoFactorEnableRedisPrefix, userId);
+    const storedCode = await this.getTwoFactorCode(
+      twoFactorEnableRedisPrefix,
+      userId,
+    );
     if (!storedCode) {
       throw new BadRequestException(
         'Verification code has expired or was not requested. Please request a new code.',
@@ -379,7 +368,10 @@ export class ProfileService {
       throw new BadRequestException('Two-factor authentication is not enabled');
     }
 
-    const storedCode = await this.getTwoFactorCode(twoFactorDisableRedisPrefix, userId);
+    const storedCode = await this.getTwoFactorCode(
+      twoFactorDisableRedisPrefix,
+      userId,
+    );
     if (!storedCode) {
       throw new BadRequestException(
         'Verification code has expired or was not requested. Please request a new code.',
@@ -453,7 +445,11 @@ export class ProfileService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  private async saveTwoFactorCode(prefix: string, userId: string, code: string) {
+  private async saveTwoFactorCode(
+    prefix: string,
+    userId: string,
+    code: string,
+  ) {
     await this.cacheManager.set(
       this.getTwoFactorRedisKey(prefix, userId),
       code,
@@ -529,7 +525,9 @@ export class ProfileService {
       await this.validateAccountDisableCode(userId, twoFactorCode);
     } else if (hasPassword) {
       if (!password) {
-        throw new BadRequestException('Password is required to disable account');
+        throw new BadRequestException(
+          'Password is required to disable account',
+        );
       }
 
       const isPasswordValid = await bcrypt.compare(password, user.password);

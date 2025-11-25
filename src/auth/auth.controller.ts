@@ -161,6 +161,24 @@ export class AuthController {
     description: 'Verifies the emailed 2FA code and completes the login.',
   })
   @ApiBody({ type: VerifyTwoFactorLoginDto })
+  @ApiResponse({
+    status: 201,
+    description: 'The user has been successfully logged in.',
+    schema: {
+      example: {
+        message: 'User logged in successfully',
+        token: 'eyJfgsffgspd4...',
+        user: {
+          id: 'clxsu9vgo0000lmk7z9h8f1q',
+          username: 'ahmed12',
+          name: 'Ahmed',
+          email: 'ahmed@gmail.com',
+          role: 'USER',
+          createdAt: '2025-10-01T12:34:56.789Z',
+        },
+      },
+    },
+  })
   @Post('2fa/verify-login')
   async verifyTwoFactorLogin(
     @Body() dto: VerifyTwoFactorLoginDto,

@@ -20,6 +20,8 @@ import {
   ApiBearerAuth,
   ApiConsumes,
   ApiBody,
+  ApiNotFoundResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProfileService } from './profile.service';
@@ -341,7 +343,7 @@ export class ProfileController {
       'Sends a 6-digit verification code to the user email to enable two-factor authentication.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Verification code sent to email.',
     schema: {
       example: {
@@ -368,24 +370,87 @@ export class ProfileController {
     return await this.profileService.verifyTwoFactorEnable(userId, codeDto);
   }
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Request 2FA disable code',
     description:
       'Sends a 6-digit verification code to the user email to disable two-factor authentication.',
   })
+  @ApiResponse({
+    status: 201,
+    description: 'Verification code sent to email.',
+    schema: {
+      example: {
+        message: 'Verification code sent to your email address.',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'User not found.',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'User not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Bad Request - Two-factor authentication is not enabled.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Two-factor authentication is not enabled',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/disable')
   async sendTwoFactorDisableCode(@CurrentUser('id') userId: string) {
     return await this.profileService.sendTwoFactorDisableCode(userId);
   }
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Verify 2FA disable code',
     description: 'Validates the emailed verification code and disables 2FA.',
   })
+  @ApiResponse({
+    status: 201,
+    description: '2FA disabled successfully.',
+    schema: {
+      example: {
+        message: '2FA disabled successfully.',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'User not found.',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'User not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Bad Request - Verification code has expired or was not requested. Please request a new code.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message:
+          'Verification code has expired or was not requested. Please request a new code.',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiBody({
+    type: TwoFactorCodeDto,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Post('2fa/disable/verify')
   async verifyTwoFactorDisable(
     @CurrentUser('id') userId: string,
@@ -394,13 +459,32 @@ export class ProfileController {
     return await this.profileService.verifyTwoFactorDisable(userId, codeDto);
   }
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Request account disable code',
     description:
       'Sends a verification code to confirm account disable. Required when 2FA is enabled or when the account was created via social login (no password).',
   })
+  @ApiResponse({
+    status: 201,
+    description: 'Verification code sent to email.',
+    schema: {
+      example: {
+        message: 'Verification code sent to your email address.',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'User not found.',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'User not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Post('disable/code')
   async sendAccountDisableCode(@CurrentUser('id') userId: string) {
     return await this.profileService.sendAccountDisableCode(userId);
@@ -414,7 +498,7 @@ export class ProfileController {
       'Permanently disables the authenticated user account. Requires a 2FA code when 2FA is enabled, a password when 2FA is disabled with credentials, or an email verification code for social-only accounts. All sessions will be revoked.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Account disabled successfully.',
     schema: {
       example: {
