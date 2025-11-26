@@ -633,16 +633,25 @@ export class ProfileController {
   }
 
   @ApiOperation({
-    summary: 'Request account disable code',
+    summary: 'Request account disable verification code',
     description:
-      'Sends a verification code to confirm account disable. Required when 2FA is enabled or when the account was created via social login (no password).',
+      'Sends a 6-digit verification code to the user email address. This endpoint is required BEFORE calling the disable account endpoint in the following scenarios:\n\n' +
+      '**Scenario 1: User has 2FA enabled**\n' +
+      '- Call this endpoint first to receive a code\n' +
+      '- Then call POST /profile/disable with `twoFactorCode` parameter\n\n' +
+      '**Scenario 2: User has OAuth-only account (no password)**\n' +
+      '- Call this endpoint first to receive a code\n' +
+      '- Then call POST /profile/disable with `emailCode` parameter\n\n' +
+      '**Scenario 3: User has credentials but no 2FA**\n' +
+      '- DO NOT call this endpoint (will return error)\n' +
+      '- Call POST /profile/disable directly with `password` parameter',
   })
   @ApiResponse({
     status: 201,
-    description: 'Verification code sent to email.',
+    description: 'Verification code sent to email address.',
     schema: {
       example: {
-        message: 'Verification code sent to your email address.',
+        message: 'Account disable verification code sent to your email address.',
       },
     },
   })
@@ -653,6 +662,18 @@ export class ProfileController {
         statusCode: 404,
         message: 'User not found',
         error: 'Not Found',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Bad Request - Account already disabled or password should be used instead.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message:
+          'Use your password to disable the account. No verification code is required.',
+        error: 'Bad Request',
       },
     },
   })
@@ -668,7 +689,22 @@ export class ProfileController {
   @ApiOperation({
     summary: 'Disable user account',
     description:
-      'Permanently disables the authenticated user account. Requires a 2FA code when 2FA is enabled, a password when 2FA is disabled with credentials, or an email verification code for social-only accounts. All sessions will be revoked.',
+      'Permanently disables the authenticated user account. All active sessions will be revoked.\n\n' +
+      '**Required parameters depend on account type:**\n\n' +
+      '**1. User with credentials but NO 2FA:**\n' +
+      '- Required: `password`\n' +
+      '- Optional: `reason`\n' +
+      '- Example: `{ "password": "yourPassword", "reason": "optional reason" }`\n\n' +
+      '**2. User with 2FA enabled:**\n' +
+      '- First call: POST /profile/disable/code (to get verification code)\n' +
+      '- Required: `twoFactorCode` (from email)\n' +
+      '- Optional: `reason`\n' +
+      '- Example: `{ "twoFactorCode": "123456", "reason": "optional reason" }`\n\n' +
+      '**3. OAuth-only account (no password):**\n' +
+      '- First call: POST /profile/disable/code (to get verification code)\n' +
+      '- Required: `emailCode` (from email)\n' +
+      '- Optional: `reason`\n' +
+      '- Example: `{ "emailCode": "123456", "reason": "optional reason" }`',
   })
   @ApiResponse({
     status: 201,
@@ -681,25 +717,103 @@ export class ProfileController {
       },
     },
   })
+  @ApiBody({
+    type: DisableAccountDto,
+    description:
+      'Request body parameters. Which parameters are required depends on your account type (see operation description above).',
+    examples: {
+      'User with password (no 2FA)': {
+        value: {
+          password: 'currentPassword123',
+          reason: 'No longer using the platform',
+        },
+        description: 'For users with credentials but no 2FA',
+      },
+      'User with 2FA enabled': {
+        value: {
+          twoFactorCode: '123456',
+          reason: 'No longer using the platform',
+        },
+        description:
+          'For users with 2FA. Must call /disable/code first to get the code.',
+      },
+      'OAuth-only account': {
+        value: {
+          emailCode: '123456',
+          reason: 'No longer using the platform',
+        },
+        description:
+          'For OAuth-only accounts. Must call /disable/code first to get the code.',
+      },
+    },
+  })
   @ApiResponse({
     status: 400,
-    description: 'Bad Request - Validation or business rule violated.',
+    description:
+      'Bad Request - Validation or business rule violated. Examples: Account already disabled, missing required parameter (password/twoFactorCode/emailCode), code expired.',
     schema: {
-      example: {
-        statusCode: 400,
-        message: 'Account is already disabled',
-        error: 'Bad Request',
+      examples: {
+        'Account already disabled': {
+          value: {
+            statusCode: 400,
+            message: 'Account is already disabled',
+            error: 'Bad Request',
+          },
+        },
+        'Missing 2FA code': {
+          value: {
+            statusCode: 400,
+            message:
+              'Two-factor authentication code is required to disable this account',
+            error: 'Bad Request',
+          },
+        },
+        'Missing password': {
+          value: {
+            statusCode: 400,
+            message: 'Password is required to disable account',
+            error: 'Bad Request',
+          },
+        },
+        'Missing email code': {
+          value: {
+            statusCode: 400,
+            message:
+              'Email verification code is required to disable this account',
+            error: 'Bad Request',
+          },
+        },
+        'Code expired': {
+          value: {
+            statusCode: 400,
+            message:
+              'Account disable code has expired or was not requested. Please request a new code.',
+            error: 'Bad Request',
+          },
+        },
       },
     },
   })
   @ApiResponse({
     status: 403,
-    description: 'Forbidden - Invalid password or 2FA code.',
+    description:
+      'Forbidden - Invalid password or verification code.',
     schema: {
-      example: {
-        statusCode: 403,
-        message: 'Invalid password',
-        error: 'Forbidden',
+      examples: {
+        'Invalid password': {
+          value: {
+            statusCode: 403,
+            message: 'Invalid password',
+            error: 'Forbidden',
+          },
+        },
+        'Invalid verification code': {
+          value: {
+            statusCode: 403,
+            message: 'Invalid verification code',
+            error: 'Forbidden',
+          },
+        },
       },
     },
   })
