@@ -11,6 +11,9 @@ import { FileUploadService } from './file-upload/file-upload.service';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { OrganizationModule } from './organization/organization.module';
 import { HackathonModule } from './hackathon/hackathon.module';
+import { R2Service } from './r2/r2.service';
+import { R2Controller } from './r2/r2.controller';
+import { R2Module } from './r2/r2.module';
 import Keyv from 'keyv';
 import KeyvRedis from '@keyv/redis';
 
@@ -42,8 +45,9 @@ import KeyvRedis from '@keyv/redis';
     FileUploadModule,
     OrganizationModule,
     HackathonModule,
+    R2Module,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, R2Controller],
+  providers: [AppService, R2Service],
 })
 export class AppModule {}

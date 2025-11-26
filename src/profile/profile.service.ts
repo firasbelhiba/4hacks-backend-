@@ -125,7 +125,10 @@ export class ProfileService {
       // TODO: In production, replace this with actual file upload to cloud storage (e.g., AWS S3, Cloudinary)
       // For now, we'll store a local path
       this.logger.log('Uploading profile image...');
-      imageUrl = await this.fileUploadService.uploadProfileImage(imageFile);
+      imageUrl = await this.fileUploadService.uploadProfileImage(
+        imageFile,
+        userId,
+      );
       this.logger.log(`Image uploaded for user: ${userId}, url: ${imageUrl}`);
     }
 
