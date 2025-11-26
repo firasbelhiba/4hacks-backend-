@@ -143,7 +143,7 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
     });
@@ -188,7 +188,7 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
     });
@@ -258,7 +258,7 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
     });
@@ -309,7 +309,7 @@ export class AuthController {
     res.clearCookie(authCookiesNames.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
     });
 
@@ -343,7 +343,7 @@ export class AuthController {
     res.clearCookie(authCookiesNames.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
     });
 
@@ -559,7 +559,7 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
     });
@@ -593,17 +593,13 @@ export class AuthController {
     const result = await this.authService.handleGithubOAuthCallback(userId);
 
     // Set refresh token as HttpOnly cookie
-    const result2 = res.cookie(
-      authCookiesNames.refreshToken,
-      result.refreshToken,
-      {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: refreshTokenConstants.expirationSeconds * 1000,
-        path: '/',
-      },
-    );
+    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: '/',
+    });
 
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
   }
@@ -637,7 +633,7 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
     });
