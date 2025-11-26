@@ -443,6 +443,17 @@ export class AuthService {
   }
 
   /**
+   * Gets the user details by ID.
+   * @param userId - The ID of the user to retrieve.
+   * @returns The user details.
+   */
+  async getUserDetails(userId: string) {
+    return await this.prisma.users.findUnique({
+      where: { id: userId },
+    });
+  }
+
+  /**
    * Logs out the user by deleting the session associated with the provided refresh token.
    * @param refreshToken - The refresh token to invalidate.
    */

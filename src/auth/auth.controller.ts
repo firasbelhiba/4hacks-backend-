@@ -386,8 +386,8 @@ export class AuthController {
       },
     },
   })
-  me(@CurrentUser() user: any) {
-    return user;
+  me(@CurrentUser('id') userId: string) {
+    return this.authService.getUserDetails(userId);
   }
 
   @ApiOperation({
