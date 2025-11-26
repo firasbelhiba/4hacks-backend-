@@ -146,6 +146,7 @@ export class AuthController {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
+      priority: 'high',
     });
 
     return {
@@ -191,6 +192,7 @@ export class AuthController {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
+      priority: 'high',
     });
 
     return {
@@ -261,6 +263,7 @@ export class AuthController {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
+      priority: 'high',
     });
 
     return {
@@ -311,6 +314,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
+      priority: 'high',
     });
 
     return {
@@ -345,6 +349,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
+      priority: 'high',
     });
 
     return {
@@ -562,6 +567,7 @@ export class AuthController {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
+      priority: 'high',
     });
 
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
@@ -599,6 +605,7 @@ export class AuthController {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
+      priority: 'high',
     });
 
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
@@ -636,6 +643,7 @@ export class AuthController {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
       path: '/',
+      priority: 'high',
     });
 
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
@@ -652,6 +660,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
+      priority: 'high',
     });
 
     return {
