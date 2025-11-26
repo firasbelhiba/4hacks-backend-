@@ -1,39 +1,26 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { createWriteStream, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { R2Service } from 'src/r2/r2.service';
 
 @Injectable()
 export class FileUploadService {
   private readonly logger = new Logger(FileUploadService.name);
 
-  profileImageUploadsDirectory = join(
-    process.cwd(),
-    'src',
-    'uploads',
-    'profiles',
-  );
-
-  constructor() {
-    this.logger.log('FileUploadService initialized');
-    // Ensure the uploads directory is created at runtime if it doesn't exist
-    this.ensureUploadsDirectoryExists();
-  }
-
-  private ensureUploadsDirectoryExists() {
-    if (!existsSync(this.profileImageUploadsDirectory)) {
-      mkdirSync(this.profileImageUploadsDirectory, { recursive: true });
-    }
-  }
+  constructor(private readonly r2: R2Service) {}
 
   /**
-   * Handles profile image upload.
-   * This is a placeholder for actual cloud storage implementation.
+   * Uploads a profile image to R2.
    * @param file - The uploaded image file.
-   * @returns The URL or path of the uploaded image.
+   * @param userId - Optional user id to include in the object key.
+   * @returns The public URL of the uploaded image.
    */
-  async uploadProfileImage(file: Express.Multer.File): Promise<string> {
+  async uploadProfileImage(
+    file: Express.Multer.File,
+    userId?: string,
+  ): Promise<string> {
     // Validate file type
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
     if (!allowedMimeTypes.includes(file.mimetype)) {
       throw new BadRequestException(
         'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
@@ -47,25 +34,31 @@ export class FileUploadService {
       throw new BadRequestException('File size must not exceed 5MB.');
     }
 
-    // In production, replace this with actual cloud storage implementation
     const timestamp = Date.now();
-    const filename = `${timestamp}-${file.originalname}`;
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-');
+    const key = userId
+      ? `4hacks/profiles/${userId}/${timestamp}-${safeName}`
+      : `4hacks/profiles/${timestamp}-${safeName}`;
 
-    this.logger.log(
-      `Image upload placeholder - filename: ${filename}, size: ${file.size}`,
-    );
+    this.logger.log(`Uploading profile image to R2 - key: ${key}`);
 
-    this.logger.log('Uploading file to local storage...');
+    try {
+      const publicUrl = await this.r2.uploadFile(
+        file.buffer,
+        key,
+        file.mimetype,
+      );
 
-    // Save the file to the local uploads directory
+      this.logger.log(`Image uploaded to R2 - url: ${publicUrl}`);
 
-    const filePath = join(this.profileImageUploadsDirectory, filename);
+      return publicUrl;
+    } catch (err) {
+      this.logger.error(
+        'R2 upload failed, error uploading profile image',
+        err as any,
+      );
 
-    const writeStream = createWriteStream(filePath);
-    writeStream.end(file.buffer);
-
-    this.logger.log(`File uploaded to local storage - path: ${filePath}`);
-
-    return filePath;
+      throw err;
+    }
   }
 }
