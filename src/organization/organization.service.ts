@@ -8,14 +8,22 @@ import {
 import { CreateOrganizationDto } from './dto/create.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { HackathonStatus } from 'generated/prisma';
+import { FileUploadService } from 'src/file-upload/file-upload.service';
 
 @Injectable()
 export class OrganizationService {
   private readonly logger = new Logger(OrganizationService.name);
 
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly fileUploadService: FileUploadService,
+  ) {}
 
-  async create(userId: string, createOrganizationDto: CreateOrganizationDto) {
+  async create(
+    userId: string,
+    createOrganizationDto: CreateOrganizationDto,
+    logo?: Express.Multer.File,
+  ) {
     this.logger.log('Creating organization');
 
     const { name, slug } = createOrganizationDto;
@@ -44,10 +52,27 @@ export class OrganizationService {
       }
     }
 
+    // Upload logo if provided
+    let logoUrl: string | undefined;
+    if (logo) {
+      this.logger.log('Uploading organization logo');
+      try {
+        logoUrl = await this.fileUploadService.uploadOrganizationLogo(
+          logo,
+          slug,
+        );
+        this.logger.log(`Logo uploaded successfully: ${logoUrl}`);
+      } catch (error) {
+        this.logger.error('Failed to upload logo', error);
+        throw new BadRequestException('Failed to upload logo image');
+      }
+    }
+
     // Create the organization
     const organization = await this.prismaService.organization.create({
       data: {
         ...createOrganizationDto,
+        logo: logoUrl,
         ownerId: userId,
       },
     });
