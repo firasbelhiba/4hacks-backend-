@@ -193,8 +193,9 @@ export class TwoFactorCodeDto {
 
 export class DisableAccountDto {
   @ApiPropertyOptional({
-    description: 'Password',
-    example: 'password',
+    description:
+      'Current password. **REQUIRED** if user has credentials but 2FA is disabled. Must be provided for credential-based accounts without 2FA.',
+    example: 'currentPassword123',
   })
   @IsOptional()
   @IsString()
@@ -202,28 +203,36 @@ export class DisableAccountDto {
   password?: string;
 
   @ApiPropertyOptional({
-    description: '2FA code',
+    description:
+      'Two-factor authentication code (6 digits). **REQUIRED** if 2FA is enabled. Must request code first using POST /profile/disable/code endpoint. The code is sent to your email address.',
     example: '123456',
   })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\d{6}$/)
+  @Matches(/^\d{6}$/, {
+    message: '2FA code must be a 6-digit number',
+  })
   twoFactorCode?: string;
 
   @ApiPropertyOptional({
-    description: 'Email code',
+    description:
+      'Email verification code (6 digits). **REQUIRED** if account was created via OAuth providers only (no password). Must request code first using POST /profile/disable/code endpoint. The code is sent to your email address.',
     example: '123456',
   })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\d{6}$/)
+  @Matches(/^\d{6}$/, {
+    message: 'Email code must be a 6-digit number',
+  })
   emailCode?: string;
 
   @ApiPropertyOptional({
-    description: 'Reason for disabling the account',
-    example: 'reason',
+    description:
+      'Optional reason for disabling the account (max 500 characters). This field is always optional regardless of account type.',
+    example: 'No longer using the platform',
+    maxLength: 500,
   })
   @IsOptional()
   @IsString()
