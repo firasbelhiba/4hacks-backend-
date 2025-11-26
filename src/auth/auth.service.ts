@@ -448,9 +448,18 @@ export class AuthService {
    * @returns The user details.
    */
   async getUserDetails(userId: string) {
-    return await this.prisma.users.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { id: userId },
     });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Remove password from user object
+    const { password, ...userWithoutPassword } = user;
+
+    return userWithoutPassword;
   }
 
   /**
