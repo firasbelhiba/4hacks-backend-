@@ -9,6 +9,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateHackathonDto } from './dto/create.dto';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
+import { HackathonStatus } from 'generated/prisma';
 
 @Injectable()
 export class HackathonService {
@@ -230,6 +231,48 @@ export class HackathonService {
 
     return {
       data: tracks,
+    };
+  }
+
+  async getHackathonByIdentifier(identifier: string, userId?: string) {
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [{ id: identifier }, { slug: identifier }],
+        AND: [
+          {
+            OR: [
+              { status: { not: HackathonStatus.DRAFT } }, // not draft hackathons
+              ...(userId
+                ? [
+                    {
+                      status: HackathonStatus.DRAFT,
+                      organization: { ownerId: userId },
+                    },
+                  ]
+                : []), // if logged in, show hackathon draft only if user is owner
+            ],
+          },
+        ],
+      },
+      include: {
+        tracks: true,
+        organization: {
+          include: {
+            owner: {
+              select: { id: true, name: true, email: true, image: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found or access denied');
+    }
+
+    return {
+      message: 'Hackathon retrieved successfully',
+      data: hackathon,
     };
   }
 }

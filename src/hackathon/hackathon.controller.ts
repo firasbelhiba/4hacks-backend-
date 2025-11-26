@@ -25,6 +25,7 @@ import { CreateHackathonDto } from './dto/create.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 
 @ApiTags('Hackathons')
 @Controller('hackathon')
@@ -222,5 +223,56 @@ export class HackathonController {
   @Get(':id/tracks')
   async getTracks(@Param('id') hackathonId: string) {
     return await this.hackathonService.getTracks(hackathonId);
+  }
+
+  @ApiOperation({
+    summary: 'Get hackathon by identifier',
+    description:
+      'Retrieve a hackathon by its ID or slug. If the hackathon is in draft status, only the organization owner can access it.',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hackathon retrieved successfully.',
+    schema: {
+      example: {
+        message: 'Hackathon retrieved successfully',
+        data: {
+          id: 'cuid',
+          slug: 'hackathon-slug',
+          title: 'Hackathon Title',
+          organization: {
+            id: 'cuid',
+            name: 'Organization Name',
+            ownerId: 'cuid',
+          },
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found or access denied',
+    schema: {
+      example: {
+        message: 'Hackathon not found or access denied',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':identifier')
+  async getHackathonByIdentifier(
+    @Param('identifier') identifier: string,
+    @CurrentUser('id') userId?: string,
+  ) {
+    return await this.hackathonService.getHackathonByIdentifier(
+      identifier,
+      userId,
+    );
   }
 }
