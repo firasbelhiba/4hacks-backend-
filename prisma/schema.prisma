@@ -74,6 +74,11 @@ enum PrizeType {
   SPONSOR
 }
 
+/**
+ * //////////////////////////////////////////////////////
+ * User And Session
+ * //////////////////////////////////////////////////////
+ */
 model users {
   id                   String         @id @default(cuid())
   email                String         @unique
@@ -154,28 +159,108 @@ model FailedLogin {
   @@map("failed_logins")
 }
 
+/**
+ * //////////////////////////////////////////////////////
+ * Organization
+ * //////////////////////////////////////////////////////
+ */
+enum OrganizationType {
+  ENTERPRISE
+  STARTUP
+  DAO
+  NON_PROFIT
+  EDUCATIONAL_INSTITUTION
+  GOVERNMENT_AGENCY
+  COMMUNITY_DEVELOPER_GROUP
+  BLOCKCHAIN_FOUNDATION
+  STUDENT_ORGANIZATION
+}
+
+enum OrganizationSize {
+  ONE_TO_TEN
+  ELEVEN_TO_FIFTY
+  FIFTY_ONE_TO_TWO_HUNDRED
+  TWO_HUNDRED_ONE_TO_FIVE_HUNDRED
+  FIVE_HUNDRED_ONE_TO_ONE_THOUSAND
+  ONE_THOUSAND
+  COMMUNITY_DRIVEN
+}
+
+enum Region {
+  NORTH_AMERICA
+  SOUTH_AMERICA
+  EUROPE
+  AFRICA
+  ASIA
+  MIDDLE_EAST
+  OCEANIA
+  GLOBAL
+}
+
 model Organization {
-  id          String      @id @default(cuid())
-  name        String      @unique
-  slug        String      @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  displayName String // Usually is a short name for the organization, by default it will be the same as the name unless specified
   logo        String?
   tagline     String?
   description String?
-  location    String?
-  website     String?
-  github      String?
-  twitter     String?
-  ownerId     String
-  owner       users       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  hackathons  Hackathon[]
+
+  // Type and Size of the Organization
+  type             OrganizationType
+  establishedYear  Int
+  size             OrganizationSize
+  operatingRegions Region[]         @default([])
+
+  // Primary Needed Contacts (email, phone)
+  email String
+  phone String
+
+  // Location 
+  country     String
+  city        String
+  state       String?
+  zipCode     String?
+  loc_address String?
+
+  // Primary Needed Socials
+  website  String
+  linkedin String
+  github   String
+  twitter  String
+  ownerId  String
+
+  // Other optional socials
+  discord      String?
+  telegram     String?
+  medium       String?
+  youtube      String?
+  facebook     String?
+  instagram    String?
+  reddit       String?
+  warpcast     String?
+  otherSocials String[] @default([])
+
+  // Other optional fields
+  sector String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner      users       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  hackathons Hackathon[]
 
   @@index([ownerId])
   @@index([name])
   @@index([slug])
   @@map("organizations")
 }
+
+/**
+ * //////////////////////////////////////////////////////
+ * Hackathon
+ * //////////////////////////////////////////////////////
+ */
 
 model Hackathon {
   id          String            @id @default(cuid())

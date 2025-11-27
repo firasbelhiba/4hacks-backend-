@@ -1,13 +1,11 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsEmail,
   IsEnum,
   IsInt,
-  IsNotEmpty,
   IsOptional,
-  IsPhoneNumber,
   IsString,
   IsUrl,
   Max,
@@ -15,40 +13,36 @@ import {
 } from 'class-validator';
 import { OrganizationType, OrganizationSize, Region } from 'generated/prisma';
 
-export class CreateOrganizationDto {
+export class UpdateOrganizationDto {
   // Basic Information
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Name of the organization (unique)',
     example: 'Dar Blockchain',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'URL-friendly slug for the organization (unique)',
     example: 'dar-blockchain',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Transform(({ value }) => value.toLowerCase().trim())
-  slug: string;
+  slug?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Display name - short name for the organization',
     example: 'Dar Blockchain',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  displayName: string;
+  displayName?: string;
 
   @ApiPropertyOptional({
     description: 'Tagline of the organization',
     example: 'Building the future of blockchain in Tunisia',
-    required: false,
   })
   @IsOptional()
   @IsString()
@@ -58,55 +52,49 @@ export class CreateOrganizationDto {
     description: 'Detailed description of the organization',
     example:
       'We are a blockchain organization focused on education and innovation',
-    required: false,
   })
   @IsOptional()
   @IsString()
   description?: string;
 
   // Type and Size
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Type of the organization',
     enum: OrganizationType,
     example: OrganizationType.STARTUP,
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsEnum(OrganizationType)
-  type: OrganizationType;
+  type?: OrganizationType;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Year the organization was established',
     example: 2020,
     minimum: 1800,
-    maximum: new Date().getFullYear(),
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsInt()
   @Min(1800)
   @Max(new Date().getFullYear())
   @Type(() => Number)
-  establishedYear: number;
+  establishedYear?: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Size of the organization',
     enum: OrganizationSize,
     example: OrganizationSize.ELEVEN_TO_FIFTY,
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsEnum(OrganizationSize)
-  size: OrganizationSize;
+  size?: OrganizationSize;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Operating regions of the organization',
     enum: Region,
     isArray: true,
     example: [Region.AFRICA, Region.EUROPE],
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsArray()
   @IsEnum(Region, { each: true })
   @Transform(({ value }) => {
@@ -115,50 +103,45 @@ export class CreateOrganizationDto {
     }
     return value;
   })
-  operatingRegions: Region[];
+  operatingRegions?: Region[];
 
   // Contact Information
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Primary email address of the organization',
     example: 'contact@darblockchain.io',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Primary phone number of the organization',
     example: '+216 12 345 678',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  phone: string;
+  phone?: string;
 
   // Location
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Country where the organization is located',
     example: 'Tunisia',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  country: string;
+  country?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'City where the organization is located',
     example: 'Tunis',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  city: string;
+  city?: string;
 
   @ApiPropertyOptional({
     description: 'State/Province where the organization is located',
     example: 'Tunis',
-    required: false,
   })
   @IsOptional()
   @IsString()
@@ -167,7 +150,6 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'ZIP/Postal code',
     example: '1000',
-    required: false,
   })
   @IsOptional()
   @IsString()
@@ -176,54 +158,48 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'Physical address of the organization',
     example: '123 Blockchain Street',
-    required: false,
   })
   @IsOptional()
   @IsString()
   loc_address?: string;
 
-  // Primary Social Links (Required)
-  @ApiProperty({
+  // Primary Social Links
+  @ApiPropertyOptional({
     description: 'Official website URL',
     example: 'https://darblockchain.io',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsUrl()
-  website: string;
+  website?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'LinkedIn profile URL',
     example: 'https://linkedin.com/company/darblockchain',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsUrl()
-  linkedin: string;
+  linkedin?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'GitHub organization URL',
     example: 'https://github.com/darblockchain',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsUrl()
-  github: string;
+  github?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Twitter/X profile URL',
     example: 'https://twitter.com/darblockchain',
-    required: true,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsUrl()
-  twitter: string;
+  twitter?: string;
 
   // Optional Social Links
   @ApiPropertyOptional({
     description: 'Discord server URL',
     example: 'https://discord.gg/darblockchain',
-    required: false,
   })
   @IsOptional()
   @IsUrl()
@@ -232,7 +208,6 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'Telegram group/channel URL',
     example: 'https://t.me/darblockchain',
-    required: false,
   })
   @IsOptional()
   @IsUrl()
@@ -241,7 +216,6 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'Medium publication URL',
     example: 'https://medium.com/@darblockchain',
-    required: false,
   })
   @IsOptional()
   @IsUrl()
@@ -250,7 +224,6 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'YouTube channel URL',
     example: 'https://youtube.com/@darblockchain',
-    required: false,
   })
   @IsOptional()
   @IsUrl()
@@ -259,7 +232,6 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'Facebook page URL',
     example: 'https://facebook.com/darblockchain',
-    required: false,
   })
   @IsOptional()
   @IsUrl()
@@ -268,7 +240,6 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'Instagram profile URL',
     example: 'https://instagram.com/darblockchain',
-    required: false,
   })
   @IsOptional()
   @IsUrl()
@@ -277,7 +248,6 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'Reddit community URL',
     example: 'https://reddit.com/r/darblockchain',
-    required: false,
   })
   @IsOptional()
   @IsUrl()
@@ -286,7 +256,6 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'Warpcast profile URL',
     example: 'https://warpcast.com/darblockchain',
-    required: false,
   })
   @IsOptional()
   @IsUrl()
@@ -296,7 +265,6 @@ export class CreateOrganizationDto {
     description: 'Other social media links',
     type: [String],
     example: ['https://example.com/social1', 'https://example.com/social2'],
-    required: false,
   })
   @IsOptional()
   @IsArray()
@@ -313,7 +281,6 @@ export class CreateOrganizationDto {
   @ApiPropertyOptional({
     description: 'Industry sector of the organization',
     example: 'Blockchain Technology',
-    required: false,
   })
   @IsOptional()
   @IsString()
