@@ -72,7 +72,7 @@ export class HackathonRequestController {
   @ApiParam({
     name: 'identifier',
     description: 'Request identifier (id or hackathon slug)',
-    example: 'dar-blockchain',
+    example: 'hedera-africa-hackathon-2025',
     required: true,
   })
   @ApiResponse({
