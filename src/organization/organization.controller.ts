@@ -193,13 +193,13 @@ export class OrganizationController {
           type: 'string',
           format: 'uri',
           description: 'LinkedIn profile URL',
-          example: 'https://linkedin.com/company/darblockchain',
+          example: 'https://www.linkedin.com/in/dar-blockchain/',
         },
         github: {
           type: 'string',
           format: 'uri',
           description: 'GitHub organization URL',
-          example: 'https://github.com/darblockchain',
+          example: 'https://github.com/Dar-Blockchain',
         },
         twitter: {
           type: 'string',

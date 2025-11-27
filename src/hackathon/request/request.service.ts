@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateHackathonRequestDto } from './dto/create-request.dto';
+import { UserMin } from 'src/common/types';
+import { UserRole } from 'generated/prisma';
 
 @Injectable()
 export class RequestService {
@@ -68,5 +70,35 @@ export class RequestService {
       }
       throw error;
     }
+  }
+
+  async findOne(identifier: string, user: UserMin) {
+    // Check if user is an ADMIN
+    const isAdmin = user.role === UserRole.ADMIN;
+
+    const request = await this.prisma.hackathonCreationRequest.findFirst({
+      where: {
+        // OR condition checks if the identifier matches EITHER ID or hackSlug
+        OR: [{ id: identifier }, { hackSlug: identifier }],
+        // If user is admin, they can see any request
+        // If user is not admin, they can only see their own organization requests
+        ...(isAdmin ? {} : { organization: { ownerId: user.id } }),
+      },
+      include: {
+        organization: {
+          include: {
+            owner: true,
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException(
+        'Hackathon request not found or you are not authorized to view it',
+      );
+    }
+
+    return request;
   }
 }
