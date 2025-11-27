@@ -36,22 +36,6 @@ enum Provider {
   LINKEDIN
 }
 
-enum HackathonStatus {
-  DRAFT
-  UPCOMING
-  REGISTRATION
-  ACTIVE
-  JUDGING
-  COMPLETED
-  CANCELLED
-}
-
-enum HackathonType {
-  IN_PERSON
-  VIRTUAL
-  HYBRID
-}
-
 enum ProjectStatus {
   DRAFT
   SUBMITTED
@@ -74,51 +58,60 @@ enum PrizeType {
   SPONSOR
 }
 
+// --- Enum for the Request's status
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 /**
  * //////////////////////////////////////////////////////
  * User And Session
  * //////////////////////////////////////////////////////
  */
 model users {
-  id                   String         @id @default(cuid())
-  email                String         @unique
-  username             String         @unique
-  walletAddress        String?        @unique
-  password             String
-  name                 String
-  role                 UserRole       @default(USER)
-  image                String?
-  providers            Provider[]     @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
-  profession           String?
-  bio                  String?
-  location             String?
-  org                  String? // Organization name (school, company, etc.)
-  skills               String[]       @default([])
-  website              String?
-  github               String?
-  linkedin             String?
-  telegram             String?
-  twitter              String?
-  whatsapp             String?
-  otherSocials         String[]       @default([])
-  isEmailVerified      Boolean        @default(false)
-  emailVerifiedAt      DateTime?
-  lastLoginAt          DateTime?
-  passwordUpdatedAt    DateTime?
-  twoFactorEnabled     Boolean        @default(false)
-  twoFactorSecret      String?
-  twoFactorConfirmedAt DateTime?
-  isDisabled           Boolean        @default(false)
-  disabledAt           DateTime?
-  disabledReason       String?
-  sessions             Session[]
-  revokedSessions      Session[]      @relation("RevokedSessions")
-  failedLogins         FailedLogin[]
-  organizations        Organization[] // USER can create multiple organizations
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  teamMembers          TeamMember[]
-  projects             Project[]
+  id                                String                     @id @default(cuid())
+  email                             String                     @unique
+  username                          String                     @unique
+  walletAddress                     String?                    @unique
+  password                          String
+  name                              String
+  role                              UserRole                   @default(USER)
+  image                             String?
+  providers                         Provider[]                 @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
+  profession                        String?
+  bio                               String?
+  location                          String?
+  org                               String? // Organization name (school, company, etc.)
+  skills                            String[]                   @default([])
+  website                           String?
+  github                            String?
+  linkedin                          String?
+  telegram                          String?
+  twitter                           String?
+  whatsapp                          String?
+  otherSocials                      String[]                   @default([])
+  isEmailVerified                   Boolean                    @default(false)
+  emailVerifiedAt                   DateTime?
+  lastLoginAt                       DateTime?
+  passwordUpdatedAt                 DateTime?
+  twoFactorEnabled                  Boolean                    @default(false)
+  twoFactorSecret                   String?
+  twoFactorConfirmedAt              DateTime?
+  isDisabled                        Boolean                    @default(false)
+  disabledAt                        DateTime?
+  disabledReason                    String?
+  sessions                          Session[]
+  revokedSessions                   Session[]                  @relation("RevokedSessions")
+  failedLogins                      FailedLogin[]
+  organizations                     Organization[] // USER can create multiple organizations
+  createdAt                         DateTime                   @default(now())
+  updatedAt                         DateTime                   @updatedAt
+  teamMembers                       TeamMember[]
+  projects                          Project[]
+  rejectedHackathonCreationRequests HackathonCreationRequest[] @relation("rejectedHackathonCreationRequests")
+  approvedHackathonCreationRequests HackathonCreationRequest[] @relation("approvedHackathonCreationRequests")
 
   @@index([email])
   @@index([username])
@@ -247,8 +240,9 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner      users       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  hackathons Hackathon[]
+  owner                     users                      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  hackathons                Hackathon[]
+  hackathonCreationRequests HackathonCreationRequest[]
 
   @@index([ownerId])
   @@index([name])
@@ -262,6 +256,221 @@ model Organization {
  * //////////////////////////////////////////////////////
  */
 
+enum HackathonStatus {
+  DRAFT
+  UPCOMING
+  REGISTRATION
+  ACTIVE
+  JUDGING
+  COMPLETED
+  CANCELLED
+}
+
+enum HackathonType {
+  IN_PERSON
+  ONLINE
+  HYBRID
+}
+
+enum HackathonTargetAudience {
+  STUDENTS
+  PROFESSIONALS
+  OTHER
+}
+
+enum GeographicScope {
+  GLOBAL
+  REGIONAL
+  LOCAL
+}
+
+enum FundingSource {
+  SELF_FUNDED
+  SPONSORS
+  GRANTS
+  TBD
+}
+
+enum SponsorLevel {
+  UNDER_5K
+  BETWEEN_5K_AND_25K
+  BETWEEN_25K_AND_100K
+  ABOVE_100K
+}
+
+enum YesNoNotApplicable {
+  YES
+  NO
+  NOT_APPLICABLE
+}
+
+enum MarketingHelpDetails {
+  SOCIAL_MEDIA_PROMOTION
+  EMAIL_CAMPAIGNS
+  CONTENT_CREATION
+  PRESS_RELEASE_MEDIA_OUTREACH
+  INFLUENCER_PARTNERSHIPS
+  COMMUNITY_OUTREACH
+  SEO_LANDING_PAGE_OPTIMIZATION
+}
+
+enum EstimatedReach {
+  UNDER_500
+  BETWEEN_500_AND_5K
+  BETWEEN_5K_AND_50K
+  ABOVE_50K
+}
+
+enum EventLogisticsDetails {
+  REGISTRATION_MANAGEMENT
+  TEAM_FORMATION_SUPPORT
+  SCHEDULE_PLANNING
+  FOOD_CATERING_COORDINATION
+  SWAG_MERCHANDISE
+  TRAVEL_ACCOMMODATION_COORDINATION
+}
+
+// The Hackathon Creation Request (Admin approval queue)
+model HackathonCreationRequest {
+  id                String            @id @default(cuid())
+  hackTitle         String
+  hackSlug          String            @unique
+  hackId            String?
+  hackathon         Hackathon?        @relation(fields: [hackId], references: [id], onDelete: Cascade)
+  status            RequestStatus     @default(PENDING)
+  organizationId    String
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rejectedAt        DateTime?
+  rejectedById      String?
+  rejectedBy        users?            @relation("rejectedHackathonCreationRequests", fields: [rejectedById], references: [id], onDelete: Cascade)
+  rejectedReason    String?
+  approvedAt        DateTime?
+  approvedById      String?
+  approvedBy        users?            @relation("approvedHackathonCreationRequests", fields: [approvedById], references: [id], onDelete: Cascade)
+  hackType          HackathonType
+  hackCategory      HackathonCategory
+  focus             String
+  audience          String
+  expectedAttendees Int
+  geographicScope   GeographicScope
+
+  // Hackathon Location (required if type is IN_PERSON or HYBRID)
+  hackCountry String?
+  hackCity    String?
+  hackState   String?
+  hackZipCode String?
+  hackAddress String?
+
+  // Dates
+  registrationStart DateTime
+  registrationEnd   DateTime
+  startDate         DateTime
+  endDate           DateTime
+  judgingStart      DateTime?
+  judgingEnd        DateTime?
+
+  // Prize Pool
+  prizePool            Float
+  prizeToken           String @default("USD")
+  expectedTotalWinners Int
+  distributionPlan     String
+
+  // Funding
+  fundingSources    FundingSource[]
+  confirmedSponsors String[]        @default([])
+
+  // Do you need help finding sponsors? (Yes/No)
+  needSponsorsHelp Boolean
+
+  // If yes, what level of sponsorship are you targeting? (< $5K, $5K-$25K, $25K-$100K, $100K+)
+  sponsorLevel SponsorLevel?
+
+  // Venue details (required if type is IN_PERSON or HYBRID)
+  // Do you have a venue secured? (Yes/No/Not applicable)
+  venueSecured YesNoNotApplicable
+
+  // Do you need help securing a venue? (Yes/No/Not applicable)
+  needVenueHelp YesNoNotApplicable
+
+  // Do you need technical support during the event? (Yes/No)
+  technicalSupport Boolean
+
+  // Do you need help setting up live streaming? (Yes/No/Not applicable)
+  liveStreaming YesNoNotApplicable
+
+  // Do you need help with marketing the hackathon? (Yes/No)
+  marketingHelp Boolean
+
+  // If yes, select all that apply
+  marketingHelpDetails MarketingHelpDetails[] @default([])
+
+  // Do you have an existing community/audience? (Yes/No)
+  existingCommunity Boolean
+
+  // If yes, what's your estimated reach? (< 500, 500-5K, 5K-50K, 50K+)
+  estimatedReach EstimatedReach
+
+  // What's your target registration goal? (number)
+  targetRegistrationGoal Int
+
+  // Do you need help organizing workshops? (Yes/No)
+  needWorkshopsHelp    Boolean
+  workshopsHelpDetails String  @default("")
+
+  // Do you need technical mentors? (Yes/No)
+  needTechnicalMentors Boolean
+
+  // If yes, how many? (number)
+  technicalMentorCount Int @default(0)
+
+  // Do you need help creating educational content? (tutorials, documentation) (Yes/No)
+  needEducationalContent Boolean
+
+  // Do you need speakers for opening/closing ceremonies? (Yes/No)
+  needSpeakers Boolean
+
+  // Do you need help finding judges? (Yes/No)
+  needJudges Boolean
+
+  // If yes, how many judges needed? (number)
+  judgesCount Int @default(0)
+
+  // Desired judge profiles? (VCs, technical experts, industry leaders, etc.)
+  judgesProfiles String[] @default([])
+
+  // Do you need help creating judging criteria? (Yes/No)
+  needJudgingCriteria Boolean
+
+  // Do you need a custom evaluation/scoring system? (Yes/No)
+  needEvaluationSystem Boolean
+
+  // Do you need help with event logistics? (Yes/No)
+  needEventLogistics Boolean
+
+  // If yes, select all that apply:
+  eventLogisticsDetails EventLogisticsDetails[] @default([])
+
+  // Do you need volunteer coordinators? (Yes/No)
+  needVolunteerCoordinators Boolean
+
+  // Do you need help with Discord/Slack community setup? (Yes/No)
+  needCommunitySetup Boolean
+
+  // Do you need on-call support during the event? (Yes/No)
+  needOnCallSupport Boolean
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Performance/Search Indexes
+  @@index([status])
+  @@index([createdAt])
+  @@index([organizationId])
+  @@index([rejectedById])
+  @@index([approvedById])
+  @@map("hackathon_creation_requests")
+}
+
 model Hackathon {
   id          String            @id @default(cuid())
   title       String
@@ -270,7 +479,7 @@ model Hackathon {
   description String            @default("") @db.Text
   location    String?
   category    HackathonCategory
-  type        HackathonType     @default(VIRTUAL)
+  type        HackathonType     @default(ONLINE)
   status      HackathonStatus   @default(DRAFT)
   tags        String[]          @default([])
   prizePool   Float             @default(0)
@@ -302,9 +511,10 @@ model Hackathon {
   updatedAt DateTime @updatedAt
 
   // Virtual Relations
-  tracks   Track[]
-  projects Project[]
-  prizes   Prize[]
+  tracks                    Track[]
+  projects                  Project[]
+  prizes                    Prize[]
+  hackathonCreationRequests HackathonCreationRequest[]
 
   @@index([slug])
   @@index([organizationId])
@@ -314,12 +524,17 @@ model Hackathon {
 }
 
 model Track {
-  id              String @id @default(cuid())
+  id              String   @id @default(cuid())
   hackathonId     String
   name            String
-  description     String @default("") @db.Text
-  judgingCriteria String @default("")
-  order           Int    @default(0)
+  description     String   @default("") @db.Text
+  judgingCriteria String   @default("")
+  order           Int      @default(0)
+  prizeAmount     Float    @default(0)
+  prizeToken      String   @default("USD")
+  winnersCount    Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt @default(now())
 
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
 
@@ -397,7 +612,7 @@ model Project {
   updatedAt DateTime @updatedAt
 
   hackathon    Hackathon     @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
-  team         Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  team         Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
   creator      users         @relation(fields: [creatorId], references: [id])
   track        Track?        @relation(fields: [trackId], references: [id], onDelete: SetNull)
   prizeWinners PrizeWinner[]

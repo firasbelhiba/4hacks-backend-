@@ -63,7 +63,3 @@ uploads
 
 docs
 
-
-migration.sql
-prisma/migrations
-migrations
