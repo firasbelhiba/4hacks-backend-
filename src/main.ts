@@ -44,6 +44,7 @@ async function bootstrap() {
       'Endpoints related to user profile management',
     )
     .addTag('Organizations', 'Endpoints related to organization management')
+    .addTag('Hackathon Requests', 'Endpoints related to hackathon requests')
     .addTag('Hackathons', 'Endpoints related to hackathon management')
     .addBearerAuth({
       type: 'http',

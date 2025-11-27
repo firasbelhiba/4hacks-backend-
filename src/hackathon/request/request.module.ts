@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { RequestController } from './request.controller';
 import { RequestService } from './request.service';
+import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [RequestController],
-  providers: [RequestService]
+  providers: [RequestService],
 })
 export class RequestModule {}
