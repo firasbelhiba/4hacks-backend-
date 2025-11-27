@@ -1,4 +1,12 @@
-import { Body, Controller, Post, UseGuards, Get, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  UseGuards,
+  Get,
+  Param,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -6,19 +14,40 @@ import {
   ApiNotFoundResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { RequestService } from './request.service';
+import { HackathonRequestService } from './hackathon-request.service';
 import { CreateHackathonRequestDto } from './dto/create-request.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { UserMin } from 'src/common/types';
+import { FindByOrganizationDto } from './dto/find.dto';
 
 @ApiTags('Hackathon Requests')
-@Controller('hackathon/request')
-export class RequestController {
-  constructor(private readonly requestService: RequestService) {}
+@Controller('hackathon-requests')
+export class HackathonRequestController {
+  constructor(private readonly requestService: HackathonRequestService) {}
+
+  @ApiOperation({ summary: 'Get all hackathon requests for an organization' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all hackathon requests for the organization',
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization not found or you are not authorized to view it',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  findByOrganization(
+    @Query() query: FindByOrganizationDto,
+    @CurrentUser() user: UserMin,
+  ) {
+    const identifier = query.org;
+    return this.requestService.findByOrganization(identifier, user);
+  }
 
   @ApiOperation({ summary: 'Create a hackathon creation request' })
   @ApiBody({ type: CreateHackathonRequestDto })
@@ -43,6 +72,8 @@ export class RequestController {
   @ApiParam({
     name: 'identifier',
     description: 'Request identifier (id or hackathon slug)',
+    example: 'dar-blockchain',
+    required: true,
   })
   @ApiResponse({
     status: 200,
@@ -60,28 +91,5 @@ export class RequestController {
     @CurrentUser() user: UserMin,
   ) {
     return this.requestService.findOne(identifier, user);
-  }
-
-  @ApiOperation({ summary: 'Get all hackathon requests for an organization' })
-  @ApiParam({
-    name: 'orgIdentifier',
-    description: 'Organization identifier (id, slug, or name)',
-    example: 'dar-blockchain',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Return all hackathon requests for the organization',
-  })
-  @ApiNotFoundResponse({
-    description: 'Organization not found or you are not authorized to view it',
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Get('organization/:identifier')
-  findByOrganization(
-    @Param('identifier') identifier: string,
-    @CurrentUser() user: UserMin,
-  ) {
-    return this.requestService.findByOrganization(identifier, user);
   }
 }

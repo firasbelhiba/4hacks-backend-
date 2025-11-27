@@ -11,8 +11,8 @@ import { UserMin } from 'src/common/types';
 import { UserRole } from 'generated/prisma';
 
 @Injectable()
-export class RequestService {
-  private readonly logger = new Logger(RequestService.name);
+export class HackathonRequestService {
+  private readonly logger = new Logger(HackathonRequestService.name);
 
   constructor(private prisma: PrismaService) {}
 
