@@ -1,0 +1,273 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsUrl,
+  MaxLength,
+  MinLength,
+  Matches,
+  IsNotEmpty,
+  IsEmail,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
+
+export class UpdateProfileDto {
+  @ApiPropertyOptional({
+    description: 'Full name of the user',
+    example: 'John Doe',
+    minLength: 2,
+    maxLength: 100,
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  name?: string;
+
+  @ApiPropertyOptional({
+    description: 'User biography or description',
+    example: 'Full-stack developer passionate about blockchain and AI',
+    maxLength: 500,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bio?: string;
+
+  @ApiPropertyOptional({
+    description: 'User profession or job title',
+    example: 'Senior Software Engineer',
+    maxLength: 100,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  profession?: string;
+
+  @ApiPropertyOptional({
+    description: 'User location (city, country)',
+    example: 'San Francisco, USA',
+    maxLength: 100,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  location?: string;
+
+  @ApiPropertyOptional({
+    description: 'Organization name (school, company, etc.)',
+    example: 'Google',
+    maxLength: 100,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  org?: string;
+
+  @ApiPropertyOptional({
+    description: 'Array of user skills',
+    example: ['JavaScript', 'TypeScript', 'React', 'NestJS'],
+    type: [String],
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((item) => item.trim());
+    }
+    return value;
+  })
+  skills?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Personal website URL',
+    example: 'https://johndoe.com',
+  })
+  @IsOptional()
+  @IsUrl()
+  website?: string;
+
+  @ApiPropertyOptional({
+    description: 'GitHub profile URL or username',
+    example: 'https://github.com/johndoe',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  github?: string;
+
+  @ApiPropertyOptional({
+    description: 'LinkedIn profile URL or username',
+    example: 'https://linkedin.com/in/johndoe',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  linkedin?: string;
+
+  @ApiPropertyOptional({
+    description: 'Telegram username',
+    example: '@johndoe',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  telegram?: string;
+
+  @ApiPropertyOptional({
+    description: 'Twitter/X username or URL',
+    example: 'https://twitter.com/johndoe',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  twitter?: string;
+
+  @ApiPropertyOptional({
+    description: 'WhatsApp number with country code',
+    example: '+1234567890',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  @Matches(/^\+?[1-9]\d{1,14}$/, {
+    message: 'WhatsApp must be a valid phone number with country code',
+  })
+  whatsapp?: string;
+
+  @ApiPropertyOptional({
+    description: 'Array of other social media links',
+    example: ['https://instagram.com/johndoe', 'https://youtube.com/@johndoe'],
+    type: [String],
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((item) => item.trim());
+    }
+    return value;
+  })
+  otherSocials?: string[];
+}
+
+export class UpdatePasswordDto {
+  @ApiProperty({
+    description: 'Current password',
+    example: 'currentPassword',
+  })
+  @IsString()
+  @IsNotEmpty()
+  currentPassword: string;
+
+  @ApiProperty({
+    description: 'New password',
+    example: 'newPassword',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
+    message: 'New password must contain at least one letter and one number',
+  })
+  newPassword: string;
+
+  @ApiProperty({
+    description: 'New Password confirmation',
+    example: 'newPassword',
+  })
+  @IsString()
+  @IsNotEmpty()
+  confirmPassword: string;
+}
+
+export class TwoFactorCodeDto {
+  @ApiProperty({
+    description: '2FA code',
+    example: '123456',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/)
+  code: string;
+}
+
+export class DisableAccountDto {
+  @ApiPropertyOptional({
+    description:
+      'Current password. **REQUIRED** if user has credentials but 2FA is disabled. Must be provided for credential-based accounts without 2FA.',
+    example: 'currentPassword123',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  password?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Two-factor authentication code (6 digits). **REQUIRED** if 2FA is enabled. Must request code first using POST /profile/disable/code endpoint. The code is sent to your email address.',
+    example: '123456',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/, {
+    message: '2FA code must be a 6-digit number',
+  })
+  twoFactorCode?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Email verification code (6 digits). **REQUIRED** if account was created via OAuth providers only (no password). Must request code first using POST /profile/disable/code endpoint. The code is sent to your email address.',
+    example: '123456',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/, {
+    message: 'Email code must be a 6-digit number',
+  })
+  emailCode?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional reason for disabling the account (max 500 characters). This field is always optional regardless of account type.',
+    example: 'No longer using the platform',
+    maxLength: 500,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+export class ChangeEmailDto {
+  @ApiProperty({
+    description: 'Current password for verification',
+    example: 'currentPassword123',
+  })
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+
+  @ApiProperty({
+    description: 'New email address to change to',
+    example: 'newemail@example.com',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsEmail({}, { message: 'New email must be a valid email address' })
+  newEmail: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Two-factor authentication code (required if 2FA is enabled). This code is sent to your current email address.',
+    example: '123456',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{6}$/, {
+    message: 'Two-factor code must be a 6-digit number',
+  })
+  twoFactorCode?: string;
+}

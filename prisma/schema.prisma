@@ -11,18 +11,16 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+}
+
+enum TeamRole {
+  LEADER
+  MEMBER
 }
 
 enum UserRole {
   ADMIN
   USER
-}
-
-enum OrganizationMemberRole {
-  OWNER
-  ADMIN
-  MEMBER
 }
 
 enum SessionStatus {
@@ -38,35 +36,92 @@ enum Provider {
   LINKEDIN
 }
 
-model users {
-  id              String     @id @default(cuid())
-  email           String     @unique
-  username        String     @unique
-  walletAddress   String?    @unique
-  password        String
-  name            String
-  role            UserRole   @default(USER)
-  image           String?
-  providers       Provider[] @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
-  profession      String?
-  bio             String?
-  location        String?
-  org             String? // Organization name (school, company, etc.)
-  skills          String[]   @default([])
-  website         String?
-  github          String?
-  linkedin        String?
-  telegram        String?
-  twitter         String?
-  whatsapp        String?
-  otherSocials    String[]   @default([])
-  isEmailVerified Boolean    @default(false)
-  emailVerifiedAt DateTime?
-  lastLoginAt     DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  sessions        Session[]
+enum HackathonStatus {
+  DRAFT
+  UPCOMING
+  REGISTRATION
+  ACTIVE
+  JUDGING
+  COMPLETED
+  CANCELLED
+}
 
+enum HackathonType {
+  IN_PERSON
+  VIRTUAL
+  HYBRID
+}
+
+enum ProjectStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  DISQUALIFIED
+  WINNER
+  FINALIST
+  PARTICIPANT
+}
+
+enum HackathonCategory {
+  WEB3
+  AI
+}
+
+enum PrizeType {
+  GENERAL
+  TRACK
+  BOUNTY
+  SPONSOR
+}
+
+/**
+ * //////////////////////////////////////////////////////
+ * User And Session
+ * //////////////////////////////////////////////////////
+ */
+model users {
+  id                   String         @id @default(cuid())
+  email                String         @unique
+  username             String         @unique
+  walletAddress        String?        @unique
+  password             String
+  name                 String
+  role                 UserRole       @default(USER)
+  image                String?
+  providers            Provider[]     @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
+  profession           String?
+  bio                  String?
+  location             String?
+  org                  String? // Organization name (school, company, etc.)
+  skills               String[]       @default([])
+  website              String?
+  github               String?
+  linkedin             String?
+  telegram             String?
+  twitter              String?
+  whatsapp             String?
+  otherSocials         String[]       @default([])
+  isEmailVerified      Boolean        @default(false)
+  emailVerifiedAt      DateTime?
+  lastLoginAt          DateTime?
+  passwordUpdatedAt    DateTime?
+  twoFactorEnabled     Boolean        @default(false)
+  twoFactorSecret      String?
+  twoFactorConfirmedAt DateTime?
+  isDisabled           Boolean        @default(false)
+  disabledAt           DateTime?
+  disabledReason       String?
+  sessions             Session[]
+  revokedSessions      Session[]      @relation("RevokedSessions")
+  failedLogins         FailedLogin[]
+  organizations        Organization[] // USER can create multiple organizations
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  teamMembers          TeamMember[]
+  projects             Project[]
+
+  @@index([email])
+  @@index([username])
   @@map("users")
 }
 
@@ -78,10 +133,311 @@ model Session {
   expiresAt    DateTime
   status       SessionStatus @default(ACTIVE)
   revokedAt    DateTime?
+  revokedById  String? // userId who revoked the session
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  user      users  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revokedBy users? @relation("RevokedSessions", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model FailedLogin {
+  id         String   @id @default(cuid())
+  userId     String? // null if the user doesn't exist
+  identifier String // email or username used in attempt
+  reason     String? // short message: "wrong-password", "no-user", etc.
+  createdAt  DateTime @default(now())
+
+  user users? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([identifier])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("failed_logins")
+}
+
+/**
+ * //////////////////////////////////////////////////////
+ * Organization
+ * //////////////////////////////////////////////////////
+ */
+enum OrganizationType {
+  ENTERPRISE
+  STARTUP
+  DAO
+  NON_PROFIT
+  EDUCATIONAL_INSTITUTION
+  GOVERNMENT_AGENCY
+  COMMUNITY_DEVELOPER_GROUP
+  BLOCKCHAIN_FOUNDATION
+  STUDENT_ORGANIZATION
+}
+
+enum OrganizationSize {
+  ONE_TO_TEN
+  ELEVEN_TO_FIFTY
+  FIFTY_ONE_TO_TWO_HUNDRED
+  TWO_HUNDRED_ONE_TO_FIVE_HUNDRED
+  FIVE_HUNDRED_ONE_TO_ONE_THOUSAND
+  ONE_THOUSAND
+  COMMUNITY_DRIVEN
+}
+
+enum Region {
+  NORTH_AMERICA
+  SOUTH_AMERICA
+  EUROPE
+  AFRICA
+  ASIA
+  MIDDLE_EAST
+  OCEANIA
+  GLOBAL
+}
+
+model Organization {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  displayName String // Usually is a short name for the organization, by default it will be the same as the name unless specified
+  logo        String?
+  tagline     String?
+  description String?
+
+  // Type and Size of the Organization
+  type             OrganizationType
+  establishedYear  Int
+  size             OrganizationSize
+  operatingRegions Region[]         @default([])
+
+  // Primary Needed Contacts (email, phone)
+  email String
+  phone String
+
+  // Location 
+  country     String
+  city        String
+  state       String?
+  zipCode     String?
+  loc_address String?
+
+  // Primary Needed Socials
+  website  String
+  linkedin String
+  github   String
+  twitter  String
+  ownerId  String
+
+  // Other optional socials
+  discord      String?
+  telegram     String?
+  medium       String?
+  youtube      String?
+  facebook     String?
+  instagram    String?
+  reddit       String?
+  warpcast     String?
+  otherSocials String[] @default([])
+
+  // Other optional fields
+  sector String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner      users       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  hackathons Hackathon[]
+
+  @@index([ownerId])
+  @@index([name])
+  @@index([slug])
+  @@map("organizations")
+}
+
+/**
+ * //////////////////////////////////////////////////////
+ * Hackathon
+ * //////////////////////////////////////////////////////
+ */
+
+model Hackathon {
+  id          String            @id @default(cuid())
+  title       String
+  slug        String            @unique
+  banner      String?
+  description String            @default("") @db.Text
+  location    String?
+  category    HackathonCategory
+  type        HackathonType     @default(VIRTUAL)
+  status      HackathonStatus   @default(DRAFT)
+  tags        String[]          @default([])
+  prizePool   Float             @default(0)
+  prizeToken  String            @default("USD")
+
+  // Dates
+  registrationStart DateTime
+  registrationEnd   DateTime
+  startDate         DateTime
+  endDate           DateTime
+  judgingStart      DateTime?
+  judgingEnd        DateTime?
+
+  // Settings
+  maxTeamSize      Int     @default(4)
+  minTeamSize      Int     @default(1)
+  maxParticipants  Int?
+  requiresApproval Boolean @default(false)
+  isPrivate        Boolean @default(false)
+
+  // Stats (denormalized for performance)
+  participantCount Int @default(0)
+  projectCount     Int @default(0)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Virtual Relations
+  tracks   Track[]
+  projects Project[]
+  prizes   Prize[]
+
+  @@index([slug])
+  @@index([organizationId])
+  @@index([status, isPrivate])
+  @@index([startDate, endDate])
+  @@map("hackathons")
+}
+
+model Track {
+  id              String @id @default(cuid())
+  hackathonId     String
+  name            String
+  description     String @default("") @db.Text
+  judgingCriteria String @default("")
+  order           Int    @default(0)
+
+  hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+
+  projects Project[]
+  prizes   Prize[]
+
+  @@index([hackathonId])
+  @@map("tracks")
+}
+
+model Prize {
+  id           String    @id @default(cuid())
+  hackathonId  String
+  trackId      String? // Null for general prizes
+  title        String
+  description  String    @db.Text
+  type         PrizeType @default(GENERAL)
+  amount       Float     @default(0)
+  currency     String    @default("USD")
+  winnersCount Int       @default(1)
+
+  // Relations
+  hackathon Hackathon     @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  track     Track?        @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  winners   PrizeWinner[]
+
+  @@index([hackathonId])
+  @@index([trackId])
+  @@map("prizes")
+}
+
+model PrizeWinner {
+  id        String    @id @default(cuid())
+  prizeId   String
+  projectId String
+  rank      Int       @default(1) // 1st, 2nd, 3rd place
+  awardedAt DateTime  @default(now())
+  paidAt    DateTime? // null if not paid yet
+
+  prize   Prize   @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([prizeId, projectId])
+  @@index([prizeId])
+  @@index([projectId])
+  @@map("prize_winners")
+}
+
+model Project {
+  id          String  @id @default(cuid())
+  hackathonId String
+  teamId      String
+  creatorId   String
+  trackId     String?
+
+  title       String
+  tagline     String?
+  description String  @db.Text
+  logo        String?
+
+  // Submission
+  status      ProjectStatus @default(DRAFT)
+  submittedAt DateTime?
+
+  // Links
+  demoUrl  String?
+  videoUrl String?
+  repoUrl  String?
+  pitchUrl String?
+
+  // Tech Stack
+  technologies String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hackathon    Hackathon     @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  team         Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  creator      users         @relation(fields: [creatorId], references: [id])
+  track        Track?        @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  prizeWinners PrizeWinner[]
+
+  @@index([hackathonId, status])
+  @@index([trackId])
+  @@index([creatorId])
+  @@index([submittedAt])
+  @@map("projects")
+}
+
+model Team {
+  id          String  @id @default(cuid())
+  hackathonId String
+  name        String
+  tagline     String?
+  avatar      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  TeamMember[]
+  projects Project[]
+
+  @@index([hackathonId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  userId   String
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("sessions")
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
 }

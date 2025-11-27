@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  # 1. The Database
+  db:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dorahacks-pers
+    volumes:
+      - postgres_data_friend:/var/lib/postgresql/data
+
+  # 2. Redis (He is using this for caching or sessions)
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data_friend:

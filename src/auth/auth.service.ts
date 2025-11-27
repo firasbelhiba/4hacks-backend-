@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -13,15 +14,18 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { Provider, SessionStatus, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
-import { LoginDto } from './dto/login.dto';
+import { LoginDto, VerifyTwoFactorLoginDto } from './dto/login.dto';
 import {
   createCipheriv,
   createDecipheriv,
   createHash,
   randomBytes,
+  randomUUID,
 } from 'crypto';
 import {
   FRONTEND_URL,
+  twoFactorEmailRedisTTL,
+  twoFactorLoginRedisPrefix,
   passwordResetRedisPrefix,
   passwordResetRedisTTL,
   refreshTokenConstants,
@@ -32,8 +36,9 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { EmailService } from 'src/email/email.service';
 import {
-  PasswordResetConfirmationEmailTemplateHtml,
+  PasswordChangedEmailTemplateHtml,
   PasswordResetEmailTemplateHtml,
+  TwoFactorEmailCodeTemplateHtml,
   VerificationEmailTemplateHtml,
 } from 'src/common/templates/emails.templates.list';
 import { UserMin } from 'src/common/types';
@@ -74,23 +79,32 @@ export class AuthService {
     const role = isFirstUser ? UserRole.ADMIN : UserRole.USER;
 
     // Generate a default username from email
-    const username = usernameBody
-      ? usernameBody.toLowerCase()
-      : email.split('@')[0].toLowerCase();
+    const isGenratingNewUsername = !usernameBody;
 
-    // Check if the generated username is unique
-    const isUsernameExists = await this.prisma.users.findUnique({
-      where: { username },
-    });
+    // If username is not provided, generate unique one from email
+    const username = isGenratingNewUsername
+      ? await this.generateUniqueUsername(email.split('@')[0])
+      : usernameBody;
 
-    if (isUsernameExists) {
-      throw new ConflictException(
-        'Username already exists. Please Provide another one.',
-      );
+    // Check if the provided username is unique if it is given inside the request body
+    if (!isGenratingNewUsername) {
+      const isUsernameExists = await this.prisma.users.findUnique({
+        where: { username },
+      });
+
+      if (isUsernameExists) {
+        throw new ConflictException(
+          'Username already exists. Please Provide another one.',
+        );
+      }
     }
 
     // Hash the password before storing
     const hashedPassword = await bcrypt.hash(password, 12);
+
+    // If registration is through OAuth, auto-verify email since OAuth providers verify emails
+    // If registration is through credentials, keep email unverified (user must verify manually)
+    const isOAuthProvider = provider !== Provider.CREDENTIAL;
 
     // Create the new user
     const newUser = await this.prisma.users.create({
@@ -101,6 +115,8 @@ export class AuthService {
         username,
         role,
         providers: [provider],
+        isEmailVerified: isOAuthProvider,
+        emailVerifiedAt: isOAuthProvider ? new Date() : null,
       },
       select: {
         id: true,
@@ -140,6 +156,8 @@ export class AuthService {
             role: true,
             createdAt: true,
             providers: true,
+            twoFactorEnabled: true,
+            isDisabled: true,
           },
         })
       : await this.prisma.users.findUnique({
@@ -153,17 +171,57 @@ export class AuthService {
             role: true,
             createdAt: true,
             providers: true,
+            twoFactorEnabled: true,
+            isDisabled: true,
           },
         });
 
     if (!user) {
+      await this.prisma.failedLogin.create({
+        data: {
+          identifier,
+          reason: 'no-user',
+        },
+      });
+
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.isDisabled) {
+      await this.prisma.failedLogin.create({
+        data: {
+          userId: user.id,
+          identifier,
+          reason: 'account-disabled',
+        },
+      });
+
+      throw new ForbiddenException(
+        'This account has been disabled. Please contact support if you believe this is an error.',
+      );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
+      await this.prisma.failedLogin.create({
+        data: {
+          userId: user.id,
+          identifier,
+          reason: 'wrong-password',
+        },
+      });
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.twoFactorEnabled) {
+      const challengeId = await this.createTwoFactorLoginChallenge(user);
+      return {
+        message:
+          'Two-factor authentication required. Enter the code sent to your email.',
+        requiresTwoFactor: true,
+        challengeId,
+      };
     }
 
     // Generate Access and Refresh Tokens for the user
@@ -185,6 +243,85 @@ export class AuthService {
         createdAt: user.createdAt,
       },
     };
+  }
+
+  async verifyLoginTwoFactor(dto: VerifyTwoFactorLoginDto) {
+    const cacheKey = this.getTwoFactorLoginRedisKey(dto.challengeId);
+    const challenge = await this.cacheManager.get<{
+      userId: string;
+      code: string;
+    }>(cacheKey);
+
+    if (!challenge) {
+      throw new BadRequestException(
+        'Two-factor challenge expired or does not exist',
+      );
+    }
+
+    if (challenge.code !== dto.code) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    await this.cacheManager.del(cacheKey);
+
+    const user = await this.prisma.users.findUnique({
+      where: { id: challenge.userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user);
+
+    this.logger.log(`User completed 2FA login: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
+  private async createTwoFactorLoginChallenge(
+    user: UserMin & { email: string },
+  ) {
+    const code = this.generateVerificationCode().toString();
+    const challengeId = randomUUID();
+
+    await this.cacheManager.set(
+      this.getTwoFactorLoginRedisKey(challengeId),
+      { userId: user.id, code },
+      twoFactorEmailRedisTTL,
+    );
+
+    await this.emailService.sendEmail(
+      user.email,
+      'Your 2FA login code',
+      TwoFactorEmailCodeTemplateHtml(code, 'login'),
+    );
+
+    this.logger.log(`Two-factor login code sent to: ${user.email}`);
+
+    return challengeId;
   }
 
   private async generateAccessAndRefreshTokens(
@@ -306,6 +443,26 @@ export class AuthService {
   }
 
   /**
+   * Gets the user details by ID.
+   * @param userId - The ID of the user to retrieve.
+   * @returns The user details.
+   */
+  async getUserDetails(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Remove password from user object
+    const { password, ...userWithoutPassword } = user;
+
+    return userWithoutPassword;
+  }
+
+  /**
    * Logs out the user by deleting the session associated with the provided refresh token.
    * @param refreshToken - The refresh token to invalidate.
    */
@@ -324,7 +481,11 @@ export class AuthService {
     // Update session status to revoked
     const deletedSession = await this.prisma.session.update({
       where: { id: session.id },
-      data: { status: SessionStatus.REVOKED, revokedAt: new Date() },
+      data: {
+        status: SessionStatus.REVOKED,
+        revokedAt: new Date(),
+        revokedById: session.userId,
+      },
     });
 
     this.logger.log(
@@ -340,7 +501,11 @@ export class AuthService {
     // Update all sessions for the user to revoked
     const result = await this.prisma.session.updateMany({
       where: { userId, status: SessionStatus.ACTIVE },
-      data: { status: SessionStatus.REVOKED, revokedAt: new Date() },
+      data: {
+        status: SessionStatus.REVOKED,
+        revokedAt: new Date(),
+        revokedById: userId,
+      },
     });
 
     if (result.count === 0) {
@@ -636,6 +801,90 @@ export class AuthService {
     };
   }
 
+  /// LinkedIn OAuth Methods ////
+  async validateLinkedinOAuthUser(
+    email: string,
+    name: string,
+    image: string,
+  ): Promise<UserMin> {
+    console.log('Validating LinkedIn OAuth user');
+    let user = await this.prisma.users.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (user) {
+      // If user exists, ensure LinkedIn is listed as a provider
+      if (!user.providers.includes(Provider.LINKEDIN)) {
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: { providers: { push: Provider.LINKEDIN } },
+        });
+      }
+      return user;
+    }
+
+    console.log('Creating new user for LinkedIn OAuth');
+    // If user does not exist, create a new user
+    const result = await this.register(
+      {
+        name,
+        email,
+        password: '',
+      },
+      Provider.LINKEDIN,
+    );
+
+    return result.data;
+  }
+
+  async handleLinkedinOAuthCallback(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Generate Access and Refresh Tokens for the user
+    const { accessToken, refreshToken } =
+      await this.generateAccessAndRefreshTokens(user, Provider.LINKEDIN);
+
+    this.logger.log(`User logged in via LinkedIn OAuth: ${user.email}`);
+
+    return {
+      message: 'User logged in successfully via LinkedIn OAuth',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
   //// Helper Methods ////
 
   /**
@@ -786,7 +1035,7 @@ export class AuthService {
     await this.emailService.sendEmail(
       user.email,
       'Password Changed Successfully',
-      PasswordResetConfirmationEmailTemplateHtml(user.email),
+      PasswordChangedEmailTemplateHtml(user.email),
     );
 
     return {
@@ -934,6 +1183,63 @@ export class AuthService {
       }
       this.logger.error('Failed to decrypt password reset token', error.stack);
       throw new BadRequestException('Invalid or corrupted reset token');
+    }
+  }
+
+  private getTwoFactorLoginRedisKey(challengeId: string) {
+    return `${twoFactorLoginRedisPrefix}${challengeId}`;
+  }
+
+  private async generateUniqueUsername(
+    defaultUsername: string,
+  ): Promise<string> {
+    try {
+      // First, check if the default username already exists
+      const isDefaultUsernameExists = await this.prisma.users.findUnique({
+        where: { username: defaultUsername },
+        select: { username: true },
+      });
+
+      if (!isDefaultUsernameExists) {
+        // If the default username is unique, return it immediately
+        return defaultUsername;
+      }
+
+      // If the default username exists, generate a batch of potential usernames
+      const batchSize = 5;
+
+      // Number suffixes to append to the default username are between 0 and 9999
+      const potentialUsernames = Array.from(
+        { length: batchSize },
+        () => `${defaultUsername}${Math.floor(Math.random() * 10000)}`,
+      );
+
+      // Check which usernames already exist in a single query
+      const existingUsernames = await this.prisma.users.findMany({
+        where: { username: { in: potentialUsernames } },
+        select: { username: true },
+      });
+
+      // Create a set of existing usernames for quick lookup
+      const existingSet = new Set(existingUsernames.map((u) => u.username));
+
+      // Find the first unique username
+      const uniqueUsername = potentialUsernames.find(
+        (username) => !existingSet.has(username),
+      );
+
+      if (uniqueUsername) {
+        return uniqueUsername;
+      }
+
+      throw new BadRequestException(
+        'Failed to generate a unique username. Try to provide a different one.',
+      );
+    } catch (error) {
+      this.logger.error('Error checking username uniqueness', error);
+      throw new InternalServerErrorException(
+        'Could not generate a unique username',
+      );
     }
   }
 }

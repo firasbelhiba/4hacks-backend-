@@ -17,10 +17,9 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
+import { LoginDto, VerifyTwoFactorLoginDto } from './dto/login.dto';
 import type { Request, Response } from 'express';
 import {
-  AUTH_REFRESH_API_PREFIX,
   authCookiesNames,
   FRONTEND_URL,
   refreshTokenConstants,
@@ -30,6 +29,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GithubAuthGuard } from './guards/github.guard';
+import { LinkedinAuthGuard } from './guards/linkedin.guard';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
@@ -131,13 +131,68 @@ export class AuthController {
   ) {
     const result = await this.authService.login(loginDto);
 
+    if (result.requiresTwoFactor) {
+      return {
+        message: result.message,
+        requiresTwoFactor: true,
+        challengeId: result.challengeId,
+      };
+    }
+
     // Set refresh token as HttpOnly cookie
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
+      path: '/',
+      priority: 'high',
+    });
+
+    return {
+      message: result.message,
+      token: result.accessToken,
+      user: result.user,
+    };
+  }
+
+  @ApiOperation({
+    summary: 'Verify two-factor login code',
+    description: 'Verifies the emailed 2FA code and completes the login.',
+  })
+  @ApiBody({ type: VerifyTwoFactorLoginDto })
+  @ApiResponse({
+    status: 201,
+    description: 'The user has been successfully logged in.',
+    schema: {
+      example: {
+        message: 'User logged in successfully',
+        token: 'eyJfgsffgspd4...',
+        user: {
+          id: 'clxsu9vgo0000lmk7z9h8f1q',
+          username: 'ahmed12',
+          name: 'Ahmed',
+          email: 'ahmed@gmail.com',
+          role: 'USER',
+          createdAt: '2025-10-01T12:34:56.789Z',
+        },
+      },
+    },
+  })
+  @Post('2fa/verify-login')
+  async verifyTwoFactorLogin(
+    @Body() dto: VerifyTwoFactorLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyLoginTwoFactor(dto);
+
+    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: '/',
+      priority: 'high',
     });
 
     return {
@@ -197,6 +252,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const refreshToken = req.cookies[authCookiesNames.refreshToken];
+    console.log('Cookies', req.cookies);
 
     const result = await this.authService.refreshAccessToken(refreshToken);
 
@@ -204,9 +260,10 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
+      path: '/',
+      priority: 'high',
     });
 
     return {
@@ -255,8 +312,9 @@ export class AuthController {
     res.clearCookie(authCookiesNames.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: AUTH_REFRESH_API_PREFIX,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      priority: 'high',
     });
 
     return {
@@ -289,8 +347,9 @@ export class AuthController {
     res.clearCookie(authCookiesNames.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: AUTH_REFRESH_API_PREFIX,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      priority: 'high',
     });
 
     return {
@@ -327,8 +386,8 @@ export class AuthController {
       },
     },
   })
-  me(@CurrentUser() user: any) {
-    return user;
+  me(@CurrentUser('id') userId: string) {
+    return this.authService.getUserDetails(userId);
   }
 
   @ApiOperation({
@@ -505,9 +564,10 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
+      path: '/',
+      priority: 'high',
     });
 
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
@@ -542,11 +602,69 @@ export class AuthController {
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
-      path: AUTH_REFRESH_API_PREFIX,
+      path: '/',
+      priority: 'high',
     });
 
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
+  }
+
+  ///// LinkedIn OAuth routes here //////
+  @ApiOperation({
+    summary: 'Initiate LinkedIn OAuth2 login',
+    description:
+      'Redirects the user to LinkedIn for authentication. This endpoint cannot be tested via Swagger UI. To test it, please use a web browser to navigate to /api/v1/auth/linkedin/login',
+  })
+  @UseGuards(LinkedinAuthGuard)
+  @Get('linkedin/login')
+  linkedinLogin() {}
+
+  @ApiOperation({
+    summary: 'LinkedIn OAuth2 callback',
+    description:
+      'Handles the callback from LinkedIn after authentication. This endpoint cannot be tested via Swagger UI. It will be called by LinkedIn after user authentication using the first /api/v1/auth/linkedin/login endpoint.',
+  })
+  @UseGuards(LinkedinAuthGuard)
+  @Get('linkedin/callback')
+  async linkedinCallback(
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    console.log('LinkedIn OAuth callback reached');
+
+    const result = await this.authService.handleLinkedinOAuthCallback(userId);
+
+    // Set refresh token as HttpOnly cookie
+    res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: '/',
+      priority: 'high',
+    });
+
+    res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
+  }
+
+  @ApiOperation({
+    summary: 'Clear all ccokies',
+    description: 'clears all cookies.',
+  })
+  @Post('clear')
+  async clearCookies(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie(authCookiesNames.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      priority: 'high',
+    });
+
+    return {
+      message: 'User logged out successfully',
+    };
   }
 }
