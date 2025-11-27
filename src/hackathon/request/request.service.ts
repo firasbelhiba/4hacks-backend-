@@ -87,7 +87,15 @@ export class RequestService {
       include: {
         organization: {
           include: {
-            owner: true,
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                email: true,
+                image: true,
+              },
+            },
           },
         },
       },
@@ -100,5 +108,52 @@ export class RequestService {
     }
 
     return request;
+  }
+
+  async findByOrganization(identifier: string, user: UserMin) {
+    // Check if user is an ADMIN
+    const isAdmin = user.role === UserRole.ADMIN;
+
+    // First, find the organization by id, slug, or name
+    const organization = await this.prisma.organization.findFirst({
+      where: {
+        OR: [{ id: identifier }, { slug: identifier }, { name: identifier }],
+        // If user is not admin, they can only see their own organization
+        ...(isAdmin ? {} : { ownerId: user.id }),
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException(
+        'Organization not found or you are not authorized to view it',
+      );
+    }
+
+    // Get all hackathon requests for this organization
+    const requests = await this.prisma.hackathonCreationRequest.findMany({
+      where: {
+        organizationId: organization.id,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      organization,
+      requests,
+      total: requests.length,
+    };
   }
 }

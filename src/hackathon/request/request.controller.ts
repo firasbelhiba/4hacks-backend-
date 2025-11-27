@@ -61,4 +61,27 @@ export class RequestController {
   ) {
     return this.requestService.findOne(identifier, user);
   }
+
+  @ApiOperation({ summary: 'Get all hackathon requests for an organization' })
+  @ApiParam({
+    name: 'orgIdentifier',
+    description: 'Organization identifier (id, slug, or name)',
+    example: 'dar-blockchain',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all hackathon requests for the organization',
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization not found or you are not authorized to view it',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('organization/:identifier')
+  findByOrganization(
+    @Param('identifier') identifier: string,
+    @CurrentUser() user: UserMin,
+  ) {
+    return this.requestService.findByOrganization(identifier, user);
+  }
 }
