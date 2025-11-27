@@ -6,6 +6,6 @@ import { PrismaModule } from 'src/prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   providers: [HackathonService],
-  controllers: [HackathonController]
+  controllers: [HackathonController],
 })
 export class HackathonModule {}
