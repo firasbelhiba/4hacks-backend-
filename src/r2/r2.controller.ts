@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { R2Service } from './r2.service';
-import { ApiBody, ApiConsumes, ApiOperation } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Test')
 @Controller('r2')
 export class R2Controller {
   constructor(private readonly r2: R2Service) {}
