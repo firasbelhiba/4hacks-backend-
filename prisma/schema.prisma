@@ -154,6 +154,34 @@ model FailedLogin {
   @@map("failed_logins")
 }
 
+model UserActivityLog {
+  id         String              @id @default(cuid())
+  userId     String
+  action     String // e.g., "REGISTERED_PROJECT", "SUBMITTED_HACKATHON", "ASKED_QUESTION"
+  targetType ActivityTargetType? // Optional: e.g., PROJECT, HACKATHON, TRACK
+  targetId   String? // Optional: ID of the object acted on
+  isPublic   Boolean             @default(true) // If true, visible to other users; else private
+  metadata   Json? // Optional extra info (e.g., payload, screenshot links)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("user_activity_logs")
+}
+
+enum ActivityTargetType {
+  PROJECT
+  HACKATHON
+  TRACK
+  BOUNTY
+  PRIZE
+  COMMENT
+  OTHER
+}
 
 /**
  * //////////////////////////////////////////////////////
