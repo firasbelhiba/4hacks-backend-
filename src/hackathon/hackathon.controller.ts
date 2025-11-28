@@ -25,6 +25,7 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
+import { UserMin } from 'src/common/types';
 
 @ApiTags('Hackathons')
 @Controller('hackathon')
@@ -210,11 +211,11 @@ export class HackathonController {
   @Get(':identifier')
   async getHackathonByIdentifier(
     @Param('identifier') identifier: string,
-    @CurrentUser('id') userId?: string,
+    @CurrentUser() user?: UserMin | undefined,
   ) {
     return await this.hackathonService.getHackathonByIdentifier(
       identifier,
-      userId,
+      user,
     );
   }
 }

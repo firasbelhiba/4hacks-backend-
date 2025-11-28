@@ -9,8 +9,9 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
-import { HackathonStatus } from 'generated/prisma';
+import { HackathonStatus, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
+import { UserMin } from 'src/common/types';
 
 @Injectable()
 export class HackathonService {
@@ -223,28 +224,42 @@ export class HackathonService {
     };
   }
 
-  async getHackathonByIdentifier(identifier: string, userId?: string) {
+  async getHackathonByIdentifier(identifier: string, user?: UserMin) {
+    const userId = user ? user.id : undefined;
+
     const hackathon = await this.prisma.hackathon.findFirst({
       where: {
         OR: [{ id: identifier }, { slug: identifier }],
         AND: [
-          {
-            OR: [
-              { status: { not: HackathonStatus.DRAFT } }, // not draft hackathons
-              ...(userId
-                ? [
-                    {
-                      status: HackathonStatus.DRAFT,
-                      organization: { ownerId: userId },
+          user && user.role === UserRole.ADMIN
+            ? {} // admin can access all hackathons
+            : {
+                OR: [
+                  {
+                    status: {
+                      notIn: [HackathonStatus.DRAFT, HackathonStatus.CANCELLED],
                     },
-                  ]
-                : []), // if logged in, show hackathon draft only if user is owner
-            ],
-          },
+                  }, // not draft or cancelled hackathons
+                  ...(userId
+                    ? [
+                        {
+                          status: HackathonStatus.DRAFT,
+                          organization: { ownerId: userId },
+                        },
+                        {
+                          status: HackathonStatus.CANCELLED,
+                          organization: { ownerId: userId },
+                        },
+                      ]
+                    : []), // if logged in, show hackathon draft and cancelled only if user is owner
+                ],
+              },
         ],
       },
       include: {
         tracks: true,
+        bounties: true,
+        prizes: true,
         organization: {
           include: {
             owner: {
