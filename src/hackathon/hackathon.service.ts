@@ -116,12 +116,17 @@ export class HackathonService {
   }
 
   async manageTracks(
-    hackathonId: string,
+    hackathonIdentifier: string,
     userId: string,
     manageTracksDto: ManageTracksDto,
   ) {
-    const hackathon = await this.prisma.hackathon.findUnique({
-      where: { id: hackathonId },
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [
+          { id: hackathonIdentifier },
+          { slug: hackathonIdentifier },
+        ],
+      },
       include: { organization: true },
     });
 
@@ -136,6 +141,7 @@ export class HackathonService {
     }
 
     const { tracks } = manageTracksDto;
+    const hackathonId = hackathon.id;
 
     // Get existing tracks
     const existingTracks = await this.prisma.track.findMany({
@@ -213,9 +219,23 @@ export class HackathonService {
     };
   }
 
-  async getTracks(hackathonId: string) {
+  async getTracks(hackathonIdentifier: string) {
+    // Find hackathon by id or slug
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [
+          { id: hackathonIdentifier },
+          { slug: hackathonIdentifier },
+        ],
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
     const tracks = await this.prisma.track.findMany({
-      where: { hackathonId },
+      where: { hackathonId: hackathon.id },
       orderBy: { order: 'asc' },
     });
 
