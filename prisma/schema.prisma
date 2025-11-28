@@ -97,9 +97,9 @@ model users {
   twoFactorEnabled                  Boolean                       @default(false)
   twoFactorSecret                   String?
   twoFactorConfirmedAt              DateTime?
-  isDisabled                        Boolean                       @default(false)
-  disabledAt                        DateTime?
-  disabledReason                    String?
+  isBanned                          Boolean                    @default(false)
+  bannedAt                          DateTime?
+  bannedReason                      String?
   sessions                          Session[]
   revokedSessions                   Session[]                     @relation("RevokedSessions")
   failedLogins                      FailedLogin[]

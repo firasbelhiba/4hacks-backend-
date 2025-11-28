@@ -182,53 +182,16 @@ export const TwoFactorEmailCodeTemplateHtml = (
   `;
 };
 
-export const AccountDisableVerificationEmailTemplateHtml = (
-  code: string,
-) => {
-  return `
-    <html>
-      <body style="font-family: Arial, sans-serif; padding: 20px; color: #222;">
-        <div style="max-width: 480px; margin: auto;">
-          <h2 style="color: #ef4444; margin-bottom: 16px;">
-            Confirm Account Disable
-          </h2>
-
-          <p style="margin: 0 0 12px 0;">
-            Use the following code to confirm you want to disable your 4Hacks account:
-          </p>
-
-          <div style="
-            font-size: 28px;
-            font-weight: bold;
-            letter-spacing: 6px;
-            padding: 12px 0;
-          ">
-            ${code}
-          </div>
-
-          <p style="margin: 0 0 12px 0;">
-            This code expires in 5 minutes. Once confirmed, your account will be disabled and you will be logged out of all sessions.
-          </p>
-
-          <p style="margin: 24px 0 0 0; font-size: 14px; color: #666;">
-            If you did not request to disable your account, you can safely ignore this email.
-          </p>
-        </div>
-      </body>
-    </html>
-  `;
-};
-
-export const AccountDisabledEmailTemplateHtml = (
+export const AccountBannedEmailTemplateHtml = (
   email: string,
-  reason?: string,
+  reason: string,
 ) => {
   return `
     <html>
       <body style="font-family: Arial, sans-serif; padding: 20px; color: #222;">
         <div style="max-width: 600px; margin: auto; background-color: #f9fafb; padding: 24px; border-radius: 8px;">
           <h2 style="color: #ef4444; margin-bottom: 16px;">
-            Account Disabled
+            Account Banned
           </h2>
 
           <p style="margin: 0 0 16px 0;">
@@ -236,21 +199,19 @@ export const AccountDisabledEmailTemplateHtml = (
           </p>
 
           <p style="margin: 0 0 16px 0;">
-            Your 4Hacks account has been successfully disabled. You will no longer be able to log in or access your account.
+            Your 4Hacks account has been banned by an administrator. You will no longer be able to log in or access your account.
           </p>
 
-          ${reason ? `
-          <p style="margin: 0 0 16px 0; padding: 12px; background-color: #fff; border-radius: 4px;">
-            <strong>Reason provided:</strong> ${reason}
+          <p style="margin: 0 0 16px 0; padding: 12px; background-color: #fff; border-radius: 4px; border-left: 4px solid #ef4444;">
+            <strong>Reason for ban:</strong> ${reason}
           </p>
-          ` : ''}
 
           <p style="margin: 16px 0; font-size: 14px; color: #666;">
-            For your security, all active sessions have been logged out. If you did not disable your account, please contact our support team immediately.
+            For your security, all active sessions have been logged out. If you believe this ban was made in error, please contact our support team immediately.
           </p>
 
           <p style="margin: 24px 0 0 0; font-size: 14px; color: #666;">
-            If you change your mind and want to reactivate your account, please contact our support team.
+            To appeal this ban, please contact our support team with your account details and any relevant information.
           </p>
 
         </div>
