@@ -180,6 +180,7 @@ export class HackathonService {
             description: track.description,
             judgingCriteria: track.judgingCriteria,
             order: track.order,
+            winnersCount: track.winnersCount,
           },
         });
       }
@@ -193,6 +194,7 @@ export class HackathonService {
             description: t.description,
             judgingCriteria: t.judgingCriteria,
             order: t.order,
+            winnersCount: t.winnersCount,
           })),
         });
       }
