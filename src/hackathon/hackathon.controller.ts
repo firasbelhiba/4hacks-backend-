@@ -24,6 +24,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
+import { ManageSponsorsDto } from './dto/sponsor.dto';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 import { UserMin } from 'src/common/types';
 
@@ -174,6 +175,107 @@ export class HackathonController {
   @Get(':identifier/tracks')
   async getTracks(@Param('identifier') hackathonIdentifier: string) {
     return await this.hackathonService.getTracks(hackathonIdentifier);
+  }
+
+  @ApiOperation({
+    summary: 'Manage sponsors',
+    description:
+      'Manage all sponsors for a hackathon (create, update, delete). The first sponsor is always the organization creating the hackathon and only its logo can be updated. Hackathon can be identified by ID or slug.',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiBody({
+    type: ManageSponsorsDto,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sponsors updated successfully.',
+    example: {
+      message: 'Sponsors updated successfully',
+      data: [
+        {
+          id: 'cuid',
+          name: 'Organization Name',
+          logo: 'https://example.com/logo.png',
+          isCurrentOrganization: true,
+        },
+        {
+          id: 'cuid',
+          name: 'Sponsor Name',
+          logo: 'https://example.com/sponsor-logo.png',
+          isCurrentOrganization: false,
+        },
+      ],
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Put(':identifier/sponsors')
+  async manageSponsors(
+    @Param('identifier') hackathonIdentifier: string,
+    @CurrentUser('id') userId: string,
+    @Body() manageSponsorsDto: ManageSponsorsDto,
+  ) {
+    return await this.hackathonService.manageSponsors(
+      hackathonIdentifier,
+      userId,
+      manageSponsorsDto,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Get all sponsors',
+    description:
+      'Get all sponsors for a specific hackathon. Hackathon can be identified by ID or slug.',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sponsors retrieved successfully.',
+    example: {
+      data: [
+        {
+          id: 'cuid',
+          name: 'Organization Name',
+          logo: 'https://example.com/logo.png',
+          isCurrentOrganization: true,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'cuid',
+          name: 'Sponsor Name',
+          logo: 'https://example.com/sponsor-logo.png',
+          isCurrentOrganization: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+  })
+  @Get(':identifier/sponsors')
+  async getSponsors(@Param('identifier') hackathonIdentifier: string) {
+    return await this.hackathonService.getSponsors(hackathonIdentifier);
   }
 
   @ApiOperation({

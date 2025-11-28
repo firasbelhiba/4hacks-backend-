@@ -9,6 +9,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
+import { ManageSponsorsDto } from './dto/sponsor.dto';
 import { HackathonStatus, UserRole } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { UserMin } from 'src/common/types';
@@ -298,6 +299,164 @@ export class HackathonService {
     return {
       message: 'Hackathon retrieved successfully',
       data: hackathon,
+    };
+  }
+
+  async manageSponsors(
+    hackathonIdentifier: string,
+    userId: string,
+    manageSponsorsDto: ManageSponsorsDto,
+  ) {
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [
+          { id: hackathonIdentifier },
+          { slug: hackathonIdentifier },
+        ],
+      },
+      include: { organization: true },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    if (hackathon.organization.ownerId !== userId) {
+      throw new UnauthorizedException(
+        'You are not authorized to manage sponsors for this hackathon',
+      );
+    }
+
+    const { sponsors } = manageSponsorsDto;
+    const hackathonId = hackathon.id;
+
+    // Get existing sponsors
+    const existingSponsors = await this.prisma.sponsor.findMany({
+      where: { hackathonId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Find the organization sponsor (should be the first one)
+    const orgSponsor = existingSponsors.find((s) => s.isCurrentOrganization);
+
+    // Validate that the first sponsor in the incoming list matches the org sponsor
+    if (orgSponsor && sponsors.length > 0) {
+      const firstIncoming = sponsors[0];
+      if (firstIncoming.id && firstIncoming.id !== orgSponsor.id) {
+        throw new BadRequestException(
+          'The first sponsor must be the organization sponsor',
+        );
+      }
+      // Prevent name changes for organization sponsor
+      if (firstIncoming.name !== orgSponsor.name) {
+        throw new BadRequestException(
+          'Organization sponsor name cannot be changed',
+        );
+      }
+    }
+
+    const existingSponsorIds = existingSponsors.map((s) => s.id);
+    const incomingIds = sponsors.filter((s) => s.id).map((s) => s.id as string);
+
+    // Identify sponsors to delete (exist in DB but not in incoming list)
+    // Never delete the organization sponsor
+    const sponsorsToDelete = existingSponsorIds.filter(
+      (id) =>
+        !incomingIds.includes(id) &&
+        id !== orgSponsor?.id,
+    );
+
+    // Identify sponsors to update (exist in both)
+    const sponsorsToUpdate = sponsors.filter(
+      (s) => s.id && existingSponsorIds.includes(s.id),
+    );
+
+    // Identify sponsors to create (no id, excluding the org sponsor if it exists)
+    const sponsorsToCreate = sponsors.filter((s) => !s.id);
+
+    // Execute in transaction
+    await this.prisma.$transaction(async (tx) => {
+      // Delete
+      if (sponsorsToDelete.length > 0) {
+        await tx.sponsor.deleteMany({
+          where: {
+            id: { in: sponsorsToDelete },
+            hackathonId, // Safety check
+          },
+        });
+      }
+
+      // Update
+      for (const sponsor of sponsorsToUpdate) {
+        const isOrgSponsor = sponsor.id === orgSponsor?.id;
+        
+        // For organization sponsor, only update logo
+        if (isOrgSponsor) {
+          await tx.sponsor.update({
+            where: { id: sponsor.id },
+            data: {
+              logo: sponsor.logo,
+            },
+          });
+        } else {
+          // For other sponsors, update all fields
+          await tx.sponsor.update({
+            where: { id: sponsor.id },
+            data: {
+              name: sponsor.name,
+              logo: sponsor.logo,
+            },
+          });
+        }
+      }
+
+      // Create
+      if (sponsorsToCreate.length > 0) {
+        await tx.sponsor.createMany({
+          data: sponsorsToCreate.map((s) => ({
+            hackathonId,
+            name: s.name,
+            logo: s.logo,
+            isCurrentOrganization: false,
+          })),
+        });
+      }
+    });
+
+    // Return updated list
+    const updatedSponsors = await this.prisma.sponsor.findMany({
+      where: { hackathonId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      message: 'Sponsors updated successfully',
+      data: updatedSponsors,
+    };
+  }
+
+  async getSponsors(hackathonIdentifier: string) {
+    // Find hackathon by id or slug
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [
+          { id: hackathonIdentifier },
+          { slug: hackathonIdentifier },
+        ],
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    const sponsors = await this.prisma.sponsor.findMany({
+      where: { hackathonId: hackathon.id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      data: sponsors,
     };
   }
 }
