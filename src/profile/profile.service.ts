@@ -10,7 +10,6 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   ChangeEmailDto,
-  DisableAccountDto,
   TwoFactorCodeDto,
   UpdatePasswordDto,
   UpdateProfileDto,
@@ -20,14 +19,11 @@ import * as bcrypt from 'bcrypt';
 import { EmailService } from 'src/email/email.service';
 import { Provider, SessionStatus } from 'generated/prisma';
 import {
-  AccountDisableVerificationEmailTemplateHtml,
-  AccountDisabledEmailTemplateHtml,
   PasswordChangedEmailTemplateHtml,
   TwoFactorEmailCodeTemplateHtml,
 } from 'src/common/templates/emails.templates.list';
 import type { Cache } from 'cache-manager';
 import {
-  accountDisableRedisPrefix,
   changeEmailRedisPrefix,
   twoFactorDisableRedisPrefix,
   twoFactorEnableRedisPrefix,
@@ -48,17 +44,33 @@ export class ProfileService {
 
   /**
    * Retrieves the profile of a user by their username.
+   * Public fields are shown to everyone, private fields only to the profile owner.
    * @param username - The username of the user.
-   * @returns The user's profile.
+   * @param userId - Optional ID of the authenticated user making the request.
+   * @returns The user's profile with appropriate field visibility.
    */
-  async getProfileByUsername(username: string) {
+  async getProfileByUsername(username: string, userId?: string) {
+    // First, get the user ID to check ownership
+    const user = await this.prisma.users.findUnique({
+      where: { username },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Profile not found');
+    }
+
+    // Check if requester is the profile owner
+    const isOwner = userId === user.id;
+
+    // Fetch profile with conditional field selection
     const profile = await this.prisma.users.findUnique({
       where: { username },
       select: {
+        // Public fields (always shown)
         id: true,
         name: true,
         username: true,
-        email: true,
         role: true,
         bio: true,
         image: true,
@@ -69,28 +81,31 @@ export class ProfileService {
         website: true,
         github: true,
         linkedin: true,
-        telegram: true,
         twitter: true,
-        whatsapp: true,
         otherSocials: true,
         providers: true,
         isEmailVerified: true,
         emailVerifiedAt: true,
-        lastLoginAt: true,
-        passwordUpdatedAt: true,
-        twoFactorEnabled: true,
-        twoFactorConfirmedAt: true,
-        isDisabled: true,
-        disabledAt: true,
-        disabledReason: true,
+        walletAddress: true,
         createdAt: true,
         updatedAt: true,
+        // Private fields (only shown to owner)
+        ...(isOwner
+          ? {
+              email: true,
+              whatsapp: true,
+              telegram: true,
+              lastLoginAt: true,
+              passwordUpdatedAt: true,
+              twoFactorEnabled: true,
+              twoFactorConfirmedAt: true,
+              isBanned: true,
+              bannedAt: true,
+              bannedReason: true,
+            }
+          : {}),
       },
     });
-
-    if (!profile) {
-      throw new BadRequestException('Profile not found');
-    }
 
     return profile;
   }
@@ -165,9 +180,9 @@ export class ProfileService {
         passwordUpdatedAt: true,
         twoFactorEnabled: true,
         twoFactorConfirmedAt: true,
-        isDisabled: true,
-        disabledAt: true,
-        disabledReason: true,
+        isBanned: true,
+        bannedAt: true,
+        bannedReason: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -459,47 +474,6 @@ export class ProfileService {
     };
   }
 
-  async sendAccountDisableCode(userId: string) {
-    const user = await this.prisma.users.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        twoFactorEnabled: true,
-        isDisabled: true,
-        providers: true,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (user.isDisabled) {
-      throw new BadRequestException('Account is already disabled');
-    }
-
-    const hasPassword = user.providers.includes(Provider.CREDENTIAL);
-
-    if (!user.twoFactorEnabled && hasPassword) {
-      throw new BadRequestException(
-        'Use your password to disable the account. No verification code is required.',
-      );
-    }
-
-    const code = this.generateVerificationCode();
-    await this.saveTwoFactorCode(accountDisableRedisPrefix, userId, code);
-
-    await this.emailService.sendEmail(
-      user.email,
-      'Confirm Account Disable',
-      AccountDisableVerificationEmailTemplateHtml(code),
-    );
-
-    return {
-      message: 'Account disable verification code sent to your email address.',
-    };
-  }
 
   private generateVerificationCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -531,117 +505,6 @@ export class ProfileService {
     return `${prefix}${userId}`;
   }
 
-  private async validateAccountDisableCode(userId: string, code: string) {
-    const storedCode = await this.getTwoFactorCode(
-      accountDisableRedisPrefix,
-      userId,
-    );
-
-    if (!storedCode) {
-      throw new BadRequestException(
-        'Account disable code has expired or was not requested. Please request a new code.',
-      );
-    }
-
-    if (storedCode !== code) {
-      throw new ForbiddenException('Invalid verification code');
-    }
-
-    await this.deleteTwoFactorCode(accountDisableRedisPrefix, userId);
-  }
-
-  async disableAccount(userId: string, disableDto: DisableAccountDto) {
-    const { password, twoFactorCode, emailCode, reason } = disableDto;
-
-    const user = await this.prisma.users.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        providers: true,
-        twoFactorEnabled: true,
-        isDisabled: true,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (user.isDisabled) {
-      throw new BadRequestException('Account is already disabled');
-    }
-
-    const hasPassword = user.providers.includes(Provider.CREDENTIAL);
-
-    if (user.twoFactorEnabled) {
-      if (!twoFactorCode) {
-        throw new BadRequestException(
-          'Two-factor authentication code is required to disable this account',
-        );
-      }
-
-      await this.validateAccountDisableCode(userId, twoFactorCode);
-    } else if (hasPassword) {
-      if (!password) {
-        throw new BadRequestException(
-          'Password is required to disable account',
-        );
-      }
-
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-
-      if (!isPasswordValid) {
-        throw new ForbiddenException('Invalid password');
-      }
-    } else {
-      if (!emailCode) {
-        throw new BadRequestException(
-          'Email verification code is required to disable this account',
-        );
-      }
-
-      await this.validateAccountDisableCode(userId, emailCode);
-    }
-
-    const disabledAt = new Date();
-
-    // Update account and revoke all sessions
-    await this.prisma.$transaction([
-      this.prisma.users.update({
-        where: { id: userId },
-        data: {
-          isDisabled: true,
-          disabledAt,
-          disabledReason: reason || null,
-        },
-      }),
-      this.prisma.session.updateMany({
-        where: { userId, status: SessionStatus.ACTIVE },
-        data: {
-          status: SessionStatus.REVOKED,
-          revokedAt: disabledAt,
-          revokedById: userId,
-        },
-      }),
-    ]);
-
-    // Send email notification
-    await this.emailService.sendEmail(
-      user.email,
-      'Account Disabled',
-      AccountDisabledEmailTemplateHtml(user.email, reason),
-    );
-
-    this.logger.log(`Account disabled for user: ${userId}`);
-
-    return {
-      message: 'Account has been disabled successfully',
-      disabledAt,
-      reason: reason || null,
-    };
-  }
 
   /**
    * Sends a 2FA verification code to the user's current email address.

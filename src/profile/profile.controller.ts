@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiOperation,
-  ApiProperty,
+  ApiParam,
   ApiResponse,
   ApiTags,
   ApiBearerAuth,
@@ -26,10 +26,10 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProfileService } from './profile.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import {
   ChangeEmailDto,
-  DisableAccountDto,
   TwoFactorCodeDto,
   UpdatePasswordDto,
   UpdateProfileDto,
@@ -44,48 +44,83 @@ export class ProfileController {
   @ApiOperation({
     summary: 'Get User Profile by Username',
     description:
-      'Retrieve the profile information of a user using their username.',
+      'Retrieve the profile information of a user using their username. **Public fields** (name, bio, social links, etc.) are shown to everyone. **Private fields** (email, whatsapp, telegram, security info) are only shown to the profile owner when authenticated. This endpoint works with or without authentication - if you are authenticated and viewing your own profile, you will see all fields including private ones.',
   })
-  @ApiProperty({
+  @ApiParam({
     name: 'username',
-    description: 'Get user profile by username',
+    description: 'The username of the user whose profile to retrieve',
     example: 'ayoubbuoya',
   })
   @ApiResponse({
     status: 200,
-    description: 'Returns the user profile.',
+    description:
+      'Returns the user profile. **If unauthenticated or viewing another user\'s profile**: Only public fields are returned. **If authenticated and viewing your own profile**: All fields including private ones are returned.',
     schema: {
-      example: {
-        id: 'clxsu9vgo0000lmk7z9h8f1q',
-        username: 'ayoubbuoya',
-        name: 'Ayoub',
-        email: 'ayoub@gmail.com',
-        role: 'USER',
-        bio: 'Full-stack developer and tech enthusiast.',
-        image: 'https://example.com/avatars/ayoubbuoya.png',
-        profession: 'Senior Engineer',
-        location: 'San Francisco, USA',
-        org: 'Google',
-        skills: ['JavaScript', 'TypeScript'],
-        website: 'https://ayoubbuoya.com',
-        github: 'https://github.com/ayoubbuoya',
-        linkedin: 'https://linkedin.com/in/ayoubbuoya',
-        telegram: '@ayoubbuoya',
-        twitter: 'https://twitter.com/ayoubbuoya',
-        whatsapp: '+1234567890',
-        otherSocials: ['https://instagram.com/ayoubbuoya'],
-        providers: ['CREDENTIAL', 'GOOGLE'],
-        isEmailVerified: true,
-        emailVerifiedAt: '2025-11-21T10:30:00.000Z',
-        lastLoginAt: '2025-11-23T09:00:00.000Z',
-        passwordUpdatedAt: '2025-11-24T10:00:00.000Z',
-        twoFactorEnabled: true,
-        twoFactorConfirmedAt: '2025-11-24T11:00:00.000Z',
-        isDisabled: false,
-        disabledAt: null,
-        disabledReason: null,
-        createdAt: '2025-11-01T08:00:00.000Z',
-        updatedAt: '2025-11-24T12:00:00.000Z',
+      examples: {
+        'Public profile (unauthenticated or different user)': {
+          value: {
+            id: 'clxsu9vgo0000lmk7z9h8f1q',
+            username: 'ayoubbuoya',
+            name: 'Ayoub',
+            role: 'USER',
+            bio: 'Full-stack developer and tech enthusiast.',
+            image: 'https://example.com/avatars/ayoubbuoya.png',
+            profession: 'Senior Engineer',
+            location: 'San Francisco, USA',
+            org: 'Google',
+            skills: ['JavaScript', 'TypeScript'],
+            website: 'https://ayoubbuoya.com',
+            github: 'https://github.com/ayoubbuoya',
+            linkedin: 'https://linkedin.com/in/ayoubbuoya',
+            twitter: 'https://twitter.com/ayoubbuoya',
+            otherSocials: ['https://instagram.com/ayoubbuoya'],
+            providers: ['CREDENTIAL', 'GOOGLE'],
+            isEmailVerified: true,
+            emailVerifiedAt: '2025-11-21T10:30:00.000Z',
+            walletAddress: null,
+            createdAt: '2025-11-01T08:00:00.000Z',
+            updatedAt: '2025-11-24T12:00:00.000Z',
+          },
+          description:
+            'Response when viewing someone else\'s profile or when not authenticated. Private fields (email, whatsapp, telegram, security info) are not included.',
+        },
+        'Own profile (authenticated as owner)': {
+          value: {
+            id: 'clxsu9vgo0000lmk7z9h8f1q',
+            username: 'ayoubbuoya',
+            name: 'Ayoub',
+            email: 'ayoub@gmail.com',
+            role: 'USER',
+            bio: 'Full-stack developer and tech enthusiast.',
+            image: 'https://example.com/avatars/ayoubbuoya.png',
+            profession: 'Senior Engineer',
+            location: 'San Francisco, USA',
+            org: 'Google',
+            skills: ['JavaScript', 'TypeScript'],
+            website: 'https://ayoubbuoya.com',
+            github: 'https://github.com/ayoubbuoya',
+            linkedin: 'https://linkedin.com/in/ayoubbuoya',
+            telegram: '@ayoubbuoya',
+            twitter: 'https://twitter.com/ayoubbuoya',
+            whatsapp: '+1234567890',
+            otherSocials: ['https://instagram.com/ayoubbuoya'],
+            providers: ['CREDENTIAL', 'GOOGLE'],
+            isEmailVerified: true,
+            emailVerifiedAt: '2025-11-21T10:30:00.000Z',
+            walletAddress: null,
+            lastLoginAt: '2025-11-23T09:00:00.000Z',
+            passwordUpdatedAt: '2025-11-24T10:00:00.000Z',
+            twoFactorEnabled: true,
+            twoFactorConfirmedAt: '2025-11-24T11:00:00.000Z',
+            isBanned: false,
+            bannedAt: null,
+            bannedReason: null,
+            createdAt: '2025-11-01T08:00:00.000Z',
+            updatedAt: '2025-11-24T12:00:00.000Z',
+          },
+          description:
+            'Response when authenticated and viewing your own profile. Includes all fields including private ones.',
+        },
       },
     },
   })
@@ -100,9 +135,19 @@ export class ProfileController {
       },
     },
   })
+  @ApiResponse({
+    status: 401,
+    description:
+      'Unauthorized - Invalid JWT token (only if token is provided but invalid). Note: This endpoint works without authentication.',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':username')
-  async getProfileByUsername(@Param('username') username: string) {
-    return await this.profileService.getProfileByUsername(username);
+  async getProfileByUsername(
+    @Param('username') username: string,
+    @CurrentUser('id') userId?: string,
+  ) {
+    return await this.profileService.getProfileByUsername(username, userId);
   }
 
   @ApiBearerAuth()
@@ -223,9 +268,9 @@ export class ProfileController {
         passwordUpdatedAt: '2025-11-24T10:00:00.000Z',
         twoFactorEnabled: true,
         twoFactorConfirmedAt: '2025-11-24T11:00:00.000Z',
-        isDisabled: false,
-        disabledAt: null,
-        disabledReason: null,
+        isBanned: false,
+        bannedAt: null,
+        bannedReason: null,
         createdAt: '2025-11-01T08:00:00.000Z',
         updatedAt: '2025-11-24T12:30:00.000Z',
       },
@@ -632,196 +677,4 @@ export class ProfileController {
     return await this.profileService.verifyTwoFactorDisable(userId, codeDto);
   }
 
-  @ApiOperation({
-    summary: 'Request account disable verification code',
-    description:
-      'Sends a 6-digit verification code to the user email address. This endpoint is required BEFORE calling the disable account endpoint in the following scenarios:\n\n' +
-      '**Scenario 1: User has 2FA enabled**\n' +
-      '- Call this endpoint first to receive a code\n' +
-      '- Then call POST /profile/disable with `twoFactorCode` parameter\n\n' +
-      '**Scenario 2: User has OAuth-only account (no password)**\n' +
-      '- Call this endpoint first to receive a code\n' +
-      '- Then call POST /profile/disable with `emailCode` parameter\n\n' +
-      '**Scenario 3: User has credentials but no 2FA**\n' +
-      '- DO NOT call this endpoint (will return error)\n' +
-      '- Call POST /profile/disable directly with `password` parameter',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Verification code sent to email address.',
-    schema: {
-      example: {
-        message: 'Account disable verification code sent to your email address.',
-      },
-    },
-  })
-  @ApiNotFoundResponse({
-    description: 'User not found.',
-    schema: {
-      example: {
-        statusCode: 404,
-        message: 'User not found',
-        error: 'Not Found',
-      },
-    },
-  })
-  @ApiBadRequestResponse({
-    description:
-      'Bad Request - Account already disabled or password should be used instead.',
-    schema: {
-      example: {
-        statusCode: 400,
-        message:
-          'Use your password to disable the account. No verification code is required.',
-        error: 'Bad Request',
-      },
-    },
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Post('disable/code')
-  async sendAccountDisableCode(@CurrentUser('id') userId: string) {
-    return await this.profileService.sendAccountDisableCode(userId);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Disable user account',
-    description:
-      'Permanently disables the authenticated user account. All active sessions will be revoked.\n\n' +
-      '**Required parameters depend on account type:**\n\n' +
-      '**1. User with credentials but NO 2FA:**\n' +
-      '- Required: `password`\n' +
-      '- Optional: `reason`\n' +
-      '- Example: `{ "password": "yourPassword", "reason": "optional reason" }`\n\n' +
-      '**2. User with 2FA enabled:**\n' +
-      '- First call: POST /profile/disable/code (to get verification code)\n' +
-      '- Required: `twoFactorCode` (from email)\n' +
-      '- Optional: `reason`\n' +
-      '- Example: `{ "twoFactorCode": "123456", "reason": "optional reason" }`\n\n' +
-      '**3. OAuth-only account (no password):**\n' +
-      '- First call: POST /profile/disable/code (to get verification code)\n' +
-      '- Required: `emailCode` (from email)\n' +
-      '- Optional: `reason`\n' +
-      '- Example: `{ "emailCode": "123456", "reason": "optional reason" }`',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Account disabled successfully.',
-    schema: {
-      example: {
-        message: 'Account has been disabled successfully',
-        disabledAt: '2025-11-24T15:30:00.000Z',
-        reason: 'No longer using the platform',
-      },
-    },
-  })
-  @ApiBody({
-    type: DisableAccountDto,
-    description:
-      'Request body parameters. Which parameters are required depends on your account type (see operation description above).',
-    examples: {
-      'User with password (no 2FA)': {
-        value: {
-          password: 'currentPassword123',
-          reason: 'No longer using the platform',
-        },
-        description: 'For users with credentials but no 2FA',
-      },
-      'User with 2FA enabled': {
-        value: {
-          twoFactorCode: '123456',
-          reason: 'No longer using the platform',
-        },
-        description:
-          'For users with 2FA. Must call /disable/code first to get the code.',
-      },
-      'OAuth-only account': {
-        value: {
-          emailCode: '123456',
-          reason: 'No longer using the platform',
-        },
-        description:
-          'For OAuth-only accounts. Must call /disable/code first to get the code.',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description:
-      'Bad Request - Validation or business rule violated. Examples: Account already disabled, missing required parameter (password/twoFactorCode/emailCode), code expired.',
-    schema: {
-      examples: {
-        'Account already disabled': {
-          value: {
-            statusCode: 400,
-            message: 'Account is already disabled',
-            error: 'Bad Request',
-          },
-        },
-        'Missing 2FA code': {
-          value: {
-            statusCode: 400,
-            message:
-              'Two-factor authentication code is required to disable this account',
-            error: 'Bad Request',
-          },
-        },
-        'Missing password': {
-          value: {
-            statusCode: 400,
-            message: 'Password is required to disable account',
-            error: 'Bad Request',
-          },
-        },
-        'Missing email code': {
-          value: {
-            statusCode: 400,
-            message:
-              'Email verification code is required to disable this account',
-            error: 'Bad Request',
-          },
-        },
-        'Code expired': {
-          value: {
-            statusCode: 400,
-            message:
-              'Account disable code has expired or was not requested. Please request a new code.',
-            error: 'Bad Request',
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 403,
-    description:
-      'Forbidden - Invalid password or verification code.',
-    schema: {
-      examples: {
-        'Invalid password': {
-          value: {
-            statusCode: 403,
-            message: 'Invalid password',
-            error: 'Forbidden',
-          },
-        },
-        'Invalid verification code': {
-          value: {
-            statusCode: 403,
-            message: 'Invalid verification code',
-            error: 'Forbidden',
-          },
-        },
-      },
-    },
-  })
-  @Post('disable')
-  async disableAccount(
-    @CurrentUser('id') userId: string,
-    @Body() disableDto: DisableAccountDto,
-  ) {
-    return await this.profileService.disableAccount(userId, disableDto);
-  }
 }
