@@ -24,7 +24,9 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
+import { ManageSponsorsDto } from './dto/sponsor.dto';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
+import { UserMin } from 'src/common/types';
 
 @ApiTags('Hackathons')
 @Controller('hackathon')
@@ -36,8 +38,8 @@ export class HackathonController {
     description: 'Update a hackathon.',
   })
   @ApiParam({
-    name: 'id',
-    description: 'ID of the hackathon to update',
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
     required: true,
     type: String,
   })
@@ -77,14 +79,14 @@ export class HackathonController {
   })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Patch(':id')
+  @Patch(':identifier')
   async update(
-    @Param('id') hackathonId: string,
+    @Param('identifier') identifier: string,
     @CurrentUser('id') userId: string,
     @Body() updateHackathonDto: UpdateHackathonDto,
   ) {
     return await this.hackathonService.update(
-      hackathonId,
+      identifier,
       userId,
       updateHackathonDto,
     );
@@ -93,13 +95,14 @@ export class HackathonController {
   @ApiOperation({
     summary: 'Manage tracks',
     description:
-      'Manage all tracks for a hackathon (create, update, delete). Send the full list of desired tracks.',
+      'Manage all tracks for a hackathon (create, update, delete). Send the full list of desired tracks. Hackathon can be identified by ID or slug.',
   })
   @ApiParam({
-    name: 'id',
-    description: 'ID of the hackathon',
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
     required: true,
     type: String,
+    example: 'web3-innovation-hackathon',
   })
   @ApiBody({
     type: ManageTracksDto,
@@ -116,6 +119,7 @@ export class HackathonController {
           description: 'Description 1',
           judgingCriteria: 'Criteria 1',
           order: 1,
+          winnersCount: 3,
         },
         {
           id: 'cuid',
@@ -123,6 +127,7 @@ export class HackathonController {
           description: 'Description 2',
           judgingCriteria: 'Criteria 2',
           order: 2,
+          winnersCount: 1,
         },
       ],
     },
@@ -135,14 +140,14 @@ export class HackathonController {
   })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Put(':id/tracks')
+  @Put(':identifier/tracks')
   async manageTracks(
-    @Param('id') hackathonId: string,
+    @Param('identifier') hackathonIdentifier: string,
     @CurrentUser('id') userId: string,
     @Body() manageTracksDto: ManageTracksDto,
   ) {
     return await this.hackathonService.manageTracks(
-      hackathonId,
+      hackathonIdentifier,
       userId,
       manageTracksDto,
     );
@@ -150,21 +155,204 @@ export class HackathonController {
 
   @ApiOperation({
     summary: 'Get all tracks',
-    description: 'Get all tracks for a specific hackathon.',
+    description:
+      'Get all tracks for a specific hackathon. Hackathon can be identified by ID or slug. Accessible by admin, organization owner, or anyone if hackathon is not in draft/cancelled status.',
   })
   @ApiParam({
-    name: 'id',
-    description: 'ID of the hackathon',
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
     required: true,
     type: String,
+    example: 'web3-innovation-hackathon',
   })
   @ApiResponse({
     status: 200,
     description: 'Tracks retrieved successfully.',
   })
-  @Get(':id/tracks')
-  async getTracks(@Param('id') hackathonId: string) {
-    return await this.hackathonService.getTracks(hackathonId);
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found or access denied',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':identifier/tracks')
+  async getTracks(
+    @Param('identifier') hackathonIdentifier: string,
+    @CurrentUser() user?: UserMin | undefined,
+  ) {
+    return await this.hackathonService.getTracks(hackathonIdentifier, user);
+  }
+
+  @ApiOperation({
+    summary: 'Manage sponsors',
+    description:
+      'Manage all sponsors for a hackathon (create, update, delete). The first sponsor is always the organization creating the hackathon and only its logo can be updated. Hackathon can be identified by ID or slug.',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiBody({
+    type: ManageSponsorsDto,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sponsors updated successfully.',
+    example: {
+      message: 'Sponsors updated successfully',
+      data: [
+        {
+          id: 'cuid',
+          name: 'Organization Name',
+          logo: 'https://example.com/logo.png',
+          isCurrentOrganization: true,
+        },
+        {
+          id: 'cuid',
+          name: 'Sponsor Name',
+          logo: 'https://example.com/sponsor-logo.png',
+          isCurrentOrganization: false,
+        },
+      ],
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Put(':identifier/sponsors')
+  async manageSponsors(
+    @Param('identifier') hackathonIdentifier: string,
+    @CurrentUser('id') userId: string,
+    @Body() manageSponsorsDto: ManageSponsorsDto,
+  ) {
+    return await this.hackathonService.manageSponsors(
+      hackathonIdentifier,
+      userId,
+      manageSponsorsDto,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Get all sponsors',
+    description:
+      'Get all sponsors for a specific hackathon. Hackathon can be identified by ID or slug. Accessible by admin, organization owner, or anyone if hackathon is not in draft/cancelled status.',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sponsors retrieved successfully.',
+    example: {
+      data: [
+        {
+          id: 'cuid',
+          name: 'Organization Name',
+          logo: 'https://example.com/logo.png',
+          isCurrentOrganization: true,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'cuid',
+          name: 'Sponsor Name',
+          logo: 'https://example.com/sponsor-logo.png',
+          isCurrentOrganization: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found or access denied',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':identifier/sponsors')
+  async getSponsors(
+    @Param('identifier') hackathonIdentifier: string,
+    @CurrentUser() user?: UserMin | undefined,
+  ) {
+    return await this.hackathonService.getSponsors(hackathonIdentifier, user);
+  }
+
+  @ApiOperation({
+    summary: 'Publish a hackathon',
+    description:
+      'Publish a hackathon by changing its status from DRAFT to the appropriate status based on dates. Only hackathons in DRAFT status can be published. The status will be automatically determined based on current date and hackathon dates (UPCOMING, REGISTRATION, ACTIVE, JUDGING). Organization owner only.',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hackathon published successfully.',
+    schema: {
+      example: {
+        message: 'Hackathon published successfully',
+        data: {
+          id: 'cuid',
+          slug: 'hackathon-slug',
+          title: 'Hackathon Title',
+          status: 'UPCOMING',
+          organizationId: 'cuid',
+          registrationStart: '2024-12-01T00:00:00.000Z',
+          registrationEnd: '2024-12-15T00:00:00.000Z',
+          startDate: '2024-12-16T00:00:00.000Z',
+          endDate: '2024-12-30T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - User is not the organization owner',
+    schema: {
+      example: {
+        message: 'You are not authorized to publish this hackathon',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+    schema: {
+      example: {
+        message: 'Hackathon not found',
+      },
+    },
+  })
+  @ApiConflictResponse({
+    description: 'Hackathon is not in DRAFT status',
+    schema: {
+      example: {
+        message:
+          'Cannot publish hackathon. Current status is ACTIVE. Only hackathons in DRAFT status can be published',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':identifier/publish')
+  async publishHackathon(
+    @Param('identifier') identifier: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return await this.hackathonService.publishHackathon(identifier, userId);
   }
 
   @ApiOperation({
@@ -210,11 +398,11 @@ export class HackathonController {
   @Get(':identifier')
   async getHackathonByIdentifier(
     @Param('identifier') identifier: string,
-    @CurrentUser('id') userId?: string,
+    @CurrentUser() user?: UserMin | undefined,
   ) {
     return await this.hackathonService.getHackathonByIdentifier(
       identifier,
-      userId,
+      user,
     );
   }
 }

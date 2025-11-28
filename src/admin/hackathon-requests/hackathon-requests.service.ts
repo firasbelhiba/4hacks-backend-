@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryHackathonRequestsDto } from './dto/query-hackathon-requests.dto';
@@ -13,10 +14,20 @@ import {
   HackathonStatus,
   HackathonType,
 } from 'generated/prisma';
+import { EmailService } from 'src/email/email.service';
+import {
+  HackathonRequestApprovedEmailTemplateHtml,
+  HackathonRequestRejectedEmailTemplateHtml,
+} from 'src/common/templates/emails.templates.list';
 
 @Injectable()
 export class HackathonRequestsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(HackathonRequestsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) {}
 
   async findAll(
     query: QueryHackathonRequestsDto,
@@ -196,7 +207,7 @@ export class HackathonRequestsService {
                 ]
                   .filter(Boolean)
                   .join(', ')
-              : null,
+              : Prisma.JsonNull,
           category: request.hackCategory,
           type: request.hackType,
           status: HackathonStatus.DRAFT,
@@ -209,6 +220,25 @@ export class HackathonRequestsService {
           judgingStart: request.judgingStart,
           judgingEnd: request.judgingEnd,
           organizationId: request.organizationId,
+        },
+      });
+
+      // Create the default hackathon track
+      await tx.track.create({
+        data: {
+          name: 'Main Track',
+          description: 'Default hackathon track',
+          hackathonId: hackathon.id,
+        },
+      });
+
+      // Create teh default sponsor entry for the hackathon organization
+      await tx.sponsor.create({
+        data: {
+          name: request.organization.name,
+          logo: request.organization.logo,
+          hackathonId: hackathon.id,
+          isCurrentOrganization: true,
         },
       });
 
@@ -239,7 +269,14 @@ export class HackathonRequestsService {
               },
             },
           },
-          hackathon: false,
+          hackathon: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              status: true,
+            },
+          },
           approvedBy: {
             select: {
               id: true,
@@ -252,10 +289,54 @@ export class HackathonRequestsService {
         },
       });
 
-      return { request: updatedRequest, hackathon };
+      return updatedRequest;
     });
 
-    return result;
+    // Send email notification to organization owner
+    try {
+      const formattedStartDate = new Date(result.startDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      const formattedEndDate = new Date(result.endDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      const emailHtml = HackathonRequestApprovedEmailTemplateHtml(
+        result.organization.owner.name,
+        result.hackTitle,
+        result.hackSlug,
+        result.organization.name,
+        formattedStartDate,
+        formattedEndDate,
+        result.prizePool,
+        result.prizeToken,
+      );
+
+      await this.emailService.sendEmail(
+        result.organization.owner.email,
+        `🎉 Your Hackathon "${result.hackTitle}" Has Been Approved!`,
+        emailHtml,
+      );
+
+      this.logger.log(
+        `Approval email sent to ${result.organization.owner.email} for hackathon: ${result.hackTitle}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send approval email to ${result.organization.owner.email}`,
+        error.stack,
+      );
+      // Don't throw error - email failure shouldn't fail the approval
+    }
+
+    return {
+      message: 'Request approved successfully and hackathon created',
+      data: result,
+    };
   }
 
   async rejectRequest(
@@ -309,7 +390,13 @@ export class HackathonRequestsService {
             },
           },
         },
-        hackathon: true,
+        hackathon: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
         rejectedBy: {
           select: {
             id: true,
@@ -322,6 +409,48 @@ export class HackathonRequestsService {
       },
     });
 
-    return updatedRequest;
+    // Send email notification to organization owner
+    try {
+      const formattedStartDate = new Date(updatedRequest.startDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      const formattedEndDate = new Date(updatedRequest.endDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      const emailHtml = HackathonRequestRejectedEmailTemplateHtml(
+        updatedRequest.organization.owner.name,
+        updatedRequest.hackTitle,
+        updatedRequest.organization.name,
+        rejectionReason,
+        formattedStartDate,
+        formattedEndDate,
+      );
+
+      await this.emailService.sendEmail(
+        updatedRequest.organization.owner.email,
+        `Hackathon Request Update: "${updatedRequest.hackTitle}"`,
+        emailHtml,
+      );
+
+      this.logger.log(
+        `Rejection email sent to ${updatedRequest.organization.owner.email} for hackathon: ${updatedRequest.hackTitle}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send rejection email to ${updatedRequest.organization.owner.email}`,
+        error.stack,
+      );
+      // Don't throw error - email failure shouldn't fail the rejection
+    }
+
+    return {
+      message: 'Request rejected successfully',
+      data: updatedRequest,
+    };
   }
 }

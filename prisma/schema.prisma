@@ -52,10 +52,8 @@ enum HackathonCategory {
 }
 
 enum PrizeType {
-  GENERAL
   TRACK
   BOUNTY
-  SPONSOR
 }
 
 // --- Enum for the Request's status
@@ -71,47 +69,51 @@ enum RequestStatus {
  * //////////////////////////////////////////////////////
  */
 model users {
-  id                                String                     @id @default(cuid())
-  email                             String                     @unique
-  username                          String                     @unique
-  walletAddress                     String?                    @unique
+  id                                String                        @id @default(cuid())
+  email                             String                        @unique
+  username                          String                        @unique
+  walletAddress                     String?                       @unique
   password                          String
   name                              String
-  role                              UserRole                   @default(USER)
+  role                              UserRole                      @default(USER)
   image                             String?
-  providers                         Provider[]                 @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
+  providers                         Provider[]                    @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
   profession                        String?
   bio                               String?
   location                          String?
   org                               String? // Organization name (school, company, etc.)
-  skills                            String[]                   @default([])
+  skills                            String[]                      @default([])
   website                           String?
   github                            String?
   linkedin                          String?
   telegram                          String?
   twitter                           String?
   whatsapp                          String?
-  otherSocials                      String[]                   @default([])
-  isEmailVerified                   Boolean                    @default(false)
+  otherSocials                      String[]                      @default([])
+  isEmailVerified                   Boolean                       @default(false)
   emailVerifiedAt                   DateTime?
   lastLoginAt                       DateTime?
   passwordUpdatedAt                 DateTime?
-  twoFactorEnabled                  Boolean                    @default(false)
+  twoFactorEnabled                  Boolean                       @default(false)
   twoFactorSecret                   String?
   twoFactorConfirmedAt              DateTime?
   isBanned                          Boolean                    @default(false)
   bannedAt                          DateTime?
   bannedReason                      String?
   sessions                          Session[]
-  revokedSessions                   Session[]                  @relation("RevokedSessions")
+  revokedSessions                   Session[]                     @relation("RevokedSessions")
   failedLogins                      FailedLogin[]
   organizations                     Organization[] // USER can create multiple organizations
-  createdAt                         DateTime                   @default(now())
-  updatedAt                         DateTime                   @updatedAt
+  createdAt                         DateTime                      @default(now())
+  updatedAt                         DateTime                      @updatedAt
   teamMembers                       TeamMember[]
   projects                          Project[]
-  rejectedHackathonCreationRequests HackathonCreationRequest[] @relation("rejectedHackathonCreationRequests")
-  approvedHackathonCreationRequests HackathonCreationRequest[] @relation("approvedHackathonCreationRequests")
+  rejectedHackathonCreationRequests HackathonCreationRequest[]    @relation("rejectedHackathonCreationRequests")
+  approvedHackathonCreationRequests HackathonCreationRequest[]    @relation("approvedHackathonCreationRequests")
+  hackathonRegistrationAnswers      HackathonRegistrationAnswer[]
+  hackathonQuestionThreads          HackathonQuestionThread[]
+  hackathonQuestionReplies          HackathonQuestionReply[]
+  userActivityLogs                  UserActivityLog[]
 
   @@index([email])
   @@index([username])
@@ -150,6 +152,35 @@ model FailedLogin {
   @@index([userId])
   @@index([createdAt])
   @@map("failed_logins")
+}
+
+model UserActivityLog {
+  id         String              @id @default(cuid())
+  userId     String
+  action     String // e.g., "REGISTERED_PROJECT", "SUBMITTED_HACKATHON", "ASKED_QUESTION"
+  targetType ActivityTargetType? // Optional: e.g., PROJECT, HACKATHON, TRACK
+  targetId   String? // Optional: ID of the object acted on
+  isPublic   Boolean             @default(true) // If true, visible to other users; else private
+  metadata   Json? // Optional extra info (e.g., payload, screenshot links)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("user_activity_logs")
+}
+
+enum ActivityTargetType {
+  PROJECT
+  HACKATHON
+  TRACK
+  BOUNTY
+  PRIZE
+  COMMENT
+  OTHER
 }
 
 /**
@@ -471,41 +502,70 @@ model HackathonCreationRequest {
   @@map("hackathon_creation_requests")
 }
 
+enum ProjectType {
+  PROTOTYPE
+  MVP
+  DEMO
+}
+
+enum HackathonRequiredMaterials {
+  VIDEO_DEMO
+  PITCH_DECK
+  GITHUB_REPOSITORY
+  TESTING_INSTRUCTIONS
+}
+
 model Hackathon {
-  id          String            @id @default(cuid())
-  title       String
-  slug        String            @unique
-  banner      String?
-  description String            @default("") @db.Text
-  location    String?
-  category    HackathonCategory
-  type        HackathonType     @default(ONLINE)
-  status      HackathonStatus   @default(DRAFT)
-  tags        String[]          @default([])
-  prizePool   Float             @default(0)
-  prizeToken  String            @default("USD")
+  id                      String            @id @default(cuid())
+  title                   String
+  slug                    String            @unique
+  organizationId          String
+  organization            Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  banner                  String?
+  tagline                 String            @default("")
+  description             String            @default("") @db.Text
+  category                HackathonCategory
+  type                    HackathonType     @default(ONLINE)
+  status                  HackathonStatus   @default(DRAFT)
+  tags                    String[]          @default([])
+  prizePool               Float             @default(0)
+  prizeToken              String            @default("USD")
+  eligibilityRequirements String            @default("") @db.Text
+  submissionGuidelines    String            @default("") @db.Text
+  ressources              String            @default("") @db.Text
 
   // Dates
-  registrationStart DateTime
-  registrationEnd   DateTime
-  startDate         DateTime
-  endDate           DateTime
-  judgingStart      DateTime?
-  judgingEnd        DateTime?
+  registrationStart      DateTime
+  registrationEnd        DateTime
+  startDate              DateTime
+  endDate                DateTime
+  judgingStart           DateTime?
+  judgingEnd             DateTime?
+  winnerAnnouncementDate DateTime?
 
   // Settings
-  maxTeamSize      Int     @default(4)
-  minTeamSize      Int     @default(1)
-  maxParticipants  Int?
-  requiresApproval Boolean @default(false)
-  isPrivate        Boolean @default(false)
+  maxTeamSize               Int      @default(4) // when this  = 1, it means only individual participation is allowed
+  minTeamSize               Int      @default(1)
+  maxTracksByProject        Int      @default(6)
+  requiresApproval          Boolean  @default(false) // If true, participants need approval to join
+  isPrivate                 Boolean  @default(false) // If true, hackathon can be accessed by invite only (participants need an invite passcode)
+  invitePasscode            String? // Required if isPrivate is true, should be hashed using bcrypt before storing
+  isProjectWhiteListEnabled Boolean  @default(false) // If true, only whitelisted emails can submit projects
+  projectWhitelistEmails    String[] @default([]) // List of whitelisted emails for project submission
 
-  // Stats (denormalized for performance)
-  participantCount Int @default(0)
-  projectCount     Int @default(0)
+  // Required project submission materials (video demo, pitch deck, code repo, etc.)
+  requiredSubmissionMaterials HackathonRequiredMaterials[] @default([])
+  // max Custom Tabs
+  maxCustomTabs               Int                          @default(5)
 
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Location (required if type is IN_PERSON or HYBRID)
+  location       Json? // JSON object with country, city, state, zipCode, address
+  otherLocations Json[] @default([]) // [{ "country": "...", "city": "...", "state": "...", "zipCode": "...", "address": "..." }]
+
+  // Dynamic registration questions stored as JSON objects
+  // Example: 
+  // [{ "id": "q1", "label": "...", "type": "text", "required": true }]
+  registrationQuestions Json[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -515,6 +575,10 @@ model Hackathon {
   projects                  Project[]
   prizes                    Prize[]
   hackathonCreationRequests HackathonCreationRequest[]
+  customHackathonTabs       CustomHackathonTab[]
+  registrationAnswers       HackathonRegistrationAnswer[]
+  hackathonQuestionThreads  HackathonQuestionThread[]
+  bounties                  Bounty[]
 
   @@index([slug])
   @@index([organizationId])
@@ -523,18 +587,94 @@ model Hackathon {
   @@map("hackathons")
 }
 
+model HackathonRegistrationAnswer {
+  id          String   @id @default(cuid())
+  hackathonId String
+  userId      String
+  answers     Json // JSON object with question IDs as keys and answers as values
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  user      users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([hackathonId, userId])
+  @@index([hackathonId])
+  @@index([userId])
+  @@map("hackathon_registration_answers")
+}
+
+model CustomHackathonTab {
+  id          String   @id @default(cuid())
+  hackathonId String
+  name        String // Display name
+  slug        String // Unique per hackathon
+  content     String   @db.Text // Markdown content
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+
+  @@index([hackathonId])
+  @@map("custom_hackathon_tabs")
+}
+
+// Q&A Section for Hackathons
+
+model HackathonQuestionThread {
+  id          String @id @default(cuid())
+  hackathonId String
+  userId      String // Who asked the question (hacker)
+
+  title       String?
+  content     String   @db.Text
+  attachments String[] @default([]) // image URLs
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  user      users     @relation(fields: [userId], references: [id])
+
+  replies HackathonQuestionReply[]
+
+  @@index([hackathonId])
+  @@map("hackathon_question_threads")
+}
+
+model HackathonQuestionReply {
+  id       String  @id @default(cuid())
+  threadId String
+  userId   String
+  parentId String? // null = direct reply to thread
+  // not null = reply to another reply
+
+  content     String   @db.Text
+  attachments String[] @default([]) // image URLs
+
+  createdAt DateTime @default(now())
+
+  thread   HackathonQuestionThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user     users                    @relation(fields: [userId], references: [id])
+  parent   HackathonQuestionReply?  @relation("ReplyToParent", fields: [parentId], references: [id])
+  children HackathonQuestionReply[] @relation("ReplyToParent")
+
+  @@index([threadId])
+  @@index([parentId])
+  @@map("hackathon_question_replies")
+}
+
 model Track {
   id              String   @id @default(cuid())
   hackathonId     String
   name            String
   description     String   @default("") @db.Text
-  judgingCriteria String   @default("")
+  judgingCriteria String   @default("") @db.Text
   order           Int      @default(0)
-  prizeAmount     Float    @default(0)
-  prizeToken      String   @default("USD")
   winnersCount    Int      @default(1)
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
 
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
 
@@ -545,21 +685,25 @@ model Track {
   @@map("tracks")
 }
 
+// Prize by each winner for teh track or the bounty
 model Prize {
-  id           String    @id @default(cuid())
-  hackathonId  String
-  trackId      String? // Null for general prizes
-  title        String
-  description  String    @db.Text
-  type         PrizeType @default(GENERAL)
-  amount       Float     @default(0)
-  currency     String    @default("USD")
-  winnersCount Int       @default(1)
+  id          String    @id @default(cuid())
+  position    Int       @default(1) // 1st, 2nd, 3rd place
+  name        String    @default("") // e.g., "First Place"
+  hackathonId String
+  trackId     String? // Null for bounty prizes
+  bountyId    String? // Null for track
+  type        PrizeType @default(TRACK)
+  amount      Float     @default(0)
+  token       String    @default("USD")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
 
   // Relations
-  hackathon Hackathon     @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
-  track     Track?        @relation(fields: [trackId], references: [id], onDelete: SetNull)
-  winners   PrizeWinner[]
+  hackathon    Hackathon     @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  track        Track?        @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  bounty       Bounty?       @relation("BountyPrizes", fields: [bountyId], references: [id], onDelete: SetNull)
+  prizeWinners PrizeWinner[]
 
   @@index([hackathonId])
   @@index([trackId])
@@ -567,12 +711,12 @@ model Prize {
 }
 
 model PrizeWinner {
-  id        String    @id @default(cuid())
+  id        String @id @default(cuid())
   prizeId   String
   projectId String
-  rank      Int       @default(1) // 1st, 2nd, 3rd place
-  awardedAt DateTime  @default(now())
-  paidAt    DateTime? // null if not paid yet
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   prize   Prize   @relation(fields: [prizeId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -581,6 +725,44 @@ model PrizeWinner {
   @@index([prizeId])
   @@index([projectId])
   @@map("prize_winners")
+}
+
+model Bounty {
+  id           String   @id @default(cuid())
+  hackathonId  String
+  sponsorId    String
+  title        String
+  description  String   @default("") @db.Text
+  rewardAmount Float    @default(0)
+  rewardToken  String   @default("USD")
+  maxWinners   Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  sponsor   Sponsor   @relation(fields: [sponsorId], references: [id])
+
+  prizes Prize[] @relation("BountyPrizes")
+
+  @@index([hackathonId])
+  @@index([sponsorId])
+  @@map("bounties")
+}
+
+model Sponsor {
+  id                    String  @id @default(cuid())
+  hackathonId           String
+  name                  String
+  isCurrentOrganization Boolean @default(false)
+  logo                  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bounties Bounty[]
+
+  @@index([name])
+  @@map("sponsors")
 }
 
 model Project {

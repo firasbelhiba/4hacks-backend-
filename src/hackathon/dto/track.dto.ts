@@ -48,6 +48,18 @@ export class CreateTrackDto {
   @IsInt()
   @Min(0)
   order?: number;
+
+  @ApiProperty({
+    example: 3,
+    description: 'Number of winners for this track',
+    required: false,
+    default: 1,
+    minimum: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  winnersCount?: number;
 }
 
 export class UpdateTrackDto extends PartialType(CreateTrackDto) {}
