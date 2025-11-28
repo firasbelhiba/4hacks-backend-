@@ -37,8 +37,8 @@ export class HackathonController {
     description: 'Update a hackathon.',
   })
   @ApiParam({
-    name: 'id',
-    description: 'ID of the hackathon to update',
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
     required: true,
     type: String,
   })
@@ -78,14 +78,14 @@ export class HackathonController {
   })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Patch(':id')
+  @Patch(':identifier')
   async update(
-    @Param('id') hackathonId: string,
+    @Param('identifier') identifier: string,
     @CurrentUser('id') userId: string,
     @Body() updateHackathonDto: UpdateHackathonDto,
   ) {
     return await this.hackathonService.update(
-      hackathonId,
+      identifier,
       userId,
       updateHackathonDto,
     );

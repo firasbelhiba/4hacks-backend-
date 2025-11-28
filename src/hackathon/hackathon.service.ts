@@ -20,14 +20,14 @@ export class HackathonService {
   constructor(private readonly prisma: PrismaService) {}
 
   async update(
-    hackathonId: string,
+    hackathonIdentifier: string,
     userId: string,
     updateHackathonDto: UpdateHackathonDto,
   ) {
     // Check if hackathon exists
-    const hackathon = await this.prisma.hackathon.findUnique({
+    const hackathon = await this.prisma.hackathon.findFirst({
       where: {
-        id: hackathonId,
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
       },
       include: {
         organization: {
@@ -104,7 +104,7 @@ export class HackathonService {
     // Update hackathon
     const updatedHackathon = await this.prisma.hackathon.update({
       where: {
-        id: hackathonId,
+        id: hackathon.id,
       },
       data: updateData,
     });
@@ -226,12 +226,13 @@ export class HackathonService {
 
   async getHackathonByIdentifier(identifier: string, user?: UserMin) {
     const userId = user ? user.id : undefined;
+    const isAdmin = user ? user.role === UserRole.ADMIN : false;
 
     const hackathon = await this.prisma.hackathon.findFirst({
       where: {
         OR: [{ id: identifier }, { slug: identifier }],
         AND: [
-          user && user.role === UserRole.ADMIN
+          isAdmin
             ? {} // admin can access all hackathons
             : {
                 OR: [

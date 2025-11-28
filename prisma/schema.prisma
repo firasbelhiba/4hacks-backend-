@@ -546,7 +546,7 @@ model Hackathon {
   // Settings
   maxTeamSize               Int      @default(4) // when this  = 1, it means only individual participation is allowed
   minTeamSize               Int      @default(1)
-  maxTracksByProject        Int      @default(1)
+  maxTracksByProject        Int      @default(6)
   requiresApproval          Boolean  @default(false) // If true, participants need approval to join
   isPrivate                 Boolean  @default(false) // If true, hackathon can be accessed by invite only (participants need an invite passcode)
   invitePasscode            String? // Required if isPrivate is true, should be hashed using bcrypt before storing
