@@ -196,7 +196,7 @@ export class HackathonRequestsService {
                 ]
                   .filter(Boolean)
                   .join(', ')
-              : null,
+              : Prisma.JsonNull,
           category: request.hackCategory,
           type: request.hackType,
           status: HackathonStatus.DRAFT,
@@ -209,6 +209,25 @@ export class HackathonRequestsService {
           judgingStart: request.judgingStart,
           judgingEnd: request.judgingEnd,
           organizationId: request.organizationId,
+        },
+      });
+
+      // Create the default hackathon track
+      await tx.track.create({
+        data: {
+          name: 'Main Track',
+          description: 'Default hackathon track',
+          hackathonId: hackathon.id,
+        },
+      });
+
+      // Create teh default sponsor entry for the hackathon organization
+      await tx.sponsor.create({
+        data: {
+          name: request.organization.name,
+          logo: request.organization.logo,
+          hackathonId: hackathon.id,
+          isCurrentOrganization: true,
         },
       });
 
@@ -239,7 +258,14 @@ export class HackathonRequestsService {
               },
             },
           },
-          hackathon: false,
+          hackathon: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              status: true,
+            },
+          },
           approvedBy: {
             select: {
               id: true,
@@ -252,10 +278,15 @@ export class HackathonRequestsService {
         },
       });
 
-      return { request: updatedRequest, hackathon };
+      return updatedRequest;
     });
 
-    return result;
+    // TODO: Send Email Notification to Organization Owner
+
+    return {
+      message: 'Request approved successfully and hackathon created',
+      data: result,
+    };
   }
 
   async rejectRequest(
@@ -309,7 +340,13 @@ export class HackathonRequestsService {
             },
           },
         },
-        hackathon: true,
+        hackathon: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
         rejectedBy: {
           select: {
             id: true,
@@ -322,6 +359,11 @@ export class HackathonRequestsService {
       },
     });
 
-    return updatedRequest;
+    // TODO: Send Email Notification to Organization Owner
+
+    return {
+      message: 'Request rejected successfully',
+      data: updatedRequest,
+    };
   }
 }

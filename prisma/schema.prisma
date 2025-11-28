@@ -750,10 +750,11 @@ model Bounty {
 }
 
 model Sponsor {
-  id          String  @id @default(cuid())
-  hackathonId String
-  name        String
-  logo        String?
+  id                    String  @id @default(cuid())
+  hackathonId           String
+  name                  String
+  isCurrentOrganization Boolean @default(false)
+  logo                  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
