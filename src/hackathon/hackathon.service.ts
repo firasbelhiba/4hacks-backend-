@@ -4,11 +4,13 @@ import {
   Logger,
   NotFoundException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
 import { HackathonStatus } from 'generated/prisma';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class HackathonService {
@@ -47,12 +49,63 @@ export class HackathonService {
       );
     }
 
+    // Validate team size logic
+    if (
+      updateHackathonDto.minTeamSize !== undefined &&
+      updateHackathonDto.maxTeamSize !== undefined
+    ) {
+      if (updateHackathonDto.minTeamSize > updateHackathonDto.maxTeamSize) {
+        throw new BadRequestException(
+          'Minimum team size cannot be greater than maximum team size',
+        );
+      }
+    } else if (updateHackathonDto.minTeamSize !== undefined) {
+      if (updateHackathonDto.minTeamSize > hackathon.maxTeamSize) {
+        throw new BadRequestException(
+          'Minimum team size cannot be greater than current maximum team size',
+        );
+      }
+    } else if (updateHackathonDto.maxTeamSize !== undefined) {
+      if (updateHackathonDto.maxTeamSize < hackathon.minTeamSize) {
+        throw new BadRequestException(
+          'Maximum team size cannot be less than current minimum team size',
+        );
+      }
+    }
+
+    // Validate private hackathon requirements
+    if (
+      updateHackathonDto.isPrivate &&
+      !updateHackathonDto.invitePasscode &&
+      !hackathon.invitePasscode
+    ) {
+      throw new BadRequestException(
+        'Invite passcode is required for private hackathons',
+      );
+    }
+
+    // Prepare update data
+    const updateData: any = { ...updateHackathonDto };
+
+    // Hash invite passcode if provided
+    if (updateHackathonDto.invitePasscode) {
+      updateData.invitePasscode = await bcrypt.hash(
+        updateHackathonDto.invitePasscode,
+        10,
+      );
+    }
+
+    // If setting hackathon to public, clear the passcode
+    if (updateHackathonDto.isPrivate === false) {
+      updateData.invitePasscode = null;
+    }
+
     // Update hackathon
     const updatedHackathon = await this.prisma.hackathon.update({
       where: {
         id: hackathonId,
       },
-      data: updateHackathonDto,
+      data: updateData,
     });
 
     return {
