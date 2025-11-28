@@ -35,7 +35,7 @@ export class UsersService {
         id: true,
         email: true,
         role: true,
-        isDisabled: true,
+        isBanned: true,
       },
     });
 
@@ -44,7 +44,7 @@ export class UsersService {
     }
 
     // Check if user is already banned
-    if (user.isDisabled) {
+    if (user.isBanned) {
       throw new BadRequestException('User is already banned');
     }
 
@@ -60,9 +60,9 @@ export class UsersService {
       this.prisma.users.update({
         where: { id: userId },
         data: {
-          isDisabled: true,
-          disabledAt: bannedAt,
-          disabledReason: banDto.reason,
+          isBanned: true,
+          bannedAt: bannedAt,
+          bannedReason: banDto.reason,
         },
       }),
       this.prisma.session.updateMany({
@@ -76,11 +76,20 @@ export class UsersService {
     ]);
 
     // Send email notification to banned user
-    await this.emailService.sendEmail(
-      user.email,
-      'Account Banned',
-      AccountBannedEmailTemplateHtml(user.email, banDto.reason),
-    );
+    try {
+      await this.emailService.sendEmail(
+        user.email,
+        'Account Banned',
+        AccountBannedEmailTemplateHtml(user.email, banDto.reason),
+      );
+    } catch (error) {
+      // Log error but don't fail the ban operation
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to send ban notification email to ${user.email}: ${errorMessage}`,
+      );
+    }
 
     this.logger.log(
       `User ${userId} banned by admin ${adminId}. Reason: ${banDto.reason}`,
