@@ -103,15 +103,6 @@ export class UpdateHackathonDto {
   type?: HackathonType;
 
   @ApiPropertyOptional({
-    description: 'Hackathon status',
-    enum: HackathonStatus,
-    example: HackathonStatus.UPCOMING,
-  })
-  @IsEnum(HackathonStatus)
-  @IsOptional()
-  status?: HackathonStatus;
-
-  @ApiPropertyOptional({
     description: 'Tags for the hackathon',
     example: ['blockchain', 'defi', 'nft'],
     type: [String],

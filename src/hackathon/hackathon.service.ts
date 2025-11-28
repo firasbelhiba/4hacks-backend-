@@ -123,10 +123,7 @@ export class HackathonService {
   ) {
     const hackathon = await this.prisma.hackathon.findFirst({
       where: {
-        OR: [
-          { id: hackathonIdentifier },
-          { slug: hackathonIdentifier },
-        ],
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
       },
       include: { organization: true },
     });
@@ -220,19 +217,35 @@ export class HackathonService {
     };
   }
 
-  async getTracks(hackathonIdentifier: string) {
+  async getTracks(hackathonIdentifier: string, user?: UserMin) {
+    const userId = user ? user.id : undefined;
+    const isAdmin = user ? user.role === UserRole.ADMIN : false;
+
     // Find hackathon by id or slug
     const hackathon = await this.prisma.hackathon.findFirst({
       where: {
-        OR: [
-          { id: hackathonIdentifier },
-          { slug: hackathonIdentifier },
-        ],
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
+      },
+      select: {
+        id: true,
+        status: true,
+        organization: { select: { ownerId: true } },
       },
     });
 
     if (!hackathon) {
       throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check authorization
+    const isOwner = userId && hackathon.organization.ownerId === userId;
+    const isDraftOrCancelled =
+      hackathon.status === HackathonStatus.DRAFT ||
+      hackathon.status === HackathonStatus.CANCELLED;
+
+    // Allow: admin, owner, or anyone if not draft/cancelled
+    if (!isAdmin && !isOwner && isDraftOrCancelled) {
+      throw new NotFoundException('Hackathon access denied');
     }
 
     const tracks = await this.prisma.track.findMany({
@@ -309,10 +322,7 @@ export class HackathonService {
   ) {
     const hackathon = await this.prisma.hackathon.findFirst({
       where: {
-        OR: [
-          { id: hackathonIdentifier },
-          { slug: hackathonIdentifier },
-        ],
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
       },
       include: { organization: true },
     });
@@ -361,9 +371,7 @@ export class HackathonService {
     // Identify sponsors to delete (exist in DB but not in incoming list)
     // Never delete the organization sponsor
     const sponsorsToDelete = existingSponsorIds.filter(
-      (id) =>
-        !incomingIds.includes(id) &&
-        id !== orgSponsor?.id,
+      (id) => !incomingIds.includes(id) && id !== orgSponsor?.id,
     );
 
     // Identify sponsors to update (exist in both)
@@ -389,7 +397,7 @@ export class HackathonService {
       // Update
       for (const sponsor of sponsorsToUpdate) {
         const isOrgSponsor = sponsor.id === orgSponsor?.id;
-        
+
         // For organization sponsor, only update logo
         if (isOrgSponsor) {
           await tx.sponsor.update({
@@ -435,19 +443,35 @@ export class HackathonService {
     };
   }
 
-  async getSponsors(hackathonIdentifier: string) {
+  async getSponsors(hackathonIdentifier: string, user?: UserMin) {
+    const userId = user ? user.id : undefined;
+    const isAdmin = user ? user.role === UserRole.ADMIN : false;
+
     // Find hackathon by id or slug
     const hackathon = await this.prisma.hackathon.findFirst({
       where: {
-        OR: [
-          { id: hackathonIdentifier },
-          { slug: hackathonIdentifier },
-        ],
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
+      },
+      select: {
+        id: true,
+        status: true,
+        organization: { select: { ownerId: true } },
       },
     });
 
     if (!hackathon) {
       throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check authorization
+    const isOwner = userId ? userId === hackathon.organization.ownerId : false;
+    const isDraftOrCancelled =
+      hackathon.status === HackathonStatus.DRAFT ||
+      hackathon.status === HackathonStatus.CANCELLED;
+
+    // Allow: admin, owner, or anyone if not draft/cancelled
+    if (!isAdmin && !isOwner && isDraftOrCancelled) {
+      throw new NotFoundException('Hackathon access denied');
     }
 
     const sponsors = await this.prisma.sponsor.findMany({

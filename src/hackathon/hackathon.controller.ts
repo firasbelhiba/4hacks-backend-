@@ -156,7 +156,7 @@ export class HackathonController {
   @ApiOperation({
     summary: 'Get all tracks',
     description:
-      'Get all tracks for a specific hackathon. Hackathon can be identified by ID or slug.',
+      'Get all tracks for a specific hackathon. Hackathon can be identified by ID or slug. Accessible by admin, organization owner, or anyone if hackathon is not in draft/cancelled status.',
   })
   @ApiParam({
     name: 'identifier',
@@ -170,11 +170,16 @@ export class HackathonController {
     description: 'Tracks retrieved successfully.',
   })
   @ApiNotFoundResponse({
-    description: 'Hackathon not found',
+    description: 'Hackathon not found or access denied',
   })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':identifier/tracks')
-  async getTracks(@Param('identifier') hackathonIdentifier: string) {
-    return await this.hackathonService.getTracks(hackathonIdentifier);
+  async getTracks(
+    @Param('identifier') hackathonIdentifier: string,
+    @CurrentUser() user?: UserMin | undefined,
+  ) {
+    return await this.hackathonService.getTracks(hackathonIdentifier, user);
   }
 
   @ApiOperation({
@@ -237,7 +242,7 @@ export class HackathonController {
   @ApiOperation({
     summary: 'Get all sponsors',
     description:
-      'Get all sponsors for a specific hackathon. Hackathon can be identified by ID or slug.',
+      'Get all sponsors for a specific hackathon. Hackathon can be identified by ID or slug. Accessible by admin, organization owner, or anyone if hackathon is not in draft/cancelled status.',
   })
   @ApiParam({
     name: 'identifier',
@@ -271,11 +276,16 @@ export class HackathonController {
     },
   })
   @ApiNotFoundResponse({
-    description: 'Hackathon not found',
+    description: 'Hackathon not found or access denied',
   })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':identifier/sponsors')
-  async getSponsors(@Param('identifier') hackathonIdentifier: string) {
-    return await this.hackathonService.getSponsors(hackathonIdentifier);
+  async getSponsors(
+    @Param('identifier') hackathonIdentifier: string,
+    @CurrentUser() user?: UserMin | undefined,
+  ) {
+    return await this.hackathonService.getSponsors(hackathonIdentifier, user);
   }
 
   @ApiOperation({
