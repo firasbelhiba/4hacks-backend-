@@ -483,4 +483,218 @@ export class HackathonService {
       data: sponsors,
     };
   }
+
+  async publishHackathon(hackathonIdentifier: string, userId: string) {
+    // Find hackathon by id or slug
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
+      },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            ownerId: true,
+          },
+        },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check if user is owner of the hackathon's organization
+    if (hackathon.organization.ownerId !== userId) {
+      throw new UnauthorizedException(
+        'You are not authorized to publish this hackathon',
+      );
+    }
+
+    // Check if hackathon is in DRAFT status
+    if (hackathon.status !== HackathonStatus.DRAFT) {
+      throw new BadRequestException(
+        `Cannot publish hackathon. Current status is ${hackathon.status}. Only hackathons in DRAFT status can be published`,
+      );
+    }
+
+    // Validate required fields before publishing
+    if (!hackathon.title || hackathon.title.trim() === '') {
+      throw new BadRequestException('Hackathon title is required');
+    }
+
+    if (!hackathon.description || hackathon.description.trim() === '') {
+      throw new BadRequestException('Hackathon description is required');
+    }
+
+    if (!hackathon.registrationStart) {
+      throw new BadRequestException('Registration start date is required');
+    }
+
+    if (!hackathon.registrationEnd) {
+      throw new BadRequestException('Registration end date is required');
+    }
+
+    if (!hackathon.startDate) {
+      throw new BadRequestException('Hackathon start date is required');
+    }
+
+    if (!hackathon.endDate) {
+      throw new BadRequestException('Hackathon end date is required');
+    }
+
+    // Validate date logic
+    if (hackathon.registrationStart >= hackathon.registrationEnd) {
+      throw new BadRequestException(
+        'Registration start date must be before registration end date',
+      );
+    }
+
+    if (hackathon.startDate >= hackathon.endDate) {
+      throw new BadRequestException(
+        'Hackathon start date must be before end date',
+      );
+    }
+
+    if (hackathon.registrationEnd > hackathon.startDate) {
+      throw new BadRequestException(
+        'Registration must end before or when the hackathon starts',
+      );
+    }
+
+    // Validate judging dates if provided
+    if (hackathon.judgingStart) {
+      if (hackathon.judgingStart < hackathon.endDate) {
+        throw new BadRequestException(
+          'Judging start date must be after or equal to hackathon end date',
+        );
+      }
+
+      if (hackathon.judgingEnd) {
+        if (hackathon.judgingStart >= hackathon.judgingEnd) {
+          throw new BadRequestException(
+            'Judging start date must be before judging end date',
+          );
+        }
+      }
+    }
+
+    // Validate winner announcement date if provided
+    if (hackathon.winnerAnnouncementDate) {
+      if (hackathon.judgingEnd) {
+        if (hackathon.winnerAnnouncementDate < hackathon.judgingEnd) {
+          throw new BadRequestException(
+            'Winner announcement date must be after judging end date',
+          );
+        }
+      } else if (hackathon.judgingStart) {
+        if (hackathon.winnerAnnouncementDate < hackathon.judgingStart) {
+          throw new BadRequestException(
+            'Winner announcement date must be after judging start date',
+          );
+        }
+      } else {
+        if (hackathon.winnerAnnouncementDate < hackathon.endDate) {
+          throw new BadRequestException(
+            'Winner announcement date must be after hackathon end date',
+          );
+        }
+      }
+    }
+
+    // Determine the appropriate status based on current date
+    const newStatus = this.determineHackathonStatus(
+      hackathon.registrationStart,
+      hackathon.registrationEnd,
+      hackathon.startDate,
+      hackathon.endDate,
+      hackathon.judgingStart,
+      hackathon.judgingEnd,
+    );
+
+    // Update hackathon status
+    const updatedHackathon = await this.prisma.hackathon.update({
+      where: { id: hackathon.id },
+      data: { status: newStatus },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        status: true,
+        organizationId: true,
+        registrationStart: true,
+        registrationEnd: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+
+    this.logger.log(
+      `Hackathon ${hackathon.id} published with status ${newStatus}`,
+    );
+
+    return {
+      message: 'Hackathon published successfully',
+      data: updatedHackathon,
+    };
+  }
+
+  /**
+   * Determines the appropriate hackathon status based on current date and hackathon dates
+   * @private
+   */
+  private determineHackathonStatus(
+    registrationStart: Date,
+    registrationEnd: Date,
+    startDate: Date,
+    endDate: Date,
+    judgingStart?: Date | null,
+    judgingEnd?: Date | null,
+  ): HackathonStatus {
+    const now = new Date();
+
+    // If we have judging dates and current date is within judging period
+    if (judgingStart && judgingEnd) {
+      if (now >= judgingStart && now < judgingEnd) {
+        return HackathonStatus.JUDGING;
+      }
+      if (now >= judgingEnd) {
+        return HackathonStatus.COMPLETED;
+      }
+    } else if (judgingStart) {
+      // Only judging start is defined
+      if (now >= judgingStart) {
+        return HackathonStatus.JUDGING;
+      }
+    }
+
+    // If current date is after hackathon end date
+    if (now >= endDate) {
+      // If judging dates are not set, mark as JUDGING (to be manually completed later)
+      return judgingStart ? HackathonStatus.JUDGING : HackathonStatus.JUDGING;
+    }
+
+    // If current date is within hackathon dates (between start and end)
+    if (now >= startDate && now < endDate) {
+      return HackathonStatus.ACTIVE;
+    }
+
+    // If current date is within registration period
+    if (now >= registrationStart && now < registrationEnd) {
+      return HackathonStatus.REGISTRATION;
+    }
+
+    // If current date is after registration ends but before hackathon starts
+    if (now >= registrationEnd && now < startDate) {
+      return HackathonStatus.ACTIVE;
+    }
+
+    // If current date is before registration starts
+    if (now < registrationStart) {
+      return HackathonStatus.UPCOMING;
+    }
+
+    // Default to UPCOMING as a fallback
+    return HackathonStatus.UPCOMING;
+  }
 }

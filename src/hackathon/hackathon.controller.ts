@@ -289,6 +289,73 @@ export class HackathonController {
   }
 
   @ApiOperation({
+    summary: 'Publish a hackathon',
+    description:
+      'Publish a hackathon by changing its status from DRAFT to the appropriate status based on dates. Only hackathons in DRAFT status can be published. The status will be automatically determined based on current date and hackathon dates (UPCOMING, REGISTRATION, ACTIVE, JUDGING). Organization owner only.',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hackathon published successfully.',
+    schema: {
+      example: {
+        message: 'Hackathon published successfully',
+        data: {
+          id: 'cuid',
+          slug: 'hackathon-slug',
+          title: 'Hackathon Title',
+          status: 'UPCOMING',
+          organizationId: 'cuid',
+          registrationStart: '2024-12-01T00:00:00.000Z',
+          registrationEnd: '2024-12-15T00:00:00.000Z',
+          startDate: '2024-12-16T00:00:00.000Z',
+          endDate: '2024-12-30T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - User is not the organization owner',
+    schema: {
+      example: {
+        message: 'You are not authorized to publish this hackathon',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+    schema: {
+      example: {
+        message: 'Hackathon not found',
+      },
+    },
+  })
+  @ApiConflictResponse({
+    description: 'Hackathon is not in DRAFT status',
+    schema: {
+      example: {
+        message:
+          'Cannot publish hackathon. Current status is ACTIVE. Only hackathons in DRAFT status can be published',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':identifier/publish')
+  async publishHackathon(
+    @Param('identifier') identifier: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return await this.hackathonService.publishHackathon(identifier, userId);
+  }
+
+  @ApiOperation({
     summary: 'Get hackathon by identifier',
     description:
       'Retrieve a hackathon by its ID or slug. If the hackathon is in draft status, only the organization owner can access it.',
