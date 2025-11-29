@@ -309,10 +309,7 @@ export class HackathonService {
       throw new NotFoundException('Hackathon not found or access denied');
     }
 
-    return {
-      message: 'Hackathon retrieved successfully',
-      data: hackathon,
-    };
+    return hackathon;
   }
 
   async manageSponsors(
