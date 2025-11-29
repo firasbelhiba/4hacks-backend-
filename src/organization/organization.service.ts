@@ -127,10 +127,7 @@ export class OrganizationService {
       throw new NotFoundException('Organization not found');
     }
 
-    return {
-      message: 'Organization fetched successfully',
-      data: organization,
-    };
+    return organization;
   }
 
   async update(
