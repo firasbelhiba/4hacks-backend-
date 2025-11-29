@@ -17,7 +17,12 @@ import {
 import { FileUploadService } from 'src/file-upload/file-upload.service';
 import * as bcrypt from 'bcrypt';
 import { EmailService } from 'src/email/email.service';
-import { Provider, SessionStatus } from 'generated/prisma';
+import {
+  HackathonStatus,
+  Provider,
+  SessionStatus,
+  UserRole,
+} from 'generated/prisma';
 import {
   PasswordChangedEmailTemplateHtml,
   TwoFactorEmailCodeTemplateHtml,
@@ -30,6 +35,7 @@ import {
   twoFactorEmailRedisTTL,
 } from 'src/auth/constants';
 import { UpdateUsernameDto } from './dto/update-username.dto';
+import { UserMin } from 'src/common/types';
 
 @Injectable()
 export class ProfileService {
@@ -108,6 +114,103 @@ export class ProfileService {
     });
 
     return profile;
+  }
+
+  /**
+   * Retrieves organisations owned by a specific user identified by id or username.
+   * Public fields are visible to everyone. Sensitive details (email, phone, address, ownerId)
+   * are only visible to the organisation owner or users with ADMIN role.
+   * @param identifier - user id or username
+   * @param requester - optional user object of the authenticated requester
+   */
+  async getUserOrganisations(identifier: string, requester?: UserMin) {
+    // Resolve target user by id first, then fallback to username
+    // let target = await this.prisma.users.findUnique({
+    //   where: { id: identifier },
+    //   select: { id: true },
+    // });
+
+    // if (!target) {
+    //   target = await this.prisma.users.findUnique({
+    //     where: { username: identifier },
+    //     select: { id: true },
+    //   });
+    // }
+
+    let user = await this.prisma.users.findFirst({
+      where: { OR: [{ id: identifier }, { username: identifier }] },
+      select: { id: true, username: true, email: true, role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // check if requester is owner or admin
+    const isOwner = requester?.id === user.id;
+    const isAdmin = requester?.role === UserRole.ADMIN;
+
+    // Fetch organisations owned by the target user
+    const orgs = await this.prisma.organization.findMany({
+      where: { ownerId: user.id },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        displayName: true,
+        logo: true,
+        tagline: true,
+        description: true,
+        website: true,
+        linkedin: true,
+        github: true,
+        twitter: true,
+        email: true,
+        phone: true,
+        ownerId: true,
+        country: true,
+        city: true,
+        loc_address: true,
+        otherSocials: true,
+        createdAt: true,
+        updatedAt: true,
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            email: true,
+            image: true,
+          },
+        },
+        hackathons: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            description: true,
+            banner: true,
+            startDate: true,
+            endDate: true,
+            registrationStart: true,
+            registrationEnd: true,
+            status: true,
+          },
+          ...(isOwner || isAdmin
+            ? {}
+            : {
+                where: {
+                  NOT: [
+                    { status: HackathonStatus.DRAFT },
+                    { status: HackathonStatus.CANCELLED },
+                  ],
+                },
+              }),
+        },
+      },
+    });
+
+    return orgs;
   }
 
   /**
@@ -474,7 +577,6 @@ export class ProfileService {
     };
   }
 
-
   private generateVerificationCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
@@ -504,7 +606,6 @@ export class ProfileService {
   private getTwoFactorRedisKey(prefix: string, userId: string) {
     return `${prefix}${userId}`;
   }
-
 
   /**
    * Sends a 2FA verification code to the user's current email address.
