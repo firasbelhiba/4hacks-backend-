@@ -8,12 +8,14 @@ import {
 import type { UserMin } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterForHackathonDto } from './dto/register.dto';
+import { FindHackathonRegistrationsDto } from './dto/find-registrations.dto';
 import * as bcrypt from 'bcrypt';
 import { RegistrationQuestionDto } from '../dto/update.dto';
 import {
   ActivityTargetType,
   HackathonRegistrationStatus,
   HackathonStatus,
+  UserRole,
 } from 'generated/prisma';
 
 @Injectable()
@@ -167,6 +169,92 @@ export class HackathonRegistrationService {
     return {
       message: 'Successfully registered for the hackathon',
       data: registration,
+    };
+  }
+
+  async getHackathonRegisteredUsers(
+    query: FindHackathonRegistrationsDto,
+    user?: UserMin,
+  ) {
+    const { hackathonId, search } = query;
+
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    const existingHackathon = await this.prismaService.hackathon.findUnique({
+      where: { id: hackathonId },
+      select: {
+        isPrivate: true,
+        organization: { select: { ownerId: true } },
+      },
+    });
+
+    if (!existingHackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    const isAdmin = user && user.role === UserRole.ADMIN;
+    const isOwner = user && user.id === existingHackathon.organization.ownerId;
+
+    if (existingHackathon.isPrivate && !isAdmin && !isOwner) {
+      throw new BadRequestException(
+        'You do not have permission to view registrations for this private hackathon',
+      );
+    }
+
+    // TODO: check also if the user is registered to the hackathon to allow viewing registrations
+
+    // Build where clause for search
+    const where: any = {
+      hackathonId,
+      user: {},
+    };
+    if (search) {
+      where.user = {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { username: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    // Query paginated data
+    const registrations =
+      await this.prismaService.hackathonRegistration.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { registeredAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              username: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+    // Query total count
+    const total = await this.prismaService.hackathonRegistration.count({
+      where,
+    });
+
+    return {
+      total,
+      page,
+      limit,
+      data: registrations.map((r) => ({
+        id: r.id,
+        user: r.user,
+        registeredAt: r.registeredAt,
+      })),
     };
   }
 }

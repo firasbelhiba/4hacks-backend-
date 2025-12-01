@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Get, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -13,6 +13,8 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { UserMin } from 'src/common/types';
 import { RegisterForHackathonDto } from './dto/register.dto';
+import { FindHackathonRegistrationsDto } from './dto/find-registrations.dto';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 
 @ApiTags('Hackathon Registration')
 @Controller('hackathon-registration')
@@ -47,6 +49,34 @@ export class HackathonRegistrationController {
     return await this.hackathonRegistrationService.registerForHackathon(
       user,
       registerDto,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Get all registered users for a specific hackathon',
+    description:
+      'Returns paginated list of users registered for a given hackathon. Supports search by user name or email.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of registered users',
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+  })
+  @ApiBadRequestResponse({
+    description: 'You do not have permission to view registrations',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('')
+  async getHackathonRegisteredUsers(
+    @Query() query: FindHackathonRegistrationsDto,
+    @CurrentUser() user?: UserMin,
+  ) {
+    return await this.hackathonRegistrationService.getHackathonRegisteredUsers(
+      query,
+      user,
     );
   }
 }
