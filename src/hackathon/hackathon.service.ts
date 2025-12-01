@@ -540,6 +540,15 @@ export class HackathonService {
       throw new BadRequestException('Hackathon end date is required');
     }
 
+    // Validat that the hackathon registration start date is in the future (1 day from now at least)
+    if (
+      hackathon.registrationStart < new Date(Date.now() + 24 * 60 * 60 * 1000)
+    ) {
+      throw new BadRequestException(
+        'Registration start date must be in the future (at least 24 hours from now)',
+      );
+    }
+
     // Validate date logic
     if (hackathon.registrationStart >= hackathon.registrationEnd) {
       throw new BadRequestException(
@@ -600,14 +609,7 @@ export class HackathonService {
     }
 
     // Determine the appropriate status based on current date
-    const newStatus = this.determineHackathonStatus(
-      hackathon.registrationStart,
-      hackathon.registrationEnd,
-      hackathon.startDate,
-      hackathon.endDate,
-      hackathon.judgingStart,
-      hackathon.judgingEnd,
-    );
+    const newStatus = HackathonStatus.UPCOMING; // Since registrationStart is in the future
 
     // Update hackathon status
     const updatedHackathon = await this.prisma.hackathon.update({
@@ -640,7 +642,7 @@ export class HackathonService {
    * Determines the appropriate hackathon status based on current date and hackathon dates
    * @private
    */
-  private determineHackathonStatus(
+  determineHackathonStatus(
     registrationStart: Date,
     registrationEnd: Date,
     startDate: Date,
