@@ -69,51 +69,52 @@ enum RequestStatus {
  * //////////////////////////////////////////////////////
  */
 model users {
-  id                                String                        @id @default(cuid())
-  email                             String                        @unique
-  username                          String                        @unique
-  walletAddress                     String?                       @unique
+  id                                String                     @id @default(cuid())
+  email                             String                     @unique
+  username                          String                     @unique
+  walletAddress                     String?                    @unique
   password                          String
   name                              String
-  role                              UserRole                      @default(USER)
+  role                              UserRole                   @default(USER)
   image                             String?
-  providers                         Provider[]                    @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
+  providers                         Provider[]                 @default([]) // ["CREDENTIAL", "GOOGLE", "GITHUB", "LINKEDIN"]
   profession                        String?
   bio                               String?
   location                          String?
   org                               String? // Organization name (school, company, etc.)
-  skills                            String[]                      @default([])
+  skills                            String[]                   @default([])
   website                           String?
   github                            String?
   linkedin                          String?
   telegram                          String?
   twitter                           String?
   whatsapp                          String?
-  otherSocials                      String[]                      @default([])
-  isEmailVerified                   Boolean                       @default(false)
+  otherSocials                      String[]                   @default([])
+  isEmailVerified                   Boolean                    @default(false)
   emailVerifiedAt                   DateTime?
   lastLoginAt                       DateTime?
   passwordUpdatedAt                 DateTime?
-  twoFactorEnabled                  Boolean                       @default(false)
+  twoFactorEnabled                  Boolean                    @default(false)
   twoFactorSecret                   String?
   twoFactorConfirmedAt              DateTime?
-  isBanned                          Boolean                       @default(false)
+  isBanned                          Boolean                    @default(false)
   bannedAt                          DateTime?
   bannedReason                      String?
   sessions                          Session[]
-  revokedSessions                   Session[]                     @relation("RevokedSessions")
+  revokedSessions                   Session[]                  @relation("RevokedSessions")
   failedLogins                      FailedLogin[]
   organizations                     Organization[] // USER can create multiple organizations
-  createdAt                         DateTime                      @default(now())
-  updatedAt                         DateTime                      @updatedAt
+  createdAt                         DateTime                   @default(now())
+  updatedAt                         DateTime                   @updatedAt
   teamMembers                       TeamMember[]
   projects                          Project[]
-  rejectedHackathonCreationRequests HackathonCreationRequest[]    @relation("rejectedHackathonCreationRequests")
-  approvedHackathonCreationRequests HackathonCreationRequest[]    @relation("approvedHackathonCreationRequests")
-  hackathonRegistrationAnswers      HackathonRegistrationAnswer[]
+  rejectedHackathonCreationRequests HackathonCreationRequest[] @relation("rejectedHackathonCreationRequests")
+  approvedHackathonCreationRequests HackathonCreationRequest[] @relation("approvedHackathonCreationRequests")
   hackathonQuestionThreads          HackathonQuestionThread[]
   hackathonQuestionReplies          HackathonQuestionReply[]
   userActivityLogs                  UserActivityLog[]
+  hackathonRegistrations            HackathonRegistration[]    @relation("RegisteredHackathons")
+  reviewedHackathonRegistrations    HackathonRegistration[]    @relation("ReviewedHackathonRegistrations")
 
   @@index([email])
   @@index([username])
@@ -577,9 +578,10 @@ model Hackathon {
   prizes                    Prize[]
   hackathonCreationRequests HackathonCreationRequest[]
   customHackathonTabs       CustomHackathonTab[]
-  registrationAnswers       HackathonRegistrationAnswer[]
   hackathonQuestionThreads  HackathonQuestionThread[]
   bounties                  Bounty[]
+  hackathonRegistrations    HackathonRegistration[]
+  teams                     Team[]
 
   @@index([slug])
   @@index([organizationId])
@@ -589,20 +591,16 @@ model Hackathon {
 }
 
 model HackathonRegistrationAnswer {
-  id          String   @id @default(cuid())
-  hackathonId String
-  userId      String
-  answers     Json // JSON object with question IDs as keys and answers as values
-  submittedAt DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  id             String   @id @default(cuid())
+  registrationId String   @unique
+  answers        Json // JSON object with question IDs as keys and answers as values
+  submittedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
 
-  hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
-  user      users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registration HackathonRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
-  @@unique([hackathonId, userId])
-  @@index([hackathonId])
-  @@index([userId])
+  @@index([registrationId])
   @@map("hackathon_registration_answers")
 }
 
@@ -743,7 +741,8 @@ model Bounty {
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   sponsor   Sponsor   @relation(fields: [sponsorId], references: [id])
 
-  prizes Prize[] @relation("BountyPrizes")
+  prizes   Prize[]   @relation("BountyPrizes")
+  projects Project[]
 
   @@index([hackathonId])
   @@index([sponsorId])
@@ -766,12 +765,46 @@ model Sponsor {
   @@map("sponsors")
 }
 
+////////////////////////////////////////////////////////
+// Hackathon Registration, Teams, Projects
+////////////////////////////////////////////////////////
+
+enum HackathonRegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model HackathonRegistration {
+  id          String                       @id @default(cuid())
+  hackathonId String
+  userId      String
+  status      HackathonRegistrationStatus  @default(PENDING)
+  answers     HackathonRegistrationAnswer? // Answers provided during registration (if any)
+
+  registeredAt DateTime  @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+  updatedAt    DateTime  @updatedAt
+
+  hackathon  Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  user       users     @relation("RegisteredHackathons", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy users?    @relation("ReviewedHackathonRegistrations", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([hackathonId, userId])
+  @@index([hackathonId, status])
+  @@index([hackathonId])
+  @@index([userId])
+  @@map("hackathon_registrations")
+}
+
 model Project {
   id          String  @id @default(cuid())
   hackathonId String
-  teamId      String
+  teamId      String  @unique // one project per team, each hackathon, create new team for new project
   creatorId   String
   trackId     String?
+  bountyId    String?
 
   title       String
   tagline     String?
@@ -791,6 +824,8 @@ model Project {
   // Tech Stack
   technologies String[] @default([])
 
+  isWinner Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -798,6 +833,7 @@ model Project {
   team         Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
   creator      users         @relation(fields: [creatorId], references: [id])
   track        Track?        @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  bounty       Bounty?       @relation(fields: [bountyId], references: [id], onDelete: SetNull)
   prizeWinners PrizeWinner[]
 
   @@index([hackathonId, status])
@@ -812,24 +848,29 @@ model Team {
   hackathonId String
   name        String
   tagline     String?
-  avatar      String?
+  image       String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members  TeamMember[]
-  projects Project[]
+  members   TeamMember[]
+  projects  Project[]
+  hackathon Hackathon    @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
 
+  @@unique([hackathonId, name])
+  @@index([hackathonId, id])
   @@index([hackathonId])
+  @@index([name])
   @@map("teams")
 }
 
 model TeamMember {
-  id       String   @id @default(cuid())
-  teamId   String
-  userId   String
-  role     TeamRole @default(MEMBER)
-  joinedAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  isLeader  Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user users @relation(fields: [userId], references: [id], onDelete: Cascade)
