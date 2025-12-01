@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateHackathonRequestDto } from './dto/create-request.dto';
@@ -17,7 +18,15 @@ export class HackathonRequestService {
   constructor(private prisma: PrismaService) {}
 
   async create(userId: string, createRequestDto: CreateHackathonRequestDto) {
-    const { organizationId } = createRequestDto;
+    const {
+      organizationId,
+      registrationStart,
+      registrationEnd,
+      startDate,
+      endDate,
+      judgingStart,
+      judgingEnd,
+    } = createRequestDto;
 
     // Check if organization exists and user is owner
     const organization = await this.prisma.organization.findUnique({
@@ -41,6 +50,42 @@ export class HackathonRequestService {
 
     if (existingHackathon) {
       throw new ConflictException('Hackathon with this slug already exists');
+    }
+
+    // Validate date logic
+    if (registrationStart >= registrationEnd) {
+      throw new BadRequestException(
+        'Registration start date must be before registration end date',
+      );
+    }
+
+    if (startDate >= endDate) {
+      throw new BadRequestException(
+        'Hackathon start date must be before end date',
+      );
+    }
+
+    if (registrationEnd > startDate) {
+      throw new BadRequestException(
+        'Registration must end before or when the hackathon starts',
+      );
+    }
+
+    // Validate judging dates if provided
+    if (judgingStart) {
+      if (judgingStart < endDate) {
+        throw new BadRequestException(
+          'Judging start date must be after or equal to hackathon end date',
+        );
+      }
+
+      if (judgingEnd) {
+        if (judgingStart >= judgingEnd) {
+          throw new BadRequestException(
+            'Judging start date must be before judging end date',
+          );
+        }
+      }
     }
 
     this.logger.log('Creating hackathon request');

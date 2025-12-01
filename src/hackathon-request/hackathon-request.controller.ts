@@ -11,6 +11,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiConflictResponse,
   ApiNotFoundResponse,
   ApiOperation,
   ApiParam,
@@ -58,6 +59,9 @@ export class HackathonRequestController {
   })
   @ApiResponse({ status: 404, description: 'Organization not found' })
   @ApiBadRequestResponse({ description: 'Bad request' })
+  @ApiConflictResponse({
+    description: 'Hackathon with this slug already exists',
+  })
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
