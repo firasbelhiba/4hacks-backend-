@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -10,6 +12,7 @@ import {
   ApiBody,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
   ApiForbiddenResponse,
@@ -23,7 +26,11 @@ import { Roles } from '../decorators/roles.decorator';
 import { UserRole } from 'generated/prisma';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UsersService } from './users.service';
-import { BanUserDto } from './dto/ban-user.dto';
+import { ManageUserBanDto } from './dto/manage-user-ban.dto';
+import {
+  QueryUsersDto,
+  PaginatedUsersDto,
+} from './dto/users.dto';
 
 @ApiTags('Admin - User Management')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -91,8 +98,8 @@ export class UsersController {
     description: 'Forbidden - User does not have ADMIN role',
   })
   @ApiBody({
-    type: BanUserDto,
-    description: 'Ban reason (required). This will be sent to the user via email.',
+    type: ManageUserBanDto,
+    description: 'Ban reason (optional). If provided, this will be sent to the user via email.',
     examples: {
       'Violation example': {
         value: {
@@ -104,6 +111,9 @@ export class UsersController {
           reason: 'Repeated violation of terms of service',
         },
       },
+      'No reason': {
+        value: {},
+      },
     },
   })
   @ApiBearerAuth()
@@ -111,9 +121,102 @@ export class UsersController {
   async banUser(
     @Param('userId') userId: string,
     @CurrentUser('id') adminId: string,
-    @Body() banDto: BanUserDto,
+    @Body() manageDto: ManageUserBanDto,
   ) {
-    return await this.usersService.banUser(userId, adminId, banDto);
+    return await this.usersService.banUser(userId, adminId, manageDto);
+  }
+
+  @ApiOperation({
+    summary: 'Unban a user account',
+    description:
+      'Unbans a user account. This action can only be performed by administrators. The unbanned user will receive an email notification. Administrators cannot unban other administrators.',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'The ID of the user to unban',
+    example: 'cmiiu464o0005qsllk4qod2by',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User unbanned successfully',
+    schema: {
+      example: {
+        message: 'User has been unbanned successfully',
+        userId: 'cmiiu464o0005qsllk4qod2by',
+        unbannedAt: '2025-11-28T15:30:00.000Z',
+        reason: null,
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Bad Request - User is not banned or trying to unban an administrator',
+    schema: {
+      examples: {
+        'User not banned': {
+          value: {
+            statusCode: 400,
+            message: 'User is not banned',
+            error: 'Bad Request',
+          },
+        },
+        'Cannot unban admin': {
+          value: {
+            statusCode: 400,
+            message: 'Cannot unban another administrator',
+            error: 'Bad Request',
+          },
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'User not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'User not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - User does not have ADMIN role',
+  })
+  @ApiBody({
+    type: ManageUserBanDto,
+    description: 'Optional reason for unban (for logging purposes).',
+    required: false,
+  })
+  @ApiBearerAuth()
+  @Post(':userId/unban')
+  async unbanUser(
+    @Param('userId') userId: string,
+    @CurrentUser('id') adminId: string,
+    @Body() manageDto?: ManageUserBanDto,
+  ) {
+    return await this.usersService.unbanUser(userId, adminId, manageDto);
+  }
+
+  @ApiOperation({
+    summary: 'Get all users with pagination, filtering, and sorting',
+    description:
+      'Get all users with support for pagination, filtering by ban status/role/email verification, searching, and sorting. This endpoint can be accessed by ADMIN role only.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of users',
+    type: PaginatedUsersDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
+  @ApiForbiddenResponse({ description: 'Forbidden access' })
+  @ApiBearerAuth()
+  @Get()
+  async findAll(
+    @Query() query: QueryUsersDto,
+  ): Promise<PaginatedUsersDto> {
+    return await this.usersService.findAll(query);
   }
 }
 
