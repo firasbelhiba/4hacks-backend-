@@ -25,10 +25,11 @@ export class HackathonRegistrationService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async registerForHackathon(
+    hackathonId: string,
     user: UserMin,
     RegisterForHackathonDto: RegisterForHackathonDto,
   ) {
-    const { hackathonId, passCode } = RegisterForHackathonDto;
+    const { passCode } = RegisterForHackathonDto;
 
     // Check if hackathon exists
     const hackathon = await this.prismaService.hackathon.findUnique({
@@ -173,10 +174,11 @@ export class HackathonRegistrationService {
   }
 
   async getHackathonRegisteredUsers(
+    hackathonId: string,
     query: FindHackathonRegistrationsDto,
     user?: UserMin,
   ) {
-    const { hackathonId, search } = query;
+    const { search } = query;
 
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;

@@ -1,4 +1,12 @@
-import { Body, Controller, Post, UseGuards, Get, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  UseGuards,
+  Get,
+  Query,
+  Param,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -17,7 +25,7 @@ import { FindHackathonRegistrationsDto } from './dto/find-registrations.dto';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 
 @ApiTags('Hackathon Registration')
-@Controller('hackathon-registration')
+@Controller('hackathon/:hackathonId/registration')
 export class HackathonRegistrationController {
   constructor(
     private readonly hackathonRegistrationService: HackathonRegistrationService,
@@ -43,10 +51,12 @@ export class HackathonRegistrationController {
   @UseGuards(JwtAuthGuard)
   @Post('')
   async registerForHackathon(
+    @Param('hackathonId') hackathonId: string,
     @Body() registerDto: RegisterForHackathonDto,
     @CurrentUser() user: UserMin,
   ) {
     return await this.hackathonRegistrationService.registerForHackathon(
+      hackathonId,
       user,
       registerDto,
     );
@@ -71,10 +81,12 @@ export class HackathonRegistrationController {
   @UseGuards(OptionalJwtAuthGuard)
   @Get('')
   async getHackathonRegisteredUsers(
+    @Param('hackathonId') hackathonId: string,
     @Query() query: FindHackathonRegistrationsDto,
     @CurrentUser() user?: UserMin,
   ) {
     return await this.hackathonRegistrationService.getHackathonRegisteredUsers(
+      hackathonId,
       query,
       user,
     );

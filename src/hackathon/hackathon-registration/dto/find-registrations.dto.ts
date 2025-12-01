@@ -1,21 +1,11 @@
-import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsOptional,
   IsString,
-  IsInt,
-  Min,
-  IsNumber,
   IsNumberString,
 } from 'class-validator';
 
 export class FindHackathonRegistrationsDto {
-  @ApiProperty({
-    description: 'Hackathon ID to filter registrations',
-    example: 'hackathon_id',
-  })
-  @IsString()
-  hackathonId: string;
-
   @ApiPropertyOptional({
     description: 'Search by user name, username or email',
   })
