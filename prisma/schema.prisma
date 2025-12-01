@@ -97,7 +97,7 @@ model users {
   twoFactorEnabled                  Boolean                       @default(false)
   twoFactorSecret                   String?
   twoFactorConfirmedAt              DateTime?
-  isBanned                          Boolean                    @default(false)
+  isBanned                          Boolean                       @default(false)
   bannedAt                          DateTime?
   bannedReason                      String?
   sessions                          Session[]
@@ -155,15 +155,16 @@ model FailedLogin {
 }
 
 model UserActivityLog {
-  id         String              @id @default(cuid())
-  userId     String
-  action     String // e.g., "REGISTERED_PROJECT", "SUBMITTED_HACKATHON", "ASKED_QUESTION"
-  targetType ActivityTargetType? // Optional: e.g., PROJECT, HACKATHON, TRACK
-  targetId   String? // Optional: ID of the object acted on
-  isPublic   Boolean             @default(true) // If true, visible to other users; else private
-  metadata   Json? // Optional extra info (e.g., payload, screenshot links)
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
+  id          String              @id @default(cuid())
+  userId      String
+  action      String // e.g., "REGISTERED_PROJECT", "SUBMITTED_HACKATHON", "ASKED_QUESTION"
+  targetType  ActivityTargetType? // Optional: e.g., PROJECT, HACKATHON, TRACK
+  description String // A short description of the action
+  targetId    String? // Optional: ID of the object acted on
+  isPublic    Boolean             @default(true) // If true, visible to other users; else private
+  metadata    Json? // Optional extra info (e.g., payload, screenshot links)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   user users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
