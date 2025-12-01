@@ -9,7 +9,7 @@ import {
 import { CreateOrganizationDto } from './dto/create.dto';
 import { UpdateOrganizationDto } from './dto/update.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { HackathonStatus } from 'generated/prisma';
+import { ActivityTargetType, HackathonStatus } from 'generated/prisma';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
 
 @Injectable()
@@ -70,13 +70,46 @@ export class OrganizationService {
       }
     }
 
-    // Create the organization
-    const organization = await this.prismaService.organization.create({
-      data: {
-        ...createOrganizationDto,
-        logo: logoUrl,
-        ownerId: userId,
-      },
+    // Create the organization And store that activity in user activity log
+    const organization = await this.prismaService.$transaction(async (tx) => {
+      const organization = await tx.organization.create({
+        data: {
+          ...createOrganizationDto,
+          logo: logoUrl,
+          ownerId: userId,
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          logo: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              email: true,
+              image: true,
+            },
+          },
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // Store the organization creation activity in user activity log
+      await tx.userActivityLog.create({
+        data: {
+          userId: userId,
+          action: 'CREATE_ORGANIZATION',
+          // targetType: ActivityTargetType.ORGANIZATION,
+          targetId: organization.id,
+          description: `${organization.owner.name} Created organization ${organization.name}`,
+        },
+      });
+
+      return organization;
     });
 
     return {
@@ -127,10 +160,7 @@ export class OrganizationService {
       throw new NotFoundException('Organization not found');
     }
 
-    return {
-      message: 'Organization fetched successfully',
-      data: organization,
-    };
+    return organization;
   }
 
   async update(

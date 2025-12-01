@@ -371,16 +371,13 @@ export class HackathonController {
     description: 'Hackathon retrieved successfully.',
     schema: {
       example: {
-        message: 'Hackathon retrieved successfully',
-        data: {
+        id: 'cuid',
+        slug: 'hackathon-slug',
+        title: 'Hackathon Title',
+        organization: {
           id: 'cuid',
-          slug: 'hackathon-slug',
-          title: 'Hackathon Title',
-          organization: {
-            id: 'cuid',
-            name: 'Organization Name',
-            ownerId: 'cuid',
-          },
+          name: 'Organization Name',
+          ownerId: 'cuid',
         },
       },
     },

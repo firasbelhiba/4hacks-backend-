@@ -35,6 +35,11 @@ import {
   UpdateProfileDto,
 } from './dto/update-profile.dto';
 import { UpdateUsernameDto } from './dto/update-username.dto';
+import {
+  OrganisationPublicDto,
+  OrganisationPrivateDto,
+} from './dto/organisation-response.dto';
+import type { UserMin } from 'src/common/types';
 
 @ApiTags('Profile Management')
 @Controller('profile')
@@ -54,7 +59,7 @@ export class ProfileController {
   @ApiResponse({
     status: 200,
     description:
-      'Returns the user profile. **If unauthenticated or viewing another user\'s profile**: Only public fields are returned. **If authenticated and viewing your own profile**: All fields including private ones are returned.',
+      "Returns the user profile. **If unauthenticated or viewing another user's profile**: Only public fields are returned. **If authenticated and viewing your own profile**: All fields including private ones are returned.",
     schema: {
       examples: {
         'Public profile (unauthenticated or different user)': {
@@ -82,7 +87,7 @@ export class ProfileController {
             updatedAt: '2025-11-24T12:00:00.000Z',
           },
           description:
-            'Response when viewing someone else\'s profile or when not authenticated. Private fields (email, whatsapp, telegram, security info) are not included.',
+            "Response when viewing someone else's profile or when not authenticated. Private fields (email, whatsapp, telegram, security info) are not included.",
         },
         'Own profile (authenticated as owner)': {
           value: {
@@ -148,6 +153,37 @@ export class ProfileController {
     @CurrentUser('id') userId?: string,
   ) {
     return await this.profileService.getProfileByUsername(username, userId);
+  }
+
+  @ApiOperation({
+    summary: "Get a user's organisations",
+    description:
+      'Retrieve organisations created/owned by a user (identified by username or id). Public organisation fields are visible to everyone. Sensitive details (contact email, phone, address, ownerId) are only visible to the organisation owner or admins when authenticated.',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: "User's username or id",
+    example: 'ayoubbuoya',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'List of organisations. Sensitive fields are shown only to admins or the org owner.',
+    type: OrganisationPublicDto,
+    isArray: true,
+  })
+  @ApiResponse({ status: 400, description: 'User not found.' })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':identifier/organisations')
+  async getUserOrganisations(
+    @Param('identifier') identifier: string,
+    @CurrentUser() requester?: UserMin,
+  ) {
+    return await this.profileService.getUserOrganisations(
+      identifier,
+      requester,
+    );
   }
 
   @ApiBearerAuth()
@@ -513,8 +549,7 @@ export class ProfileController {
   })
   @ApiResponse({
     status: 403,
-    description:
-      'Forbidden - Invalid password or 2FA verification code.',
+    description: 'Forbidden - Invalid password or 2FA verification code.',
     schema: {
       example: {
         statusCode: 403,
@@ -676,5 +711,4 @@ export class ProfileController {
   ) {
     return await this.profileService.verifyTwoFactorDisable(userId, codeDto);
   }
-
 }
