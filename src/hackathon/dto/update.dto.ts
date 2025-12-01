@@ -341,14 +341,37 @@ export class UpdateHackathonDto {
     example: [
       {
         id: 'q1',
-        label: 'What is your experience level?',
-        type: 'select',
+        content: 'What is your experience level?',
         required: true,
-        options: ['Beginner', 'Intermediate', 'Advanced'],
       },
     ],
   })
   @IsArray()
   @IsOptional()
-  registrationQuestions?: any[];
+  registrationQuestions?: RegistrationQuestionDto[];
+}
+
+export class RegistrationQuestionDto {
+  @ApiProperty({
+    description: 'Unique identifier for the question',
+    example: 'q1',
+  })
+  @IsString()
+  @IsNotEmpty()
+  id: string;
+
+  @ApiProperty({
+    description: 'Label or text of the question',
+    example: 'What is your experience level?',
+  })
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+
+  @ApiProperty({
+    description: 'Whether the question is required',
+    example: true,
+  })
+  @IsBoolean()
+  required: boolean;
 }
