@@ -58,6 +58,73 @@ export class OrganizationController {
   }
 
   @ApiOperation({
+    summary: "Get organizations by user ID",
+    description:
+      "Retrieve all organizations owned by a specific user. **Public users** see only public information (no sensitive data like email or phone). **Owner** (when viewing their own organizations) and **Admins** see all fields including sensitive data. Authentication is optional - the endpoint works with or without a token.",
+  })
+  @ApiParam({
+    name: 'userId',
+    description: "User ID whose organizations to retrieve",
+    type: 'string',
+    example: 'cm4abc123xyz',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of organizations owned by the user',
+    schema: {
+      example: [
+        {
+          id: 'cm4abc123xyz',
+          name: 'Dar Blockchain',
+          slug: 'dar-blockchain',
+          displayName: 'Dar Blockchain',
+          logo: 'https://r2.example.com/4hacks/organizations/logos/dar-blockchain/logo.png',
+          tagline: 'Building the future of blockchain in Tunisia',
+          description: 'We are a blockchain organization focused on education',
+          type: 'STARTUP',
+          establishedYear: 2020,
+          size: 'ELEVEN_TO_FIFTY',
+          operatingRegions: ['AFRICA', 'EUROPE'],
+          country: 'Tunisia',
+          city: 'Tunis',
+          website: 'https://darblockchain.io',
+          linkedin: 'https://linkedin.com/company/darblockchain',
+          github: 'https://github.com/darblockchain',
+          twitter: 'https://twitter.com/darblockchain',
+          sector: 'Blockchain Technology',
+          createdAt: '2024-11-26T19:37:00.000Z',
+          updatedAt: '2024-11-26T19:37:00.000Z',
+          owner: {
+            id: 'user123',
+            name: 'John Doe',
+            image: 'https://example.com/image.png',
+          },
+        },
+      ],
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'User not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('user/:userId')
+  async findByOwner(
+    @Param('userId') userId: string,
+    @CurrentUser() requester?: UserMin,
+  ) {
+    return await this.organizationService.findByOwner(userId, requester);
+  }
+
+  @ApiOperation({
     summary: 'Create a new organization',
     description:
       'Create a new organization with comprehensive details. The owner of the organization will be the authenticated user. You can optionally upload a logo image (JPEG, PNG, or WebP, max 5MB).',
