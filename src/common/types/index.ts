@@ -1,4 +1,4 @@
-import { Provider, UserRole } from 'generated/prisma';
+import { HackathonStatus, Provider, UserRole } from 'generated/prisma';
 
 export type JwtPayload = {
   sub: string;
@@ -27,4 +27,25 @@ export type UserMin = {
   role: UserRole;
   createdAt?: Date;
   providers: Provider[];
+};
+
+export type HackathonMin = {
+  id: string;
+  title: string;
+  slug: string;
+  startDate: Date;
+  endDate: Date;
+  status: HackathonStatus;
+  organizationId: string;
+  registrationStart: Date;
+  registrationEnd: Date;
+  judgingStart?: Date;
+  judgingEnd?: Date;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    logo?: string;
+    ownerId: string;
+  };
 };
