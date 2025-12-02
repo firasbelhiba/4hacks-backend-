@@ -9,7 +9,11 @@ import { UserMin } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTeamDto } from './dto/create.dto';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
-import { ActivityTargetType, InvitationStatus } from 'generated/prisma';
+import {
+  ActivityTargetType,
+  HackathonStatus,
+  InvitationStatus,
+} from 'generated/prisma';
 import { TeamMemberDto } from './dto/member.dto';
 
 @Injectable()
@@ -468,7 +472,49 @@ export class TeamsService {
 
     return {
       message: 'Team invitation accepted successfully',
-      data: result, 
+      data: result,
     };
+  }
+
+  async getTeamById(hackathonId: string, teamId: string) {
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId, hackathonId: hackathonId },
+      include: {
+        hackathon: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            status: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    if (
+      team.hackathon.status === HackathonStatus.DRAFT ||
+      team.hackathon.status === HackathonStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Hackathon is not publically visible');
+    }
+
+    return team;
   }
 }

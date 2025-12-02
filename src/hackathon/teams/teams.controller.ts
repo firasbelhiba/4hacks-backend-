@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import {
   ApiBadRequestResponse,
@@ -9,6 +9,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CreateTeamDto } from './dto/create.dto';
@@ -20,6 +21,25 @@ import { TeamMemberDto } from './dto/member.dto';
 @Controller('hackathon/:hackathonId/teams')
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
+
+  @ApiOperation({
+    summary: 'Get Team Details By ID',
+    description:
+      'Retrieve detailed information about a specific team within a hackathon using the team ID.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team details retrieved successfully',
+  })
+  @ApiNotFoundResponse({ description: 'Hackathon or Team not found' })
+  @ApiBadRequestResponse({ description: 'Invalid hackathon or team ID' })
+  @Get(':teamId')
+  async getTeamById(
+    @Param('hackathonId') hackathonId: string,
+    @Param('teamId') teamId: string,
+  ) {
+    return await this.teamsService.getTeamById(hackathonId, teamId);
+  }
 
   @ApiOperation({
     summary: 'Create a team',
@@ -73,7 +93,6 @@ export class TeamsController {
       teamMemberDto,
     );
   }
-
 
   @ApiOperation({
     summary: 'Accept a team invitation',
