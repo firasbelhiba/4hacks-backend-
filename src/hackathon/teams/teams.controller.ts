@@ -16,6 +16,7 @@ import { CreateTeamDto } from './dto/create.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { UserMin } from 'src/common/types';
 import { TeamMemberDto } from './dto/member.dto';
+import { TransferTeamLeadershipDto } from './dto/leadership.dto';
 
 @ApiTags('Hackathon Teams')
 @Controller('hackathon/:hackathonId/teams')
@@ -184,6 +185,36 @@ export class TeamsController {
       hackathonId,
       teamId,
       memberId,
+      user,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Transfer team leadership',
+    description: 'Transfer team leadership to another member',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team leadership transferred successfully',
+  })
+  @ApiNotFoundResponse({ description: 'Hackathon, Team, or User not found' })
+  @ApiBadRequestResponse({
+    description: 'User is not a member of the team',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':teamId/transfer-leadership')
+  async transferTeamLeadership(
+    @Param('hackathonId') hackathonId: string,
+    @Param('teamId') teamId: string,
+    @Body() newLeaderDto: TransferTeamLeadershipDto,
+    @CurrentUser() user: UserMin,
+  ) {
+    return await this.teamsService.transferTeamLeadership(
+      hackathonId,
+      teamId,
+      newLeaderDto.newLeaderIdentifier,
       user,
     );
   }

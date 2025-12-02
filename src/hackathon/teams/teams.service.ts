@@ -694,6 +694,143 @@ export class TeamsService {
     };
   }
 
+  async transferTeamLeadership(
+    hackathonId: string,
+    teamId: string,
+    newLeaderIdentifier: string,
+    requesterUser: UserMin,
+  ) {
+    this.logger.log(
+      `Transferring leadership of team ${teamId} for hackathon ${hackathonId} to ${newLeaderIdentifier} by user ${requesterUser.username}`,
+    );
+
+    // Check if team exists
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId, hackathonId: hackathonId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    // Check if the requester is the team leader
+    const leaderMember = team.members.find(
+      (m) => m.userId === requesterUser.id && m.isLeader,
+    );
+
+    if (!leaderMember) {
+      throw new BadRequestException('You are not the team leader');
+    }
+
+    // Find the new leader by username or email
+    const newLeader = team.members.find(
+      (m) =>
+        m.user.username === newLeaderIdentifier ||
+        m.user.email === newLeaderIdentifier,
+    );
+
+    if (!newLeader) {
+      throw new NotFoundException('New leader not found in the team');
+    }
+
+    // Check if the new leader is already the team leader
+    if (newLeader.isLeader) {
+      throw new BadRequestException(
+        'The specified user is already the team leader',
+      );
+    }
+
+    // Transfer leadership
+    const updatedTeam = await this.prisma.$transaction(async (tx) => {
+      // Update the new leader
+      await tx.teamMember.update({
+        where: { id: newLeader.id },
+        data: {
+          isLeader: true,
+        },
+      });
+
+      // Update the old leader
+      await tx.teamMember.update({
+        where: { id: leaderMember.id },
+        data: {
+          isLeader: false,
+        },
+      });
+
+      // Store the User Activity Log
+      await tx.userActivityLog.create({
+        data: {
+          userId: requesterUser.id,
+          action: 'TRANSFER_TEAM_LEADERSHIP',
+          // targetType: ActivityTargetType.HACKATHON,
+          targetId: teamId,
+          description: `transferred leadership of team ${team.name} for hackathon ${hackathonId} to user ${newLeader.user.username}`,
+        },
+      });
+
+      // Send a notification to the new leader
+      await tx.notification.create({
+        data: {
+          toUserId: newLeader.userId,
+          fromUserId: requesterUser.id,
+          type: 'TEAM_LEADERSHIP_TRANSFERRED',
+          content: `You have been made the leader of team ${team.name} for hackathon ${hackathonId} by ${requesterUser.username}`,
+          payload: {
+            teamId: team.id,
+            hackathonId: hackathonId,
+          },
+        },
+      });
+
+      // Return the updated team with members
+      const updatedTeam = await tx.team.findUnique({
+        where: { id: team.id },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  email: true,
+                  name: true,
+                  image: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return updatedTeam;
+    });
+
+    this.logger.log(
+      `Leadership of team ${teamId} transferred to ${newLeaderIdentifier} successfully`,
+    );
+
+    return {
+      message: 'Team leadership transferred successfully',
+      data: updatedTeam,
+    };
+  }
+
   async getTeamById(hackathonId: string, teamId: string) {
     const team = await this.prisma.team.findUnique({
       where: { id: teamId, hackathonId: hackathonId },
