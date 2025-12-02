@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -23,13 +24,38 @@ import { UpdateOrganizationDto } from './dto/update.dto';
 import { OrganizationService } from './organization.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import type { UserMin } from 'src/common/types';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  QueryOrganizationsDto,
+  PaginatedOrganizationsDto,
+} from './dto/query-organizations.dto';
 
 @ApiTags('Organizations')
 @Controller('organization')
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
+
+  @ApiOperation({
+    summary: 'List/Search Organizations',
+    description:
+      'Get a paginated list of organizations with support for filtering, searching, and sorting. **Public users** see only public information (no sensitive data like email or phone). **Admins** see all fields including sensitive data and can search by email and phone. Authentication is optional - the endpoint works with or without a token.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of organizations',
+    type: PaginatedOrganizationsDto,
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get()
+  async findAll(
+    @Query() query: QueryOrganizationsDto,
+    @CurrentUser() user?: UserMin,
+  ): Promise<PaginatedOrganizationsDto> {
+    return await this.organizationService.findAll(query, user);
+  }
 
   @ApiOperation({
     summary: 'Create a new organization',

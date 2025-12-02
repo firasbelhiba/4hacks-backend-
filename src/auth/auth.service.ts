@@ -747,7 +747,6 @@ export class AuthService {
     name: string,
     image: string,
   ): Promise<UserMin> {
-    console.log('Validating Github OAuth user');
     let user = await this.prisma.users.findUnique({
       where: { email },
       select: {
@@ -759,6 +758,7 @@ export class AuthService {
         createdAt: true,
         providers: true,
         isEmailVerified: true,
+        image: true,
       },
     });
 
@@ -773,13 +773,25 @@ export class AuthService {
             ...(user.isEmailVerified
               ? {}
               : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
+          },
+        });
+      } else {
+        // Update user image and isEmailVerified if not already set
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: {
+            ...(user.isEmailVerified
+              ? {}
+              : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
           },
         });
       }
+
       return user;
     }
 
-    console.log('Creating new user for Github OAuth');
     // If user does not exist, create a new user with OAuth image
     const result = await this.register(
       {
@@ -839,7 +851,6 @@ export class AuthService {
     name: string,
     image: string,
   ): Promise<UserMin> {
-    console.log('Validating LinkedIn OAuth user');
     let user = await this.prisma.users.findUnique({
       where: { email },
       select: {
@@ -851,6 +862,7 @@ export class AuthService {
         createdAt: true,
         providers: true,
         isEmailVerified: true,
+        image: true,
       },
     });
 
@@ -865,13 +877,25 @@ export class AuthService {
             ...(user.isEmailVerified
               ? {}
               : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
+          },
+        });
+      } else {
+        // Update user image and isEmailVerified if not already set
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: {
+            ...(user.isEmailVerified
+              ? {}
+              : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
           },
         });
       }
+
       return user;
     }
 
-    console.log('Creating new user for LinkedIn OAuth');
     // If user does not exist, create a new user with OAuth image
     const result = await this.register(
       {

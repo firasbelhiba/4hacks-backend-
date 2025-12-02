@@ -9,8 +9,18 @@ import {
 import { CreateOrganizationDto } from './dto/create.dto';
 import { UpdateOrganizationDto } from './dto/update.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { ActivityTargetType, HackathonStatus } from 'generated/prisma';
+import {
+  ActivityTargetType,
+  HackathonStatus,
+  Prisma,
+  UserRole,
+} from 'generated/prisma';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
+import {
+  QueryOrganizationsDto,
+  PaginatedOrganizationsDto,
+} from './dto/query-organizations.dto';
+import type { UserMin } from 'src/common/types';
 
 @Injectable()
 export class OrganizationService {
@@ -277,6 +287,219 @@ export class OrganizationService {
     return {
       message: 'Organization updated successfully',
       data: updatedOrganization,
+    };
+  }
+
+  /**
+   * Gets all organizations with pagination, filtering, search, and sorting.
+   * - Admins see all fields including sensitive data (email, phone, ownerId, etc.)
+   * - Non-admins see only public fields
+   * @param query - Query parameters for pagination, filtering, search, and sorting.
+   * @param user - Optional authenticated user (for admin check).
+   * @returns Paginated list of organizations with appropriate field visibility.
+   */
+  async findAll(
+    query: QueryOrganizationsDto,
+    user?: UserMin,
+  ): Promise<PaginatedOrganizationsDto> {
+    const isAdmin = user?.role === UserRole.ADMIN;
+    const {
+      page = 1,
+      limit = 10,
+      type,
+      size,
+      country,
+      city,
+      operatingRegion,
+      sector,
+      establishedYearFrom,
+      establishedYearTo,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = query;
+
+    // Build where clause for filtering
+    const where: Prisma.OrganizationWhereInput = {};
+
+    if (type) {
+      where.type = type;
+    }
+
+    if (size) {
+      where.size = size;
+    }
+
+    if (country) {
+      where.country = { contains: country, mode: 'insensitive' };
+    }
+
+    if (city) {
+      where.city = { contains: city, mode: 'insensitive' };
+    }
+
+    if (operatingRegion) {
+      where.operatingRegions = { has: operatingRegion };
+    }
+
+    if (sector) {
+      where.sector = { contains: sector, mode: 'insensitive' };
+    }
+
+    if (establishedYearFrom || establishedYearTo) {
+      where.establishedYear = {};
+      if (establishedYearFrom) {
+        where.establishedYear.gte = establishedYearFrom;
+      }
+      if (establishedYearTo) {
+        where.establishedYear.lte = establishedYearTo;
+      }
+    }
+
+    // Search across multiple fields
+    if (search) {
+      const searchFields: Prisma.OrganizationWhereInput[] = [
+        { name: { contains: search, mode: 'insensitive' as const } },
+        { displayName: { contains: search, mode: 'insensitive' as const } },
+        { slug: { contains: search, mode: 'insensitive' as const } },
+        { tagline: { contains: search, mode: 'insensitive' as const } },
+        { description: { contains: search, mode: 'insensitive' as const } },
+        { sector: { contains: search, mode: 'insensitive' as const } },
+      ];
+
+      // Admins can also search by email and phone
+      if (isAdmin) {
+        searchFields.push(
+          { email: { contains: search, mode: 'insensitive' as const } },
+          { phone: { contains: search, mode: 'insensitive' as const } },
+        );
+      }
+
+      where.OR = searchFields;
+    }
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Build orderBy clause for sorting
+    const orderBy: Prisma.OrganizationOrderByWithRelationInput = {
+      [sortBy]: sortOrder,
+    };
+
+    // Build select clause - different fields for admins vs public
+    const selectFields = isAdmin
+      ? {
+          // Admins see all fields
+          id: true,
+          name: true,
+          slug: true,
+          displayName: true,
+          logo: true,
+          tagline: true,
+          description: true,
+          type: true,
+          establishedYear: true,
+          size: true,
+          operatingRegions: true,
+          email: true, // Private field
+          phone: true, // Private field
+          country: true,
+          city: true,
+          state: true, // Private field
+          zipCode: true, // Private field
+          loc_address: true, // Private field
+          website: true,
+          linkedin: true,
+          github: true,
+          twitter: true,
+          discord: true,
+          telegram: true,
+          medium: true,
+          youtube: true,
+          facebook: true,
+          instagram: true,
+          reddit: true,
+          warpcast: true,
+          otherSocials: true, // Private field
+          sector: true,
+          ownerId: true, // Private field
+          createdAt: true,
+          updatedAt: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true, // Private field
+              image: true,
+            },
+          },
+        }
+      : {
+          // Public fields only
+          id: true,
+          name: true,
+          slug: true,
+          displayName: true,
+          logo: true,
+          tagline: true,
+          description: true,
+          type: true,
+          establishedYear: true,
+          size: true,
+          operatingRegions: true,
+          country: true,
+          city: true,
+          website: true,
+          linkedin: true,
+          github: true,
+          twitter: true,
+          discord: true,
+          telegram: true,
+          medium: true,
+          youtube: true,
+          facebook: true,
+          instagram: true,
+          reddit: true,
+          warpcast: true,
+          sector: true,
+          createdAt: true,
+          updatedAt: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        };
+
+    // Execute queries in parallel
+    const [data, total] = await Promise.all([
+      this.prismaService.organization.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        select: selectFields,
+      }),
+      this.prismaService.organization.count({ where }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+      },
     };
   }
 }

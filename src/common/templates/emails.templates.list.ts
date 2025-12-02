@@ -202,9 +202,11 @@ export const AccountBannedEmailTemplateHtml = (
             Your 4Hacks account has been banned by an administrator. You will no longer be able to log in or access your account.
           </p>
 
+          ${reason && reason !== 'No reason provided' ? `
           <p style="margin: 0 0 16px 0; padding: 12px; background-color: #fff; border-radius: 4px; border-left: 4px solid #ef4444;">
             <strong>Reason for ban:</strong> ${reason}
           </p>
+          ` : ''}
 
           <p style="margin: 16px 0; font-size: 14px; color: #666;">
             For your security, all active sessions have been logged out. If you believe this ban was made in error, please contact our support team immediately.
@@ -212,6 +214,41 @@ export const AccountBannedEmailTemplateHtml = (
 
           <p style="margin: 24px 0 0 0; font-size: 14px; color: #666;">
             To appeal this ban, please contact our support team with your account details and any relevant information.
+          </p>
+
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+export const AccountUnbannedEmailTemplateHtml = (email: string) => {
+  return `
+    <html>
+      <body style="font-family: Arial, sans-serif; padding: 20px; color: #222;">
+        <div style="max-width: 600px; margin: auto; background-color: #f9fafb; padding: 24px; border-radius: 8px;">
+          <h2 style="color: #10b981; margin-bottom: 16px;">
+            Account Unbanned
+          </h2>
+
+          <p style="margin: 0 0 16px 0;">
+            Hey ${email},
+          </p>
+
+          <p style="margin: 0 0 16px 0;">
+            Good news! Your 4Hacks account has been unbanned by an administrator. You can now log in and access your account again.
+          </p>
+
+          <p style="margin: 16px 0; padding: 12px; background-color: #fff; border-radius: 4px; border-left: 4px solid #10b981;">
+            <strong>Your account access has been restored.</strong>
+          </p>
+
+          <p style="margin: 16px 0; font-size: 14px; color: #666;">
+            You can now log in to your account and continue using 4Hacks. We hope you have a great experience on our platform.
+          </p>
+
+          <p style="margin: 24px 0 0 0; font-size: 14px; color: #666;">
+            If you have any questions or concerns, please don't hesitate to contact our support team.
           </p>
 
         </div>
