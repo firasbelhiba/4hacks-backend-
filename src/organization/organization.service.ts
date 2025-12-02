@@ -135,15 +135,23 @@ export class OrganizationService {
         hackathons: {
           where: {
             OR: [
-              { status: { not: HackathonStatus.DRAFT } }, // always show non draft ones
+              { status: HackathonStatus.ACTIVE }, // always show active ones
               ...(userId
                 ? [
                     {
                       status: HackathonStatus.DRAFT,
                       organization: { ownerId: userId },
                     },
+                    {
+                      status: HackathonStatus.CANCELLED,
+                      organization: { ownerId: userId },
+                    },
+                    {
+                      status: HackathonStatus.ARCHIVED,
+                      organization: { ownerId: userId },
+                    },
                   ]
-                : []), // if logged in, show drafts only if user is owner
+                : []), // if logged in, show any other staus than active
             ],
           },
           select: {

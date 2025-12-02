@@ -113,4 +113,52 @@ export class FileUploadService {
       throw err;
     }
   }
+
+
+  async uploadTeamImage(
+    file: Express.Multer.File,
+    hackathonId: string,
+    teamName: string,
+  ): Promise<string> {
+    // Validate file type
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Invalid file type. Only JPEG, PNG, and WebP images are allowed.',
+      );
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (file.size > maxSize) {
+      throw new BadRequestException('File size must not exceed 5MB.');
+    }
+
+    const timestamp = Date.now();
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-');
+    const key = `4hacks/teams/${hackathonId}/${teamName}/${timestamp}-${safeName}`;
+
+    this.logger.log(`Uploading team image to R2 - key: ${key}`);
+
+    try {
+      const publicUrl = await this.r2.uploadFile(
+        file.buffer,
+        key,
+        file.mimetype,
+      );
+
+      this.logger.log(`Team image uploaded to R2 - url: ${publicUrl}`);
+
+      return publicUrl;
+    } catch (err) {
+      this.logger.error(
+        'R2 upload failed, error uploading team image',
+        err as any,
+      );
+
+      throw err;
+    }
+  }
 }
