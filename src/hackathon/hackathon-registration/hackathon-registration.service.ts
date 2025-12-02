@@ -45,13 +45,10 @@ export class HackathonRegistrationService {
       throw new NotFoundException('Hackathon not found');
     }
 
-    // Check if hackathon is cancelled or draft
-    if (
-      hackathon.status === HackathonStatus.CANCELLED ||
-      hackathon.status === HackathonStatus.DRAFT
-    ) {
+    // Check if hackathon is not active
+    if (hackathon.status !== HackathonStatus.ACTIVE) {
       throw new BadRequestException(
-        'Cannot register for a hackathon that is cancelled or in draft status',
+        'Cannot register for a hackathon that is not active',
       );
     }
 

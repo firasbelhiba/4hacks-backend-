@@ -200,10 +200,7 @@ export class ProfileService {
             ? {}
             : {
                 where: {
-                  NOT: [
-                    { status: HackathonStatus.DRAFT },
-                    { status: HackathonStatus.CANCELLED },
-                  ],
+                  status: HackathonStatus.ACTIVE,
                 },
               }),
         },

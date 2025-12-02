@@ -295,11 +295,8 @@ model Organization {
 
 enum HackathonStatus {
   DRAFT
-  UPCOMING
-  REGISTRATION
   ACTIVE
-  JUDGING
-  COMPLETED
+  ARCHIVED
   CANCELLED
 }
 

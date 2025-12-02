@@ -508,11 +508,8 @@ export class TeamsService {
       throw new NotFoundException('Team not found');
     }
 
-    if (
-      team.hackathon.status === HackathonStatus.DRAFT ||
-      team.hackathon.status === HackathonStatus.CANCELLED
-    ) {
-      throw new BadRequestException('Hackathon is not publically visible');
+    if (team.hackathon.status !== HackathonStatus.ACTIVE) {
+      throw new BadRequestException('Hackathon is not active');
     }
 
     return team;

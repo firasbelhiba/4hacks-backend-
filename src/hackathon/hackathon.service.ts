@@ -239,12 +239,10 @@ export class HackathonService {
 
     // Check authorization
     const isOwner = userId && hackathon.organization.ownerId === userId;
-    const isDraftOrCancelled =
-      hackathon.status === HackathonStatus.DRAFT ||
-      hackathon.status === HackathonStatus.CANCELLED;
+    const isActive = hackathon.status === HackathonStatus.ACTIVE;
 
     // Allow: admin, owner, or anyone if not draft/cancelled
-    if (!isAdmin && !isOwner && isDraftOrCancelled) {
+    if (!isAdmin && !isOwner && !isActive) {
       throw new NotFoundException('Hackathon access denied');
     }
 
@@ -271,10 +269,8 @@ export class HackathonService {
             : {
                 OR: [
                   {
-                    status: {
-                      notIn: [HackathonStatus.DRAFT, HackathonStatus.CANCELLED],
-                    },
-                  }, // not draft or cancelled hackathons
+                    status: HackathonStatus.ACTIVE,
+                  }, // ONLY ACTIVE hackathons for public
                   ...(userId
                     ? [
                         {
@@ -283,6 +279,10 @@ export class HackathonService {
                         },
                         {
                           status: HackathonStatus.CANCELLED,
+                          organization: { ownerId: userId },
+                        },
+                        {
+                          status: HackathonStatus.ARCHIVED,
                           organization: { ownerId: userId },
                         },
                       ]
@@ -462,12 +462,10 @@ export class HackathonService {
 
     // Check authorization
     const isOwner = userId ? userId === hackathon.organization.ownerId : false;
-    const isDraftOrCancelled =
-      hackathon.status === HackathonStatus.DRAFT ||
-      hackathon.status === HackathonStatus.CANCELLED;
+    const isActive = hackathon.status === HackathonStatus.ACTIVE;
 
-    // Allow: admin, owner, or anyone if not draft/cancelled
-    if (!isAdmin && !isOwner && isDraftOrCancelled) {
+    // Allow: admin, owner, or anyone if it is active
+    if (!isAdmin && !isOwner && !isActive) {
       throw new NotFoundException('Hackathon access denied');
     }
 
@@ -608,8 +606,7 @@ export class HackathonService {
       }
     }
 
-    // Determine the appropriate status based on current date
-    const newStatus = HackathonStatus.UPCOMING; // Since registrationStart is in the future
+    const newStatus = HackathonStatus.ACTIVE;
 
     // Update hackathon status
     const updatedHackathon = await this.prisma.hackathon.update({
@@ -636,64 +633,5 @@ export class HackathonService {
       message: 'Hackathon published successfully',
       data: updatedHackathon,
     };
-  }
-
-  /**
-   * Determines the appropriate hackathon status based on current date and hackathon dates
-   * @private
-   */
-  determineHackathonStatus(
-    registrationStart: Date,
-    registrationEnd: Date,
-    startDate: Date,
-    endDate: Date,
-    judgingStart?: Date | null,
-    judgingEnd?: Date | null,
-  ): HackathonStatus {
-    const now = new Date();
-
-    // If we have judging dates and current date is within judging period
-    if (judgingStart && judgingEnd) {
-      if (now >= judgingStart && now < judgingEnd) {
-        return HackathonStatus.JUDGING;
-      }
-      if (now >= judgingEnd) {
-        return HackathonStatus.COMPLETED;
-      }
-    } else if (judgingStart) {
-      // Only judging start is defined
-      if (now >= judgingStart) {
-        return HackathonStatus.JUDGING;
-      }
-    }
-
-    // If current date is after hackathon end date
-    if (now >= endDate) {
-      // If judging dates are not set, mark as JUDGING (to be manually completed later)
-      return judgingStart ? HackathonStatus.JUDGING : HackathonStatus.JUDGING;
-    }
-
-    // If current date is within hackathon dates (between start and end)
-    if (now >= startDate && now < endDate) {
-      return HackathonStatus.ACTIVE;
-    }
-
-    // If current date is within registration period
-    if (now >= registrationStart && now < registrationEnd) {
-      return HackathonStatus.REGISTRATION;
-    }
-
-    // If current date is after registration ends but before hackathon starts
-    if (now >= registrationEnd && now < startDate) {
-      return HackathonStatus.ACTIVE;
-    }
-
-    // If current date is before registration starts
-    if (now < registrationStart) {
-      return HackathonStatus.UPCOMING;
-    }
-
-    // Default to UPCOMING as a fallback
-    return HackathonStatus.UPCOMING;
   }
 }
