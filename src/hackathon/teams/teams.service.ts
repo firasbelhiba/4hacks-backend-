@@ -254,18 +254,18 @@ export class TeamsService {
       throw new NotFoundException('User not found');
     }
 
-    //Check if he already received an invitation
+    //Check if he already received an invitation that is still pending
     const existingInvitation = await this.prisma.teamInvitation.findFirst({
       where: {
         teamId: team.id,
         invitedUserId: userToAdd.id,
+        status: InvitationStatus.PENDING,
       },
     });
 
     if (existingInvitation) {
       throw new ConflictException(
-        'An invitation is already sent to this user. Its Status Is: ' +
-          existingInvitation.status,
+        'An invitation is already sent to this user and is still pending',
       );
     }
 
