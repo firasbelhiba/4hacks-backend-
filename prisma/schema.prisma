@@ -115,6 +115,8 @@ model users {
   userActivityLogs                  UserActivityLog[]
   hackathonRegistrations            HackathonRegistration[]    @relation("RegisteredHackathons")
   reviewedHackathonRegistrations    HackathonRegistration[]    @relation("ReviewedHackathonRegistrations")
+  SentNotifications                 Notification[]             @relation("NotificationsFrom")
+  ReceivedNotifications             Notification[]             @relation("NotificationsTo")
 
   @@index([email])
   @@index([username])
@@ -865,12 +867,13 @@ model Team {
 }
 
 model TeamMember {
-  id        String   @id @default(cuid())
-  teamId    String
-  userId    String
-  isLeader  Boolean  @default(false)
-  joinedAt  DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  teamId      String
+  userId      String
+  description String   @default("") @db.Text
+  isLeader    Boolean  @default(false)
+  joinedAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user users @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -879,4 +882,26 @@ model TeamMember {
   @@index([teamId])
   @@index([userId])
   @@map("team_members")
+}
+
+
+
+model Notification {
+  id         String  @id @default(cuid())
+  toUserId   String
+  fromUserId String? // nullable for system notifications
+  type       String // "TEAM_INVITE", "PROJECT_REVIEWED", etc.
+  content    String
+  payload    Json? // flexible metadata (teamId, hackathonId…)
+  isRead     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  toUser   users  @relation("NotificationsTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  fromUser users? @relation("NotificationsFrom", fields: [fromUserId], references: [id], onDelete: SetNull)
+
+  @@index([toUserId])
+  @@index([fromUserId])
+  @@index([type])
+  @@map("notifications")
 }
