@@ -9,7 +9,7 @@ import { UserMin } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTeamDto } from './dto/create.dto';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
-import { ActivityTargetType } from 'generated/prisma';
+import { ActivityTargetType, InvitationStatus } from 'generated/prisma';
 import { TeamMemberDto } from './dto/member.dto';
 
 @Injectable()
@@ -339,6 +339,136 @@ export class TeamsService {
     return {
       message: 'Team member invitation sent successfully',
       data: teamInvitation,
+    };
+  }
+
+  async acceptTeamInvitation(
+    hackathonId: string,
+    teamId: string,
+    invitationId: string,
+    user: UserMin,
+  ) {
+    this.logger.log(
+      `Accepting team invitation ${invitationId} for team ${teamId} and hackathon ${hackathonId} by user ${user.username}`,
+    );
+
+    // Find the invitation
+    const invitation = await this.prisma.teamInvitation.findUnique({
+      where: { id: invitationId },
+      include: {
+        team: true,
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Team invitation not found');
+    }
+
+    // Verify that the invitation is for the correct team and hackathon
+    if (
+      invitation.team.id !== teamId ||
+      invitation.team.hackathonId !== hackathonId
+    ) {
+      throw new BadRequestException(
+        'Invitation does not match the specified team or hackathon',
+      );
+    }
+
+    // Verify that the invitation is for the current user
+    if (invitation.invitedUserId !== user.id) {
+      throw new BadRequestException(
+        'You are not authorized to accept this invitation',
+      );
+    }
+
+    // Check if the invitation is still pending
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new BadRequestException(
+        `Invitation is already ${invitation.status} and cannot be accepted`,
+      );
+    }
+
+    // Not need to check if the user is registered for the hackathon because only registered users can receive invitations
+
+    // Check if the user is already in a team for this hackathon
+    const existingTeamMember = await this.prisma.teamMember.findFirst({
+      where: {
+        userId: user.id,
+        team: {
+          hackathonId: hackathonId,
+        },
+      },
+    });
+
+    if (existingTeamMember) {
+      throw new ConflictException(
+        'You are already in a team for this hackathon',
+      );
+    }
+
+    // Accept the invitation and add the user to the team member and sent notification to the team leader, and store user activity log
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update the invitation status to ACCEPTED
+      const updatedInvitation = await tx.teamInvitation.update({
+        where: { id: invitation.id },
+        data: {
+          status: InvitationStatus.ACCEPTED,
+          actedAt: new Date(),
+        },
+      });
+
+      // Add the user to the team members
+      await tx.teamMember.create({
+        data: {
+          teamId: teamId,
+          userId: user.id,
+        },
+      });
+
+      // Store the User Activity Log
+      await tx.userActivityLog.create({
+        data: {
+          userId: user.id,
+          action: 'ACCEPT_TEAM_INVITATION',
+          targetType: ActivityTargetType.HACKATHON,
+          targetId: hackathonId,
+          description: `accepted team invitation for team ${invitation.team.name} for hackathon ${hackathonId}`,
+        },
+      });
+
+      // Send a notification to the team leader
+      const teamLeaderMember = await tx.teamMember.findFirst({
+        where: {
+          teamId: teamId,
+          isLeader: true,
+        },
+      });
+
+      if (teamLeaderMember) {
+        await tx.notification.create({
+          data: {
+            toUserId: teamLeaderMember.userId,
+            fromUserId: user.id,
+            type: 'TEAM_INVITE_ACCEPTED',
+            content: `Your invitation to ${user.username} to join team ${invitation.team.name} for hackathon ${hackathonId} has been accepted`,
+            payload: {
+              teamId: teamId,
+              hackathonId: hackathonId,
+            },
+          },
+        });
+      }
+
+      return updatedInvitation;
+    });
+
+    this.logger.log(
+      `Team invitation ${invitationId} accepted successfully by user ${user.username}`,
+    );
+
+    return {
+      message: 'Team invitation accepted successfully',
+      data: result, 
     };
   }
 }

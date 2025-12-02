@@ -73,4 +73,38 @@ export class TeamsController {
       teamMemberDto,
     );
   }
+
+
+  @ApiOperation({
+    summary: 'Accept a team invitation',
+    description:
+      'Accept a team invitation. User must be registered for the hackathon and not already in a team.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team invitation accepted successfully',
+  })
+  @ApiNotFoundResponse({ description: 'Team invitation not found' })
+  @ApiBadRequestResponse({
+    description: 'User is not registered for the hackathon',
+  })
+  @ApiConflictResponse({
+    description: 'Conflict. User is already in a team for this hackathon',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':teamId/invitations/:invitationId/accept')
+  async acceptTeamInvitation(
+    @Param('hackathonId') hackathonId: string,
+    @Param('teamId') teamId: string,
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: UserMin,
+  ) {
+    return await this.teamsService.acceptTeamInvitation(
+      hackathonId,
+      teamId,
+      invitationId,
+      user,
+    );
+  }
 }
