@@ -126,4 +126,35 @@ export class TeamsController {
       user,
     );
   }
+
+  @ApiOperation({
+    summary: 'Decline a team invitation',
+    description:
+      'Decline a team invitation. User must be registered for the hackathon.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team invitation declined successfully',
+  })
+  @ApiNotFoundResponse({ description: 'Team invitation not found' })
+  @ApiBadRequestResponse({
+    description: 'User is not registered for the hackathon',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':teamId/invitations/:invitationId/decline')
+  async declineTeamInvitation(
+    @Param('hackathonId') hackathonId: string,
+    @Param('teamId') teamId: string,
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: UserMin,
+  ) {
+    return await this.teamsService.declineTeamInvitation(
+      hackathonId,
+      teamId,
+      invitationId,
+      user,
+    );
+  }
 }

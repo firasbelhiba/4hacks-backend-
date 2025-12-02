@@ -476,6 +476,108 @@ export class TeamsService {
     };
   }
 
+  async declineTeamInvitation(
+    hackathonId: string,
+    teamId: string,
+    invitationId: string,
+    user: UserMin,
+  ) {
+    this.logger.log(
+      `Declining team invitation ${invitationId} for team ${teamId} and hackathon ${hackathonId} by user ${user.username}`,
+    );
+
+    // Find the invitation
+    const invitation = await this.prisma.teamInvitation.findUnique({
+      where: { id: invitationId },
+      include: {
+        team: {
+          include: {
+            members: {
+              select: { userId: true, isLeader: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Team invitation not found');
+    }
+
+    // Verify that the invitation is for the correct team and hackathon
+    if (
+      invitation.team.id !== teamId ||
+      invitation.team.hackathonId !== hackathonId
+    ) {
+      throw new BadRequestException(
+        'Invitation does not match the specified team or hackathon',
+      );
+    }
+
+    // Verify that the invitation is for the current user
+    if (invitation.invitedUserId !== user.id) {
+      throw new BadRequestException(
+        'You are not authorized to accept this invitation',
+      );
+    }
+
+    // Check if the invitation is still pending
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new BadRequestException(
+        `Invitation is already ${invitation.status} and cannot be rejected`,
+      );
+    }
+
+    // Decline the invitation and sent notification to the team leader, and store user activity log
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update the invitation status to DECLINED
+      const updatedInvitation = await tx.teamInvitation.update({
+        where: { id: invitation.id },
+        data: {
+          status: InvitationStatus.DECLINED,
+          actedAt: new Date(),
+        },
+      });
+
+      // Store the User Activity Log
+      await tx.userActivityLog.create({
+        data: {
+          userId: user.id,
+          action: 'DECLINE_TEAM_INVITATION',
+          targetType: ActivityTargetType.HACKATHON,
+          targetId: teamId,
+          description: `declined team invitation for team ${invitation.team.name} for hackathon ${hackathonId}`,
+        },
+      });
+
+      // Send a notification to the team leader
+      const teamLeaderMember = invitation.team.members.find((m) => m.isLeader);
+
+      if (teamLeaderMember) {
+        await tx.notification.create({
+          data: {
+            toUserId: teamLeaderMember.userId,
+            fromUserId: user.id,
+            type: 'TEAM_INVITE_DECLINED',
+            content: `Your invitation to ${user.username} to join team ${invitation.team.name} for hackathon ${hackathonId} has been declined`,
+            payload: {
+              teamId: teamId,
+              hackathonId: hackathonId,
+            },
+          },
+        });
+      }
+
+      return updatedInvitation;
+    });
+
+    this.logger.log(
+      `Team invitation ${invitationId} declined successfully by user ${user.username}`,
+    );
+
+    return { message: 'Team invitation declined successfully', data: result };
+  }
+
   async getTeamById(hackathonId: string, teamId: string) {
     const team = await this.prisma.team.findUnique({
       where: { id: teamId, hackathonId: hackathonId },
