@@ -1,4 +1,4 @@
-import { HackathonStatus, Provider, UserRole } from 'generated/prisma';
+import { HackathonRequiredMaterials, HackathonStatus, Provider, UserRole } from 'generated/prisma';
 
 export type JwtPayload = {
   sub: string;
@@ -35,6 +35,9 @@ export type HackathonMin = {
   slug: string;
   startDate: Date;
   endDate: Date;
+  isPrivate: boolean;
+  requiresApproval: boolean;
+  requiredSubmissionMaterials: HackathonRequiredMaterials[];
   status: HackathonStatus;
   organizationId: string;
   registrationStart: Date;
