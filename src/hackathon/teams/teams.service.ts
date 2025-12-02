@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -9,6 +10,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTeamDto } from './dto/create.dto';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
 import { ActivityTargetType } from 'generated/prisma';
+import { TeamMemberDto } from './dto/member.dto';
 
 @Injectable()
 export class TeamsService {
@@ -155,6 +157,188 @@ export class TeamsService {
     return {
       message: 'Team created successfully',
       data: team,
+    };
+  }
+
+  async addMemberToTeam(
+    hackathonId: string,
+    teamId: string,
+    requesterUser: UserMin,
+    teamMemberDto: TeamMemberDto,
+  ) {
+    this.logger.log(
+      `Adding member to team ${teamId} for hackathon ${hackathonId} by user ${requesterUser.username}`,
+    );
+
+    const { member_identifier } = teamMemberDto;
+
+    // Check if hackathon exists
+    const hackathon = await this.prisma.hackathon.findUnique({
+      where: { id: hackathonId },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check if team exists
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId, hackathonId: hackathonId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    // Check if the team is full (get the max team size from hackathon settings)
+    const hackathonMaxTeamSize = hackathon.maxTeamSize;
+
+    if (team.members.length >= hackathonMaxTeamSize) {
+      throw new BadRequestException('Team is already full');
+    }
+
+    // Check if he is already member of the team
+    const isAlreadyMember = team.members.some(
+      (m) =>
+        m.user.username === member_identifier ||
+        m.user.email === member_identifier,
+    );
+
+    if (isAlreadyMember) {
+      throw new BadRequestException('User is already a member of the team');
+    }
+
+    // Check if the requester is the team leader
+    const leaderMember = team.members.find(
+      (m) => m.userId === requesterUser.id && m.isLeader,
+    );
+
+    if (!leaderMember) {
+      throw new BadRequestException('You are not the team leader');
+    }
+
+    // Find the user to be added by username or email
+    const userToAdd = await this.prisma.users.findFirst({
+      where: {
+        OR: [{ username: member_identifier }, { email: member_identifier }],
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        image: true,
+      },
+    });
+
+    if (!userToAdd) {
+      throw new NotFoundException('User not found');
+    }
+
+    //Check if he already received an invitation
+    const existingInvitation = await this.prisma.teamInvitation.findFirst({
+      where: {
+        teamId: team.id,
+        invitedUserId: userToAdd.id,
+      },
+    });
+
+    if (existingInvitation) {
+      throw new ConflictException(
+        'An invitation is already sent to this user. Its Status Is: ' +
+          existingInvitation.status,
+      );
+    }
+
+    // Check if the user is registered for the hackathon
+    const registration = await this.prisma.hackathonRegistration.findUnique({
+      where: {
+        hackathonId_userId: { hackathonId, userId: userToAdd.id },
+      },
+    });
+
+    if (!registration) {
+      throw new BadRequestException(
+        'The user to be added is not registered for the hackathon',
+      );
+    }
+
+    // Check if the user is already in a team for this hackathon
+    const existingTeamMember = await this.prisma.teamMember.findFirst({
+      where: {
+        userId: userToAdd.id,
+        team: {
+          hackathonId: hackathonId,
+        },
+      },
+    });
+
+    if (existingTeamMember) {
+      throw new ConflictException(
+        'The user to be added is already in a team for this hackathon',
+      );
+    }
+
+    // Add the user to the team by sending an invitation
+    const teamInvitation = await this.prisma.$transaction(async (tx) => {
+      const teamInvitation = await tx.teamInvitation.create({
+        data: {
+          teamId: team.id,
+          invitedUserId: userToAdd.id,
+          inviterUserId: requesterUser.id,
+        },
+      });
+
+      // Store the User Activity Log
+      await tx.userActivityLog.create({
+        data: {
+          userId: requesterUser.id,
+          action: 'INVITE_TEAM_MEMBER',
+          targetId: teamId,
+          isPublic: false,
+          description: `invited user ${userToAdd.username} to team ${team.name} for hackathon ${hackathon.slug}`,
+        },
+      });
+
+      // Sent a notification to the invited user
+      await tx.notification.create({
+        data: {
+          toUserId: userToAdd.id,
+          fromUserId: requesterUser.id,
+          type: 'TEAM_INVITE',
+          content: `You have been invited to join team ${team.name} for hackathon ${hackathon.slug} By ${requesterUser.username}`,
+          payload: {
+            teamId: team.id,
+            hackathonId: hackathon.id,
+          },
+        },
+      });
+
+      return teamInvitation;
+    });
+
+    this.logger.log(
+      `User ${userToAdd.username} invited to team ${team.name} successfully`,
+    );
+
+    return {
+      message: 'Team member invitation sent successfully',
+      data: teamInvitation,
     };
   }
 }
