@@ -10,7 +10,11 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
 import { ManageSponsorsDto } from './dto/sponsor.dto';
-import { HackathonStatus, UserRole } from 'generated/prisma';
+import {
+  QueryHackathonsDto,
+  PaginatedHackathonsDto,
+} from './dto/query-hackathons.dto';
+import { HackathonStatus, UserRole, Prisma } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { UserMin } from 'src/common/types';
 
@@ -19,6 +23,187 @@ export class HackathonService {
   private readonly logger = new Logger(HackathonService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Gets all hackathons with pagination, filtering, search, and sorting.
+   * Access control:
+   * - Admins see all hackathons
+   * - Authenticated users see all ACTIVE hackathons + their own non-public hackathons
+   * - Unauthenticated users see only ACTIVE hackathons
+   * @param query - Query parameters for pagination, filtering, search, and sorting.
+   * @param user - Optional authenticated user.
+   * @returns Paginated list of hackathons.
+   */
+  async findAll(
+    query: QueryHackathonsDto,
+    user?: UserMin,
+  ): Promise<PaginatedHackathonsDto> {
+    const isAdmin = user?.role === UserRole.ADMIN;
+    const userId = user?.id;
+
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      type,
+      category,
+      isPrivate,
+      prizePoolFrom,
+      prizePoolTo,
+      startDateFrom,
+      startDateTo,
+      organizationId,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = query;
+
+    // Build visibility where clause based on user role
+    let visibilityWhere: Prisma.HackathonWhereInput;
+
+    if (isAdmin) {
+      // Admin sees everything - apply status filter if provided
+      visibilityWhere = status ? { status } : {};
+    } else if (userId) {
+      // Authenticated user: ACTIVE + own non-public hackathons
+      visibilityWhere = {
+        OR: [
+          { status: HackathonStatus.ACTIVE },
+          {
+            status: {
+              in: [
+                HackathonStatus.DRAFT,
+                HackathonStatus.ARCHIVED,
+                HackathonStatus.CANCELLED,
+              ],
+            },
+            organization: { ownerId: userId },
+          },
+        ],
+      };
+    } else {
+      // Unauthenticated: only ACTIVE
+      visibilityWhere = { status: HackathonStatus.ACTIVE };
+    }
+
+    // Build additional filters
+    const filterWhere: Prisma.HackathonWhereInput = {};
+
+    if (type) {
+      filterWhere.type = type;
+    }
+
+    if (category) {
+      filterWhere.category = category;
+    }
+
+    if (isPrivate !== undefined) {
+      filterWhere.isPrivate = isPrivate;
+    }
+
+    if (prizePoolFrom !== undefined || prizePoolTo !== undefined) {
+      filterWhere.prizePool = {};
+      if (prizePoolFrom !== undefined) {
+        filterWhere.prizePool.gte = prizePoolFrom;
+      }
+      if (prizePoolTo !== undefined) {
+        filterWhere.prizePool.lte = prizePoolTo;
+      }
+    }
+
+    if (startDateFrom || startDateTo) {
+      filterWhere.startDate = {};
+      if (startDateFrom) {
+        filterWhere.startDate.gte = new Date(startDateFrom);
+      }
+      if (startDateTo) {
+        filterWhere.startDate.lte = new Date(startDateTo);
+      }
+    }
+
+    if (organizationId) {
+      filterWhere.organizationId = organizationId;
+    }
+
+    // Search across multiple fields
+    if (search) {
+      filterWhere.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { tagline: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Combine visibility and filter conditions
+    const where: Prisma.HackathonWhereInput = {
+      AND: [visibilityWhere, filterWhere],
+    };
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Build orderBy clause for sorting
+    const orderBy: Prisma.HackathonOrderByWithRelationInput = {
+      [sortBy]: sortOrder,
+    };
+
+    // Select fields for the list view
+    const selectFields = {
+      id: true,
+      title: true,
+      slug: true,
+      status: true,
+      type: true,
+      category: true,
+      banner: true,
+      tagline: true,
+      prizePool: true,
+      prizeToken: true,
+      isPrivate: true,
+      registrationStart: true,
+      registrationEnd: true,
+      startDate: true,
+      endDate: true,
+      createdAt: true,
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logo: true,
+        },
+      },
+    };
+
+    // Execute queries in parallel
+    const [data, total] = await Promise.all([
+      this.prisma.hackathon.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        select: selectFields,
+      }),
+      this.prisma.hackathon.count({ where }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+      },
+    };
+  }
 
   async update(
     hackathonIdentifier: string,

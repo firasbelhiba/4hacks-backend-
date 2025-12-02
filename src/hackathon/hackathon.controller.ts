@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -25,13 +26,37 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
 import { ManageSponsorsDto } from './dto/sponsor.dto';
+import {
+  QueryHackathonsDto,
+  PaginatedHackathonsDto,
+} from './dto/query-hackathons.dto';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
-import { UserMin } from 'src/common/types';
+import type { UserMin } from 'src/common/types';
 
 @ApiTags('Hackathons')
 @Controller('hackathon')
 export class HackathonController {
   constructor(private readonly hackathonService: HackathonService) {}
+
+  @ApiOperation({
+    summary: 'List/Search Hackathons',
+    description:
+      'Get a paginated list of hackathons with support for filtering, searching, and sorting. **Admins** see all hackathons. **Authenticated users** see all ACTIVE hackathons plus their own non-public hackathons (DRAFT, ARCHIVED, CANCELLED). **Unauthenticated users** see only ACTIVE hackathons. Authentication is optional.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of hackathons',
+    type: PaginatedHackathonsDto,
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get()
+  async findAll(
+    @Query() query: QueryHackathonsDto,
+    @CurrentUser() user?: UserMin,
+  ): Promise<PaginatedHackathonsDto> {
+    return await this.hackathonService.findAll(query, user);
+  }
 
   @ApiOperation({
     summary: 'Update a hackathon',
