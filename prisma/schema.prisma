@@ -117,6 +117,8 @@ model users {
   reviewedHackathonRegistrations    HackathonRegistration[]    @relation("ReviewedHackathonRegistrations")
   SentNotifications                 Notification[]             @relation("NotificationsFrom")
   ReceivedNotifications             Notification[]             @relation("NotificationsTo")
+  teamInvitationsReceived           TeamInvitation[]           @relation("TeamInvitationsReceived")
+  teamInvitationsSent               TeamInvitation[]           @relation("TeamInvitationsSent")
 
   @@index([email])
   @@index([username])
@@ -855,9 +857,10 @@ model Team {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members   TeamMember[]
-  projects  Project[]
-  hackathon Hackathon    @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  members         TeamMember[]
+  projects        Project[]
+  hackathon       Hackathon        @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  teamInvitations TeamInvitation[]
 
   @@unique([hackathonId, name])
   @@index([hackathonId, id])
@@ -884,7 +887,32 @@ model TeamMember {
   @@map("team_members")
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
 
+model TeamInvitation {
+  id            String           @id @default(cuid())
+  teamId        String
+  invitedUserId String // who is being invited
+  inviterUserId String // who sent the invite
+  status        InvitationStatus @default(PENDING)
+  createdAt     DateTime         @default(now())
+  actedAt       DateTime? // when the invite was accepted/declined
+  updatedAt     DateTime         @updatedAt
+
+  team        Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedUser users @relation("TeamInvitationsReceived", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  inviterUser users @relation("TeamInvitationsSent", fields: [inviterUserId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([invitedUserId])
+  @@index([inviterUserId])
+  @@index([status])
+  @@map("team_invitations")
+}
 
 model Notification {
   id         String  @id @default(cuid())
