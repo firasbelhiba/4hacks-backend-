@@ -283,128 +283,6 @@ export class OrganizationService {
   }
 
   /**
-   * Gets all organizations owned by a specific user.
-   * - Public users see only public fields
-   * - Owner sees all fields (their own organizations)
-   * - Admins see all fields (for any user)
-   * @param userId - The ID of the user whose organizations to retrieve
-   * @param requester - Optional authenticated user (for owner/admin check)
-   * @returns List of organizations with appropriate field visibility
-   */
-  async findByOwner(userId: string, requester?: UserMin) {
-    // Resolve the target user
-    const targetUser = await this.prismaService.users.findUnique({
-      where: { id: userId },
-      select: { id: true, username: true, email: true, role: true },
-    });
-
-    if (!targetUser) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Check if requester is owner or admin
-    const isOwner = requester?.id === targetUser.id;
-    const isAdmin = requester?.role === UserRole.ADMIN;
-
-    // Build select clause - different fields based on visibility
-    const selectFields =
-      isOwner || isAdmin
-        ? {
-            // Owner/Admin see all fields
-            id: true,
-            name: true,
-            slug: true,
-            displayName: true,
-            logo: true,
-            tagline: true,
-            description: true,
-            type: true,
-            establishedYear: true,
-            size: true,
-            operatingRegions: true,
-            email: true, // Private field
-            phone: true, // Private field
-            country: true,
-            city: true,
-            state: true, // Private field
-            zipCode: true, // Private field
-            loc_address: true, // Private field
-            website: true,
-            linkedin: true,
-            github: true,
-            twitter: true,
-            discord: true,
-            telegram: true,
-            medium: true,
-            youtube: true,
-            facebook: true,
-            instagram: true,
-            reddit: true,
-            warpcast: true,
-            otherSocials: true, // Private field
-            sector: true,
-            ownerId: true, // Private field
-            createdAt: true,
-            updatedAt: true,
-            owner: {
-              select: {
-                id: true,
-                name: true,
-                email: true, // Private field
-                image: true,
-              },
-            },
-          }
-        : {
-            // Public fields only
-            id: true,
-            name: true,
-            slug: true,
-            displayName: true,
-            logo: true,
-            tagline: true,
-            description: true,
-            type: true,
-            establishedYear: true,
-            size: true,
-            operatingRegions: true,
-            country: true,
-            city: true,
-            website: true,
-            linkedin: true,
-            github: true,
-            twitter: true,
-            discord: true,
-            telegram: true,
-            medium: true,
-            youtube: true,
-            facebook: true,
-            instagram: true,
-            reddit: true,
-            warpcast: true,
-            sector: true,
-            createdAt: true,
-            updatedAt: true,
-            owner: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              },
-            },
-          };
-
-    // Fetch organizations owned by the target user
-    const organizations = await this.prismaService.organization.findMany({
-      where: { ownerId: targetUser.id },
-      select: selectFields,
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return organizations;
-  }
-
-  /**
    * Gets all organizations with pagination, filtering, search, and sorting.
    * - Admins see all fields including sensitive data (email, phone, ownerId, etc.)
    * - Non-admins see only public fields
@@ -472,20 +350,20 @@ export class OrganizationService {
 
     // Search across multiple fields
     if (search) {
-      const searchFields = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { displayName: { contains: search, mode: 'insensitive' } },
-        { slug: { contains: search, mode: 'insensitive' } },
-        { tagline: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { sector: { contains: search, mode: 'insensitive' } },
+      const searchFields: Prisma.OrganizationWhereInput[] = [
+        { name: { contains: search, mode: 'insensitive' as const } },
+        { displayName: { contains: search, mode: 'insensitive' as const } },
+        { slug: { contains: search, mode: 'insensitive' as const } },
+        { tagline: { contains: search, mode: 'insensitive' as const } },
+        { description: { contains: search, mode: 'insensitive' as const } },
+        { sector: { contains: search, mode: 'insensitive' as const } },
       ];
 
       // Admins can also search by email and phone
       if (isAdmin) {
         searchFields.push(
-          { email: { contains: search, mode: 'insensitive' } },
-          { phone: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' as const } },
+          { phone: { contains: search, mode: 'insensitive' as const } },
         );
       }
 
