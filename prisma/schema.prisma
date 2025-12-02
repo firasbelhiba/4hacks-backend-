@@ -36,14 +36,13 @@ enum Provider {
   LINKEDIN
 }
 
-enum ProjectStatus {
-  DRAFT
-  SUBMITTED
-  UNDER_REVIEW
-  DISQUALIFIED
-  WINNER
-  FINALIST
-  PARTICIPANT
+enum SubmissionStatus {
+  DRAFT // Not submitted yet. Team is editing privately.
+  SUBMITTED // Submitted and visible to organizers. Waiting for review.
+  UNDER_REVIEW // A reviewer is actively reviewing it.
+  APPROVED // Approved and published for public view / judging.
+  REJECTED // Rejected by organizers (spam, incomplete, not eligible).
+  WITHDRAWN // Team voluntarily removed the submission.
 }
 
 enum HackathonCategory {
@@ -107,7 +106,7 @@ model users {
   createdAt                         DateTime                   @default(now())
   updatedAt                         DateTime                   @updatedAt
   teamMembers                       TeamMember[]
-  projects                          Project[]
+  submissions                       Submission[]
   rejectedHackathonCreationRequests HackathonCreationRequest[] @relation("rejectedHackathonCreationRequests")
   approvedHackathonCreationRequests HackathonCreationRequest[] @relation("approvedHackathonCreationRequests")
   hackathonQuestionThreads          HackathonQuestionThread[]
@@ -119,6 +118,7 @@ model users {
   ReceivedNotifications             Notification[]             @relation("NotificationsTo")
   teamInvitationsReceived           TeamInvitation[]           @relation("TeamInvitationsReceived")
   teamInvitationsSent               TeamInvitation[]           @relation("TeamInvitationsSent")
+  reviewedSubmissions               Submission[]               @relation("SubmissionReviewedBy")
 
   @@index([email])
   @@index([username])
@@ -553,7 +553,7 @@ model Hackathon {
   requiresApproval          Boolean  @default(false) // If true, participants need approval to join
   isPrivate                 Boolean  @default(false) // If true, hackathon can be accessed by invite only (participants need an invite passcode)
   invitePasscode            String? // Required if isPrivate is true, should be hashed using bcrypt before storing
-  isProjectWhiteListEnabled Boolean  @default(false) // If true, only whitelisted emails can submit projects
+  isProjectWhiteListEnabled Boolean  @default(false) // If true, only whitelisted emails can submit submissions
   projectWhitelistEmails    String[] @default([]) // List of whitelisted emails for project submission
 
   // Required project submission materials (video demo, pitch deck, code repo, etc.)
@@ -575,7 +575,7 @@ model Hackathon {
 
   // Virtual Relations
   tracks                    Track[]
-  projects                  Project[]
+  submissions               Submission[]
   prizes                    Prize[]
   hackathonCreationRequests HackathonCreationRequest[]
   customHackathonTabs       CustomHackathonTab[]
@@ -678,8 +678,8 @@ model Track {
 
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
 
-  projects Project[]
-  prizes   Prize[]
+  submissions Submission[]
+  prizes      Prize[]
 
   @@index([hackathonId])
   @@map("tracks")
@@ -711,19 +711,19 @@ model Prize {
 }
 
 model PrizeWinner {
-  id        String @id @default(cuid())
-  prizeId   String
-  projectId String
+  id           String @id @default(cuid())
+  prizeId      String
+  submissionId String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  prize   Prize   @relation(fields: [prizeId], references: [id], onDelete: Cascade)
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  prize      Prize      @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
-  @@unique([prizeId, projectId])
+  @@unique([prizeId, submissionId])
   @@index([prizeId])
-  @@index([projectId])
+  @@index([submissionId])
   @@map("prize_winners")
 }
 
@@ -742,8 +742,8 @@ model Bounty {
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   sponsor   Sponsor   @relation(fields: [sponsorId], references: [id])
 
-  prizes   Prize[]   @relation("BountyPrizes")
-  projects Project[]
+  prizes      Prize[]      @relation("BountyPrizes")
+  submissions Submission[]
 
   @@index([hackathonId])
   @@index([sponsorId])
@@ -799,10 +799,10 @@ model HackathonRegistration {
   @@map("hackathon_registrations")
 }
 
-model Project {
+model Submission {
   id          String  @id @default(cuid())
   hackathonId String
-  teamId      String  @unique // one project per team, each hackathon, create new team for new project
+  teamId      String
   creatorId   String
   trackId     String?
   bountyId    String?
@@ -813,8 +813,11 @@ model Project {
   logo        String?
 
   // Submission
-  status      ProjectStatus @default(DRAFT)
-  submittedAt DateTime?
+  status                 SubmissionStatus @default(DRAFT)
+  submittedAt            DateTime?
+  submissionReviewedAt   DateTime?
+  submissionReviewedById String?
+  submissionReviewedBy   users?           @relation("SubmissionReviewedBy", fields: [submissionReviewedById], references: [id], onDelete: SetNull)
 
   // Links
   demoUrl  String?
@@ -837,11 +840,13 @@ model Project {
   bounty       Bounty?       @relation(fields: [bountyId], references: [id], onDelete: SetNull)
   prizeWinners PrizeWinner[]
 
+  @@unique([teamId, hackathonId])
   @@index([hackathonId, status])
+  @@index([teamId])
   @@index([trackId])
   @@index([creatorId])
   @@index([submittedAt])
-  @@map("projects")
+  @@map("submissions")
 }
 
 model Team {
@@ -855,7 +860,7 @@ model Team {
   updatedAt DateTime @updatedAt
 
   members         TeamMember[]
-  projects        Project[]
+  submissions     Submission[]
   hackathon       Hackathon        @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   teamInvitations TeamInvitation[]
 
