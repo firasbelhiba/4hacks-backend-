@@ -578,6 +578,122 @@ export class TeamsService {
     return { message: 'Team invitation declined successfully', data: result };
   }
 
+  async removeMemberFromTeam(
+    hackathonId: string,
+    teamId: string,
+    memberId: string,
+    requesterUser: UserMin,
+  ) {
+    this.logger.log(
+      `Removing member ${memberId} from team ${teamId} for hackathon ${hackathonId} by user ${requesterUser.username}`,
+    );
+
+    // Check if hackathon exists
+    const hackathon = await this.prisma.hackathon.findUnique({
+      where: { id: hackathonId },
+      select: { status: true },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    if (hackathon.status !== HackathonStatus.ACTIVE) {
+      throw new BadRequestException('Hackathon is not active');
+    }
+
+    // Check if team exists
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId, hackathonId: hackathonId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Team not found');
+    }
+
+    // Check if the requester is the team leader
+    const leaderMember = team.members.find(
+      (m) => m.userId === requesterUser.id && m.isLeader,
+    );
+
+    if (!leaderMember) {
+      throw new BadRequestException('You are not the team leader');
+    }
+
+    // Check if the member to be removed is in the team
+    const memberToRemove = team.members.find((m) => m.id === memberId);
+
+    if (!memberToRemove) {
+      throw new BadRequestException('User is not a member of the team');
+    }
+
+    // Check if the member to be removed is the team leader
+    if (memberToRemove.isLeader) {
+      throw new BadRequestException(
+        'Cannot remove the team leader. Transfer leadership first.',
+      );
+    }
+
+    // Remove the member from the team
+    const deletedMember = await this.prisma.$transaction(async (tx) => {
+      const deletedMember = await tx.teamMember.delete({
+        where: { id: memberToRemove.id },
+      });
+
+      // Store the User Activity Log
+      await tx.userActivityLog.create({
+        data: {
+          userId: requesterUser.id,
+          action: 'REMOVE_TEAM_MEMBER',
+          targetType: ActivityTargetType.HACKATHON,
+          targetId: hackathonId,
+          isPublic: false,
+          description: `removed user ${memberToRemove.user.username} from team ${team.name} for hackathon ${hackathonId}`,
+        },
+      });
+
+      // Send a notification to the removed member
+      await tx.notification.create({
+        data: {
+          toUserId: memberToRemove.userId,
+          fromUserId: requesterUser.id,
+          type: 'TEAM_MEMBER_REMOVED',
+          content: `You have been removed from team ${team.name} for hackathon ${hackathonId} by ${requesterUser.username}`,
+          payload: {
+            teamId: team.id,
+            hackathonId: hackathonId,
+          },
+        },
+      });
+
+      return deletedMember;
+    });
+
+    this.logger.log(
+      `Member ${memberId} removed from team ${teamId} successfully`,
+    );
+
+    return {
+      message: 'Team member removed successfully',
+      data: deletedMember,
+    };
+  }
+
   async getTeamById(hackathonId: string, teamId: string) {
     const team = await this.prisma.team.findUnique({
       where: { id: teamId, hackathonId: hackathonId },

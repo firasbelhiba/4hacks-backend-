@@ -157,4 +157,34 @@ export class TeamsController {
       user,
     );
   }
+
+  @ApiOperation({
+    summary: 'Remove a member from a team',
+    description: 'Remove a member from a team',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team member removed successfully',
+  })
+  @ApiNotFoundResponse({ description: 'Hackathon, Team, or User not found' })
+  @ApiBadRequestResponse({
+    description: 'User is not a member of the team',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':teamId/members/:memberId/remove')
+  async removeMemberFromTeam(
+    @Param('hackathonId') hackathonId: string,
+    @Param('teamId') teamId: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser() user: UserMin,
+  ) {
+    return await this.teamsService.removeMemberFromTeam(
+      hackathonId,
+      teamId,
+      memberId,
+      user,
+    );
+  }
 }
