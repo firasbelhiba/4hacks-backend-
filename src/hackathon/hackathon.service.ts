@@ -819,4 +819,98 @@ export class HackathonService {
       data: updatedHackathon,
     };
   }
+
+  // TODO: Implement unarchiveHackathon method
+  // Question: Should unarchived hackathon go back to DRAFT or ACTIVE status?
+  // - DRAFT: Safer, owner must re-publish after updating dates
+  // - ACTIVE: Direct, but dates might be in the past
+  // Consider: Maybe require dates to be updated before unarchiving?
+
+  /**
+   * Archive a hackathon (organization owner only).
+   * Only ACTIVE hackathons that have ended can be archived.
+   * @param identifier - Hackathon ID or slug
+   * @param userId - ID of the user requesting the archive
+   * @returns The archived hackathon
+   */
+  async archiveHackathon(identifier: string, userId: string) {
+    // Find hackathon by ID or slug
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [{ id: identifier }, { slug: identifier }],
+      },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            ownerId: true,
+          },
+        },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check if user is the organization owner
+    if (hackathon.organization.ownerId !== userId) {
+      throw new UnauthorizedException(
+        'You are not authorized to archive this hackathon',
+      );
+    }
+
+    // Check if hackathon is ACTIVE
+    if (hackathon.status !== HackathonStatus.ACTIVE) {
+      if (hackathon.status === HackathonStatus.ARCHIVED) {
+        throw new BadRequestException('Hackathon is already archived');
+      }
+      if (hackathon.status === HackathonStatus.CANCELLED) {
+        throw new BadRequestException(
+          'Cannot archive a cancelled hackathon',
+        );
+      }
+      if (hackathon.status === HackathonStatus.DRAFT) {
+        throw new BadRequestException(
+          'Cannot archive a draft hackathon. Only published (ACTIVE) hackathons can be archived.',
+        );
+      }
+    }
+
+    // Check if hackathon has ended
+    const now = new Date();
+    if (hackathon.endDate > now) {
+      throw new BadRequestException(
+        'Cannot archive hackathon before it has ended. The hackathon end date has not passed yet.',
+      );
+    }
+
+    // Archive the hackathon
+    const archivedHackathon = await this.prisma.hackathon.update({
+      where: { id: hackathon.id },
+      data: {
+        status: HackathonStatus.ARCHIVED,
+      },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        status: true,
+        organizationId: true,
+        startDate: true,
+        endDate: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    this.logger.log(
+      `Hackathon ${hackathon.id} (${hackathon.title}) archived by owner ${userId}`,
+    );
+
+    return {
+      message: 'Hackathon archived successfully',
+      data: archivedHackathon,
+    };
+  }
 }

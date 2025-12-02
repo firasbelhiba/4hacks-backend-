@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
@@ -378,6 +379,82 @@ export class HackathonController {
     @CurrentUser('id') userId: string,
   ) {
     return await this.hackathonService.publishHackathon(identifier, userId);
+  }
+
+  @ApiOperation({
+    summary: 'Archive a hackathon (Owner only)',
+    description: `
+Archive a hackathon by changing its status from ACTIVE to ARCHIVED.
+Only the organization owner can archive their hackathons.
+
+**Restrictions:**
+- Only **ACTIVE** hackathons can be archived
+- The hackathon **end date must have passed** (cannot archive ongoing hackathons)
+- Cannot archive DRAFT hackathons (not published yet)
+- Cannot archive CANCELLED hackathons
+- Cannot archive already ARCHIVED hackathons
+    `,
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hackathon archived successfully.',
+    schema: {
+      example: {
+        message: 'Hackathon archived successfully',
+        data: {
+          id: 'cuid',
+          title: 'Hackathon Title',
+          slug: 'hackathon-slug',
+          status: 'ARCHIVED',
+          organizationId: 'cuid',
+          startDate: '2024-12-16T00:00:00.000Z',
+          endDate: '2024-12-30T00:00:00.000Z',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-15T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - User is not the organization owner',
+    schema: {
+      example: {
+        message: 'You are not authorized to archive this hackathon',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+    schema: {
+      example: {
+        message: 'Hackathon not found',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Cannot archive hackathon due to its current status or timing',
+    schema: {
+      example: {
+        message:
+          'Cannot archive hackathon before it has ended. The hackathon end date has not passed yet.',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':identifier/archive')
+  async archiveHackathon(
+    @Param('identifier') identifier: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return await this.hackathonService.archiveHackathon(identifier, userId);
   }
 
   @ApiOperation({
