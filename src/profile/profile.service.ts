@@ -26,7 +26,7 @@ import {
 import {
   PasswordChangedEmailTemplateHtml,
   TwoFactorEmailCodeTemplateHtml,
-} from 'src/common/templates/emails.templates.list';
+} from 'src/common/templates/emails/user.emails';
 import type { Cache } from 'cache-manager';
 import {
   changeEmailRedisPrefix,
