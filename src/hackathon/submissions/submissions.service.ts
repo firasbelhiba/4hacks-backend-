@@ -612,4 +612,115 @@ export class SubmissionsService {
       data: updatedSubmission,
     };
   }
+
+  async getSubmissionById(submissionId: string, requesterUser: UserMin | null) {
+    this.logger.log(
+      `Getting submission ${submissionId} by user ${requesterUser?.username || 'anonymous'}`,
+    );
+
+    // Fetch submission with team members
+    const submission = await this.prismaService.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        team: {
+          include: {
+            members: {
+              select: {
+                userId: true,
+                isLeader: true,
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    image: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        hackathon: {
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            description: true,
+            startDate: true,
+            endDate: true,
+            status: true,
+            requiredSubmissionMaterials: true,
+            isPrivate: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                ownerId: true,
+              },
+            },
+          },
+        },
+        track: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        bounty: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            rewardAmount: true,
+            rewardToken: true,
+          },
+        },
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found');
+    }
+
+    // Authorization logic
+    const isAdmin = requesterUser?.role === 'ADMIN';
+    const isOrganizationOwner =
+      requesterUser?.id === submission.hackathon.organization.ownerId;
+    const isTeamMember =
+      requesterUser &&
+      submission.team?.members.some((m) => m.userId === requesterUser.id);
+
+    // Check if user has special access (admin, org owner, or team member)
+    const hasSpecialAccess = isAdmin || isOrganizationOwner || isTeamMember;
+
+    // If hackathon is private and user doesn't have special access, deny access
+    if (submission.hackathon.isPrivate && !hasSpecialAccess) {
+      throw new ForbiddenException(
+        'This hackathon is private. You do not have permission to view submissions.',
+      );
+    }
+
+    // If submission is not approved (UNDER_REVIEW, REJECTED, DRAFT, WITHDRAWN)
+    // only allow access to admins, org owners, and team members
+    if (submission.status !== SubmissionStatus.SUBMITTED && !hasSpecialAccess) {
+      throw new ForbiddenException(
+        'You do not have permission to view this submission',
+      );
+    }
+
+    return {
+      message: 'Submission retrieved successfully',
+      data: submission,
+    };
+  }
 }
