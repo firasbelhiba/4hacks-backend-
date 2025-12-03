@@ -51,16 +51,17 @@ export class SubmissionsService {
       throw new BadRequestException('Hackathon is not active');
     }
 
-    // TODO: Check if hackathon submission is open
-    // const now = new Date();
+    // Check if hackathon submission is open
+    const now = new Date();
 
-    // if (hackathon.registrationEnd < now) {
-    //   throw new BadRequestException('Hackathon submission is not open yet');
-    // }
+    // Now should be between start and end dates
+    if (now < hackathon.startDate) {
+      throw new BadRequestException('Hackathon submission is not open yet');
+    }
 
-    // if (hackathon.startDate < now) {
-    //   throw new BadRequestException('Hackathon submission is closed');
-    // }
+    if (now > hackathon.endDate) {
+      throw new BadRequestException('Hackathon submission is closed');
+    }
 
     // Check if team exists for hackathon
     const team = await this.prismaService.team.findUnique({
