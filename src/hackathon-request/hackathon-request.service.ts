@@ -72,6 +72,19 @@ export class HackathonRequestService {
     }
 
     // Validate judging dates if provided
+    if (!judgingStart && judgingEnd) {
+      throw new BadRequestException(
+        'Judging end date cannot exist without a judging start date',
+      );
+    }
+
+    if (!judgingEnd && judgingStart) {
+      throw new BadRequestException(
+        'Judging start date cannot exist without a judging end date',
+      );
+    }
+
+    // Validate judging dates if provided
     if (judgingStart) {
       if (judgingStart < endDate) {
         throw new BadRequestException(

@@ -538,13 +538,13 @@ model Hackathon {
   ressources              String            @default("") @db.Text
 
   // Dates
-  registrationStart      DateTime
-  registrationEnd        DateTime
-  startDate              DateTime
-  endDate                DateTime
-  judgingStart           DateTime?
-  judgingEnd             DateTime?
-  winnerAnnouncementDate DateTime?
+  registrationStart      DateTime // registration open
+  registrationEnd        DateTime // registration close
+  startDate              DateTime // hackathon submission start
+  endDate                DateTime // hackathon submission end
+  judgingStart           DateTime? // judging start
+  judgingEnd             DateTime? // judging end
+  winnerAnnouncementDate DateTime? // winner announcement
 
   // Settings
   maxTeamSize               Int      @default(4) // when this  = 1, it means only individual participation is allowed
