@@ -10,7 +10,11 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
 import { ManageSponsorsDto } from './dto/sponsor.dto';
-import { HackathonStatus, UserRole } from 'generated/prisma';
+import {
+  QueryHackathonsDto,
+  PaginatedHackathonsDto,
+} from './dto/query-hackathons.dto';
+import { HackathonStatus, UserRole, Prisma } from 'generated/prisma';
 import * as bcrypt from 'bcrypt';
 import { UserMin } from 'src/common/types';
 
@@ -19,6 +23,187 @@ export class HackathonService {
   private readonly logger = new Logger(HackathonService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Gets all hackathons with pagination, filtering, search, and sorting.
+   * Access control:
+   * - Admins see all hackathons
+   * - Authenticated users see all ACTIVE hackathons + their own non-public hackathons
+   * - Unauthenticated users see only ACTIVE hackathons
+   * @param query - Query parameters for pagination, filtering, search, and sorting.
+   * @param user - Optional authenticated user.
+   * @returns Paginated list of hackathons.
+   */
+  async findAll(
+    query: QueryHackathonsDto,
+    user?: UserMin,
+  ): Promise<PaginatedHackathonsDto> {
+    const isAdmin = user?.role === UserRole.ADMIN;
+    const userId = user?.id;
+
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      type,
+      category,
+      isPrivate,
+      prizePoolFrom,
+      prizePoolTo,
+      startDateFrom,
+      startDateTo,
+      organizationId,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = query;
+
+    // Build visibility where clause based on user role
+    let visibilityWhere: Prisma.HackathonWhereInput;
+
+    if (isAdmin) {
+      // Admin sees everything - apply status filter if provided
+      visibilityWhere = status ? { status } : {};
+    } else if (userId) {
+      // Authenticated user: ACTIVE + own non-public hackathons
+      visibilityWhere = {
+        OR: [
+          { status: HackathonStatus.ACTIVE },
+          {
+            status: {
+              in: [
+                HackathonStatus.DRAFT,
+                HackathonStatus.ARCHIVED,
+                HackathonStatus.CANCELLED,
+              ],
+            },
+            organization: { ownerId: userId },
+          },
+        ],
+      };
+    } else {
+      // Unauthenticated: only ACTIVE
+      visibilityWhere = { status: HackathonStatus.ACTIVE };
+    }
+
+    // Build additional filters
+    const filterWhere: Prisma.HackathonWhereInput = {};
+
+    if (type) {
+      filterWhere.type = type;
+    }
+
+    if (category) {
+      filterWhere.category = category;
+    }
+
+    if (isPrivate !== undefined) {
+      filterWhere.isPrivate = isPrivate;
+    }
+
+    if (prizePoolFrom !== undefined || prizePoolTo !== undefined) {
+      filterWhere.prizePool = {};
+      if (prizePoolFrom !== undefined) {
+        filterWhere.prizePool.gte = prizePoolFrom;
+      }
+      if (prizePoolTo !== undefined) {
+        filterWhere.prizePool.lte = prizePoolTo;
+      }
+    }
+
+    if (startDateFrom || startDateTo) {
+      filterWhere.startDate = {};
+      if (startDateFrom) {
+        filterWhere.startDate.gte = new Date(startDateFrom);
+      }
+      if (startDateTo) {
+        filterWhere.startDate.lte = new Date(startDateTo);
+      }
+    }
+
+    if (organizationId) {
+      filterWhere.organizationId = organizationId;
+    }
+
+    // Search across multiple fields
+    if (search) {
+      filterWhere.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { tagline: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Combine visibility and filter conditions
+    const where: Prisma.HackathonWhereInput = {
+      AND: [visibilityWhere, filterWhere],
+    };
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Build orderBy clause for sorting
+    const orderBy: Prisma.HackathonOrderByWithRelationInput = {
+      [sortBy]: sortOrder,
+    };
+
+    // Select fields for the list view
+    const selectFields = {
+      id: true,
+      title: true,
+      slug: true,
+      status: true,
+      type: true,
+      category: true,
+      banner: true,
+      tagline: true,
+      prizePool: true,
+      prizeToken: true,
+      isPrivate: true,
+      registrationStart: true,
+      registrationEnd: true,
+      startDate: true,
+      endDate: true,
+      createdAt: true,
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logo: true,
+        },
+      },
+    };
+
+    // Execute queries in parallel
+    const [data, total] = await Promise.all([
+      this.prisma.hackathon.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        select: selectFields,
+      }),
+      this.prisma.hackathon.count({ where }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+      },
+    };
+  }
 
   async update(
     hackathonIdentifier: string,
@@ -632,6 +817,127 @@ export class HackathonService {
     return {
       message: 'Hackathon published successfully',
       data: updatedHackathon,
+    };
+  }
+
+  // TODO: Implement unarchiveHackathon method
+  // Question: Should unarchived hackathon go back to DRAFT or ACTIVE status?
+  // - DRAFT: Safer, owner must re-publish after updating dates
+  // - ACTIVE: Direct, but dates might be in the past
+  // Consider: Maybe require dates to be updated before unarchiving?
+
+  /**
+   * Archive a hackathon (organization owner only).
+   * DRAFT hackathons can be archived anytime.
+   * ACTIVE hackathons can be archived if:
+   * - Not started yet (before registrationStart), OR
+   * - Everything is done (after endDate and judgingEnd if provided)
+   * @param identifier - Hackathon ID or slug
+   * @param userId - ID of the user requesting the archive
+   * @returns The archived hackathon
+   */
+  async archiveHackathon(identifier: string, userId: string) {
+    // Find hackathon by ID or slug
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [{ id: identifier }, { slug: identifier }],
+      },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            ownerId: true,
+          },
+        },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check if user is the organization owner
+    if (hackathon.organization.ownerId !== userId) {
+      throw new UnauthorizedException(
+        'You are not authorized to archive this hackathon',
+      );
+    }
+
+    // Check if status allows archiving (only DRAFT or ACTIVE)
+    if (
+      hackathon.status !== HackathonStatus.DRAFT &&
+      hackathon.status !== HackathonStatus.ACTIVE
+    ) {
+      throw new BadRequestException(
+        `Cannot archive hackathon with status ${hackathon.status}. Only DRAFT or ACTIVE hackathons can be archived.`,
+      );
+    }
+
+    // For ACTIVE hackathons, check timing restrictions
+    if (hackathon.status === HackathonStatus.ACTIVE) {
+      const now = new Date();
+
+      // Check if hackathon has not started yet (can archive before it starts)
+      const notStartedYet = now < hackathon.registrationStart;
+
+      // Determine the "true end" of the hackathon
+      // If judgingEnd exists, that's the actual end; otherwise use endDate
+      const trueEndDate = hackathon.judgingEnd || hackathon.endDate;
+      const everythingDone = now > trueEndDate;
+
+      // Can only archive if not started yet OR everything is done
+      if (!notStartedYet && !everythingDone) {
+        // Determine what period we're in for a helpful error message
+        if (now >= hackathon.registrationStart && now <= hackathon.endDate) {
+          throw new BadRequestException(
+            'Cannot archive hackathon while it is in progress. Wait until the hackathon ends.',
+          );
+        }
+        if (
+          hackathon.judgingStart &&
+          hackathon.judgingEnd &&
+          now >= hackathon.judgingStart &&
+          now <= hackathon.judgingEnd
+        ) {
+          throw new BadRequestException(
+            'Cannot archive hackathon while judging is in progress. Wait until judging ends.',
+          );
+        }
+        // In the gap between endDate and judgingStart
+        if (hackathon.judgingEnd && now > hackathon.endDate) {
+          throw new BadRequestException(
+            'Cannot archive hackathon before judging period is complete. Wait until judging ends.',
+          );
+        }
+      }
+    }
+
+    // Archive the hackathon
+    const archivedHackathon = await this.prisma.hackathon.update({
+      where: { id: hackathon.id },
+      data: {
+        status: HackathonStatus.ARCHIVED,
+      },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        status: true,
+        organizationId: true,
+        startDate: true,
+        endDate: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    this.logger.log(
+      `Hackathon ${hackathon.id} (${hackathon.title}) archived by owner ${userId}`,
+    );
+
+    return {
+      message: 'Hackathon archived successfully',
+      data: archivedHackathon,
     };
   }
 }

@@ -13,6 +13,7 @@ import {
   ActivityTargetType,
   HackathonStatus,
   Prisma,
+  RequestStatus,
   UserRole,
 } from 'generated/prisma';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
@@ -322,6 +323,11 @@ export class OrganizationService {
     // Build where clause for filtering
     const where: Prisma.OrganizationWhereInput = {};
 
+    // Hide archived organizations from non-admin users
+    if (!isAdmin) {
+      where.isArchived = false;
+    }
+
     if (type) {
       where.type = type;
     }
@@ -423,6 +429,8 @@ export class OrganizationService {
           otherSocials: true, // Private field
           sector: true,
           ownerId: true, // Private field
+          isArchived: true, // Private field
+          archivedAt: true, // Private field
           createdAt: true,
           updatedAt: true,
           owner: {
@@ -500,6 +508,169 @@ export class OrganizationService {
         hasNextPage,
         hasPrevPage,
       },
+    };
+  }
+
+  /**
+   * Archive an organization (owner only).
+   * Organization must not have any ACTIVE or DRAFT hackathons, or PENDING requests.
+   * @param identifier - Organization ID or slug
+   * @param userId - ID of the user requesting the archive
+   * @returns The archived organization
+   */
+  async archiveOrganization(identifier: string, userId: string) {
+    // Find organization by ID or slug
+    const organization = await this.prismaService.organization.findFirst({
+      where: {
+        OR: [{ id: identifier }, { slug: identifier }],
+      },
+      include: {
+        hackathons: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+        hackathonCreationRequests: {
+          where: {
+            status: RequestStatus.PENDING,
+          },
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    // Check if user is the owner
+    if (organization.ownerId !== userId) {
+      throw new ForbiddenException(
+        'You are not authorized to archive this organization',
+      );
+    }
+
+    // Check if already archived
+    if (organization.isArchived) {
+      throw new BadRequestException('Organization is already archived');
+    }
+
+    // Check for ACTIVE hackathons
+    const activeHackathons = organization.hackathons.filter(
+      (h) => h.status === HackathonStatus.ACTIVE,
+    );
+    if (activeHackathons.length > 0) {
+      throw new BadRequestException(
+        `Cannot archive organization - has ${activeHackathons.length} active hackathon(s). Archive or cancel them first.`,
+      );
+    }
+
+    // Check for DRAFT hackathons
+    const draftHackathons = organization.hackathons.filter(
+      (h) => h.status === HackathonStatus.DRAFT,
+    );
+    if (draftHackathons.length > 0) {
+      throw new BadRequestException(
+        `Cannot archive organization - has ${draftHackathons.length} draft hackathon(s). Delete or publish them first.`,
+      );
+    }
+
+    // Check for PENDING hackathon requests
+    if (organization.hackathonCreationRequests.length > 0) {
+      throw new BadRequestException(
+        `Cannot archive organization - has ${organization.hackathonCreationRequests.length} pending hackathon request(s). Wait for approval or rejection.`,
+      );
+    }
+
+    // Archive the organization
+    const archivedOrganization = await this.prismaService.organization.update({
+      where: { id: organization.id },
+      data: {
+        isArchived: true,
+        archivedAt: new Date(),
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        displayName: true,
+        isArchived: true,
+        archivedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    this.logger.log(
+      `Organization ${organization.id} (${organization.name}) archived by owner ${userId}`,
+    );
+
+    return {
+      message: 'Organization archived successfully',
+      data: archivedOrganization,
+    };
+  }
+
+  /**
+   * Unarchive an organization (owner only).
+   * @param identifier - Organization ID or slug
+   * @param userId - ID of the user requesting the unarchive
+   * @returns The unarchived organization
+   */
+  async unarchiveOrganization(identifier: string, userId: string) {
+    // Find organization by ID or slug
+    const organization = await this.prismaService.organization.findFirst({
+      where: {
+        OR: [{ id: identifier }, { slug: identifier }],
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    // Check if user is the owner
+    if (organization.ownerId !== userId) {
+      throw new ForbiddenException(
+        'You are not authorized to unarchive this organization',
+      );
+    }
+
+    // Check if actually archived
+    if (!organization.isArchived) {
+      throw new BadRequestException('Organization is not archived');
+    }
+
+    // Unarchive the organization
+    const unarchivedOrganization =
+      await this.prismaService.organization.update({
+        where: { id: organization.id },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          displayName: true,
+          isArchived: true,
+          archivedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+    this.logger.log(
+      `Organization ${organization.id} (${organization.name}) unarchived by owner ${userId}`,
+    );
+
+    return {
+      message: 'Organization unarchived successfully',
+      data: unarchivedOrganization,
     };
   }
 }

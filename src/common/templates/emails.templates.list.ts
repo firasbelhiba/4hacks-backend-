@@ -393,6 +393,106 @@ export const HackathonRequestApprovedEmailTemplateHtml = (
   `;
 };
 
+export const HackathonCancelledEmailTemplateHtml = (
+  ownerName: string,
+  hackathonTitle: string,
+  hackathonSlug: string,
+  organizationName: string,
+  cancelReason: string,
+) => {
+  const contactLink = `${process.env.FRONTEND_URL || 'https://4hacks.io'}/contact`;
+
+  return `
+    <html>
+      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 40px 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+              Hackathon Cancelled
+            </h1>
+            <p style="color: #fecaca; margin: 12px 0 0 0; font-size: 16px;">
+              Important Notice About Your Hackathon
+            </p>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 40px 30px;">
+            <p style="margin: 0 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              Hello <strong>${ownerName}</strong>,
+            </p>
+
+            <p style="margin: 0 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              We regret to inform you that your hackathon <strong>"${hackathonTitle}"</strong> hosted by <strong>${organizationName}</strong> has been cancelled by a 4Hacks platform administrator.
+            </p>
+
+            <!-- Hackathon Details Card -->
+            <div style="background-color: #f8fafc; border-left: 4px solid #ef4444; padding: 24px; margin: 30px 0; border-radius: 8px;">
+              <h2 style="margin: 0 0 16px 0; font-size: 22px; color: #ef4444; font-weight: 600;">
+                ${hackathonTitle}
+              </h2>
+              
+              <div style="margin-bottom: 12px;">
+                <span style="display: inline-block; color: #64748b; font-size: 14px; font-weight: 600; width: 100px;">Status:</span>
+                <span style="color: #ef4444; font-size: 14px; font-weight: 700;">CANCELLED</span>
+              </div>
+              
+              <div>
+                <span style="display: inline-block; color: #64748b; font-size: 14px; font-weight: 600; width: 100px;">Organization:</span>
+                <span style="color: #1e293b; font-size: 14px; font-weight: 500;">${organizationName}</span>
+              </div>
+            </div>
+
+            <!-- Cancellation Reason -->
+            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px; margin: 30px 0;">
+              <h3 style="margin: 0 0 12px 0; font-size: 18px; color: #991b1b; font-weight: 600;">
+                📝 Reason for Cancellation
+              </h3>
+              <p style="margin: 0; color: #7f1d1d; line-height: 1.8; font-size: 15px;">
+                ${cancelReason}
+              </p>
+            </div>
+
+            <p style="margin: 30px 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              If you believe this cancellation was made in error or have any questions, please don't hesitate to contact our support team.
+            </p>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${contactLink}" 
+                 style="
+                   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                   color: #ffffff;
+                   padding: 16px 40px;
+                   text-decoration: none;
+                   border-radius: 8px;
+                   display: inline-block;
+                   font-weight: 600;
+                   font-size: 16px;
+                   box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+                 ">
+                Contact Support
+              </a>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b;">
+              Questions? Reach out at <a href="mailto:support@4hacks.io" style="color: #667eea; text-decoration: none;">support@4hacks.io</a>
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #94a3b8;">
+              © 2025 4Hacks. All rights reserved.
+            </p>
+          </div>
+
+        </div>
+      </body>
+    </html>
+  `;
+};
+
 export const HackathonRequestRejectedEmailTemplateHtml = (
   ownerName: string,
   hackathonTitle: string,

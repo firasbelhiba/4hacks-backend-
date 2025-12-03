@@ -11,9 +11,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -819,6 +822,172 @@ export class OrganizationController {
       identifier,
       updateOrganizationDto,
       logo,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Archive an organization (Owner only)',
+    description: `
+Archive an organization to hide it from public listings.
+Only the organization owner can archive their organization.
+
+**Restrictions:**
+- Cannot archive if there are **ACTIVE** hackathons (archive or cancel them first)
+- Cannot archive if there are **DRAFT** hackathons (delete or publish them first)
+- Cannot archive if there are **PENDING** hackathon creation requests (wait for approval/rejection)
+- Cannot archive an already archived organization
+
+**Effects:**
+- Organization will be hidden from public listings
+- Organization can be unarchived later by the owner
+    `,
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'Organization ID or slug',
+    required: true,
+    type: String,
+    example: 'my-organization',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Organization archived successfully',
+    schema: {
+      example: {
+        message: 'Organization archived successfully',
+        data: {
+          id: 'clxyz123',
+          name: 'My Organization',
+          slug: 'my-organization',
+          displayName: 'My Org',
+          isArchived: true,
+          archivedAt: '2025-01-15T00:00:00.000Z',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2025-01-15T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'Organization not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'User is not the organization owner',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'You are not authorized to archive this organization',
+        error: 'Forbidden',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Cannot archive due to existing hackathons or requests',
+    schema: {
+      example: {
+        statusCode: 400,
+        message:
+          'Cannot archive organization - has 2 active hackathon(s). Archive or cancel them first.',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':identifier/archive')
+  async archiveOrganization(
+    @CurrentUser('id') userId: string,
+    @Param('identifier') identifier: string,
+  ) {
+    return await this.organizationService.archiveOrganization(
+      identifier,
+      userId,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Unarchive an organization (Owner only)',
+    description: `
+Unarchive a previously archived organization to make it visible again in public listings.
+Only the organization owner can unarchive their organization.
+
+**Requirements:**
+- Organization must be currently archived
+    `,
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'Organization ID or slug',
+    required: true,
+    type: String,
+    example: 'my-organization',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Organization unarchived successfully',
+    schema: {
+      example: {
+        message: 'Organization unarchived successfully',
+        data: {
+          id: 'clxyz123',
+          name: 'My Organization',
+          slug: 'my-organization',
+          displayName: 'My Org',
+          isArchived: false,
+          archivedAt: null,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2025-01-15T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'Organization not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'User is not the organization owner',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'You are not authorized to unarchive this organization',
+        error: 'Forbidden',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Organization is not archived',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Organization is not archived',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':identifier/unarchive')
+  async unarchiveOrganization(
+    @CurrentUser('id') userId: string,
+    @Param('identifier') identifier: string,
+  ) {
+    return await this.organizationService.unarchiveOrganization(
+      identifier,
+      userId,
     );
   }
 }
