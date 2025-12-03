@@ -9,7 +9,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { ManageTrackPrizesDto } from './dto/manage-track.dto';
 import { UserMin } from 'src/common/types';
 import { HackathonStatus, UserRole, PrizeType } from 'generated/prisma';
-import { MAX_WINNERS_BY_TRACK } from '../constants';
+import { MAX_WINNERS_BY_BOUNTY, MAX_WINNERS_BY_TRACK } from '../constants';
+import { ManageBountyPrizesDto } from './dto/manage-bounty.dto';
 
 @Injectable()
 export class PrizesService {
@@ -217,6 +218,237 @@ export class PrizesService {
     return this.prismaService.prize.findMany({
       where: {
         trackId,
+      },
+      orderBy: {
+        position: 'asc',
+      },
+    });
+  }
+
+  async getBountyPrizes(bountyId: string, user?: UserMin) {
+    // Check if the bounty exists
+    const bounty = await this.prismaService.bounty.findUnique({
+      where: {
+        id: bountyId,
+      },
+      select: {
+        hackathon: {
+          select: {
+            id: true,
+            status: true,
+            isPrivate: true,
+            organization: {
+              select: {
+                id: true,
+                ownerId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!bounty) {
+      throw new NotFoundException('Bounty not found');
+    }
+
+    const isAdmin = user?.role === UserRole.ADMIN;
+    const isOrganizer = user?.id === bounty.hackathon.organization.ownerId;
+
+    // Check if user is registered in the hackathon
+    let isRegistered: boolean = false;
+
+    if (bounty.hackathon.isPrivate && user) {
+      const userRegistration =
+        await this.prismaService.hackathonRegistration.findUnique({
+          where: {
+            hackathonId_userId: {
+              hackathonId: bounty.hackathon.id,
+              userId: user.id,
+            },
+          },
+        });
+
+      // isRegistred is true if the user is registered in the hackathon
+      isRegistered = !!userRegistration;
+    }
+
+    // Check if user is allowed to manage prizes
+    if (!isAdmin && !isOrganizer) {
+      if (bounty.hackathon.isPrivate && !isRegistered) {
+        throw new ForbiddenException(
+          'You are not registered for this private hackathon',
+        );
+      }
+      if (bounty.hackathon.status !== HackathonStatus.ACTIVE) {
+        throw new ForbiddenException('Hackathon is not active');
+      }
+    }
+
+    // Return prizes of the bounty ordered by position
+    return this.prismaService.prize.findMany({
+      where: {
+        bountyId,
+      },
+      orderBy: {
+        position: 'asc',
+      },
+    });
+  }
+
+  async manageBountyPrizes(
+    bountyId: string,
+    ManageBountyPrizesDto: ManageBountyPrizesDto,
+    user: UserMin,
+  ) {
+    const { prizes } = ManageBountyPrizesDto;
+
+    // Check if the bounty exists
+    const bounty = await this.prismaService.bounty.findUnique({
+      where: {
+        id: bountyId,
+      },
+      select: {
+        hackathon: {
+          select: {
+            id: true,
+            status: true,
+            isPrivate: true,
+            organization: {
+              select: {
+                id: true,
+                ownerId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!bounty) {
+      throw new NotFoundException('Bounty not found');
+    }
+
+    const isAdmin = user.role === UserRole.ADMIN;
+    const isOrganizer = user.id === bounty.hackathon.organization.ownerId;
+
+    // Check if user is registered in the hackathon
+    let isRegistered: boolean = false;
+
+    if (bounty.hackathon.isPrivate && user) {
+      const userRegistration =
+        await this.prismaService.hackathonRegistration.findUnique({
+          where: {
+            hackathonId_userId: {
+              hackathonId: bounty.hackathon.id,
+              userId: user.id,
+            },
+          },
+        });
+
+      // isRegistred is true if the user is registered in the hackathon
+      isRegistered = !!userRegistration;
+    }
+
+    // Check if user is allowed to manage prizes
+    if (!isAdmin && !isOrganizer) {
+      if (bounty.hackathon.isPrivate && !isRegistered) {
+        throw new ForbiddenException(
+          'You are not registered for this private hackathon',
+        );
+      }
+      if (bounty.hackathon.status !== HackathonStatus.ACTIVE) {
+        throw new ForbiddenException('Hackathon is not active');
+      }
+    }
+
+    // Validate max prizes
+    if (prizes.length > MAX_WINNERS_BY_BOUNTY) {
+      throw new BadRequestException(
+        `You can only have a maximum of ${MAX_WINNERS_BY_BOUNTY} prizes per bounty`,
+      );
+    }
+
+    // Get existing prizes
+    const existingPrizes = await this.prismaService.prize.findMany({
+      where: {
+        bountyId,
+      },
+    });
+
+    const existingPrizeIds = existingPrizes.map((p) => p.id);
+    const incomingPrizeIds = prizes
+      .filter((p) => p.id)
+      .map((p) => p.id as string);
+
+    // Identify prizes to delete (exist in DB but not in incoming list)
+    const prizesToDelete = existingPrizeIds.filter(
+      (id) => !incomingPrizeIds.includes(id),
+    );
+
+    // Identify prizes to update (exist in both)
+    const prizesToUpdate = prizes.filter(
+      (p) => p.id && existingPrizeIds.includes(p.id),
+    );
+
+    // Identify prizes to create (no id)
+    const prizesToCreate = prizes.filter((p) => !p.id);
+
+    // Check if there is duplicate position
+    const positions = prizes.map((p) => p.position);
+    const uniquePositions = new Set(positions);
+
+    if (positions.length !== uniquePositions.size) {
+      throw new BadRequestException('Duplicate positions found');
+    }
+
+    // Execute in transaction
+    await this.prismaService.$transaction(async (tx) => {
+      // Delete
+      if (prizesToDelete.length > 0) {
+        await tx.prize.deleteMany({
+          where: {
+            id: { in: prizesToDelete },
+            bountyId, // Safety check
+          },
+        });
+      }
+
+      // Update
+      for (const prize of prizesToUpdate) {
+        await tx.prize.update({
+          where: { id: prize.id },
+          data: {
+            position: prize.position,
+            name: prize.name,
+            amount: prize.amount,
+            token: prize.token,
+            type: PrizeType.BOUNTY, // Ensure type is BOUNTY
+            // bountyId is already set
+          },
+        });
+      }
+
+      // Create
+      if (prizesToCreate.length > 0) {
+        await tx.prize.createMany({
+          data: prizesToCreate.map((p) => ({
+            hackathonId: bounty.hackathon.id,
+            bountyId,
+            position: p.position,
+            name: p.name,
+            amount: p.amount,
+            token: p.token,
+            type: PrizeType.BOUNTY,
+          })),
+        });
+      }
+    });
+
+    // Return updated list
+    return this.prismaService.prize.findMany({
+      where: {
+        bountyId,
       },
       orderBy: {
         position: 'asc',

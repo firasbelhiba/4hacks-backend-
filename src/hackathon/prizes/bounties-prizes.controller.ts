@@ -21,24 +21,25 @@ import {
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { UserMin } from 'src/common/types';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
+import { ManageBountyPrizesDto } from './dto/manage-bounty.dto';
 
 @ApiBearerAuth()
 @ApiTags('Hackathon Prizes')
-@Controller('tracks/:trackId/prizes')
-export class PrizesController {
+@Controller('bounties/:bountyId/prizes')
+export class BountiesPrizesController {
   constructor(private readonly prizesService: PrizesService) {}
 
-  @ApiOperation({ summary: 'Get prizes for a track' })
+  @ApiOperation({ summary: 'Get prizes for a bounty' })
   @ApiResponse({
     status: 200,
-    description: 'List of prizes for the track',
+    description: 'List of prizes for the bounty',
     example: [
       {
         id: '1',
         position: 1,
         name: 'First Place',
-        type: 'TRACK',
-        trackId: '1',
+        type: 'BOUNTY',
+        bountyId: '1',
         amount: 100,
         token: 'USD',
       },
@@ -49,10 +50,10 @@ export class PrizesController {
   @UseGuards(OptionalJwtAuthGuard)
   @Get()
   async getPrizes(
-    @Param('trackId') trackId: string,
+    @Param('bountyId') bountyId: string,
     @CurrentUser() user?: UserMin,
   ) {
-    return this.prizesService.getTrackPrizes(trackId, user);
+    return this.prizesService.getBountyPrizes(bountyId, user);
   }
 
   @ApiOperation({ summary: 'Manage prizes for a track' })
@@ -76,10 +77,10 @@ export class PrizesController {
   @UseGuards(JwtAuthGuard)
   @Put()
   async managePrizes(
-    @Param('trackId') trackId: string,
-    @Body() managePrizesDto: ManageTrackPrizesDto,
+    @Param('bountyId') bountyId: string,
+    @Body() managePrizesDto: ManageBountyPrizesDto,
     @CurrentUser() user: UserMin,
   ) {
-    return this.prizesService.manageTrackPrizes(trackId, managePrizesDto, user);
+    return this.prizesService.manageBountyPrizes(bountyId, managePrizesDto, user);
   }
 }
