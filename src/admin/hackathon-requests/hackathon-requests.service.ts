@@ -198,15 +198,16 @@ export class HackathonRequestsService {
           slug: request.hackSlug,
           description: `${request.focus}\n\nTarget Audience: ${request.audience}`,
           location:
+            // TODO: test it to confirm this is the correct way to handle location
             request.hackType !== HackathonType.ONLINE
               ? [
-                  request.hackAddress,
-                  request.hackCity,
-                  request.hackState,
-                  request.hackCountry,
+                  {
+                    address: request.hackAddress,
+                    city: request.hackCity,
+                    state: request.hackState,
+                    country: request.hackCountry,
+                  },
                 ]
-                  .filter(Boolean)
-                  .join(', ')
               : Prisma.JsonNull,
           category: request.hackCategory,
           type: request.hackType,
