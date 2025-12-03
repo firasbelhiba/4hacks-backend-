@@ -828,7 +828,10 @@ export class HackathonService {
 
   /**
    * Archive a hackathon (organization owner only).
-   * Only ACTIVE hackathons that have ended can be archived.
+   * DRAFT hackathons can be archived anytime.
+   * ACTIVE hackathons can be archived if:
+   * - Not started yet (before registrationStart), OR
+   * - Everything is done (after endDate and judgingEnd if provided)
    * @param identifier - Hackathon ID or slug
    * @param userId - ID of the user requesting the archive
    * @returns The archived hackathon
@@ -860,29 +863,53 @@ export class HackathonService {
       );
     }
 
-    // Check if hackathon is ACTIVE
-    if (hackathon.status !== HackathonStatus.ACTIVE) {
-      if (hackathon.status === HackathonStatus.ARCHIVED) {
-        throw new BadRequestException('Hackathon is already archived');
-      }
-      if (hackathon.status === HackathonStatus.CANCELLED) {
-        throw new BadRequestException(
-          'Cannot archive a cancelled hackathon',
-        );
-      }
-      if (hackathon.status === HackathonStatus.DRAFT) {
-        throw new BadRequestException(
-          'Cannot archive a draft hackathon. Only published (ACTIVE) hackathons can be archived.',
-        );
-      }
+    // Check if status allows archiving (only DRAFT or ACTIVE)
+    if (
+      hackathon.status !== HackathonStatus.DRAFT &&
+      hackathon.status !== HackathonStatus.ACTIVE
+    ) {
+      throw new BadRequestException(
+        `Cannot archive hackathon with status ${hackathon.status}. Only DRAFT or ACTIVE hackathons can be archived.`,
+      );
     }
 
-    // Check if hackathon has ended
-    const now = new Date();
-    if (hackathon.endDate > now) {
-      throw new BadRequestException(
-        'Cannot archive hackathon before it has ended. The hackathon end date has not passed yet.',
-      );
+    // For ACTIVE hackathons, check timing restrictions
+    if (hackathon.status === HackathonStatus.ACTIVE) {
+      const now = new Date();
+
+      // Check if hackathon has not started yet (can archive before it starts)
+      const notStartedYet = now < hackathon.registrationStart;
+
+      // Determine the "true end" of the hackathon
+      // If judgingEnd exists, that's the actual end; otherwise use endDate
+      const trueEndDate = hackathon.judgingEnd || hackathon.endDate;
+      const everythingDone = now > trueEndDate;
+
+      // Can only archive if not started yet OR everything is done
+      if (!notStartedYet && !everythingDone) {
+        // Determine what period we're in for a helpful error message
+        if (now >= hackathon.registrationStart && now <= hackathon.endDate) {
+          throw new BadRequestException(
+            'Cannot archive hackathon while it is in progress. Wait until the hackathon ends.',
+          );
+        }
+        if (
+          hackathon.judgingStart &&
+          hackathon.judgingEnd &&
+          now >= hackathon.judgingStart &&
+          now <= hackathon.judgingEnd
+        ) {
+          throw new BadRequestException(
+            'Cannot archive hackathon while judging is in progress. Wait until judging ends.',
+          );
+        }
+        // In the gap between endDate and judgingStart
+        if (hackathon.judgingEnd && now > hackathon.endDate) {
+          throw new BadRequestException(
+            'Cannot archive hackathon before judging period is complete. Wait until judging ends.',
+          );
+        }
+      }
     }
 
     // Archive the hackathon

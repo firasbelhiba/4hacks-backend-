@@ -384,13 +384,18 @@ export class HackathonController {
   @ApiOperation({
     summary: 'Archive a hackathon (Owner only)',
     description: `
-Archive a hackathon by changing its status from ACTIVE to ARCHIVED.
+Archive a hackathon by changing its status to ARCHIVED.
 Only the organization owner can archive their hackathons.
 
+**Allowed statuses:**
+- **DRAFT** hackathons can be archived anytime
+- **ACTIVE** hackathons can be archived if:
+  - Not started yet (before registration opens), OR
+  - Everything is done (after end date and judging period if provided)
+
 **Restrictions:**
-- Only **ACTIVE** hackathons can be archived
-- The hackathon **end date must have passed** (cannot archive ongoing hackathons)
-- Cannot archive DRAFT hackathons (not published yet)
+- Cannot archive while hackathon is in progress (registration → end date)
+- Cannot archive while judging is in progress (if judging dates are set)
 - Cannot archive CANCELLED hackathons
 - Cannot archive already ARCHIVED hackathons
     `,

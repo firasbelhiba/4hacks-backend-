@@ -60,15 +60,15 @@ export class AdminHackathonService {
       throw new NotFoundException('Hackathon not found');
     }
 
+    // TODO: Check for hackathon submissions conditions before cancelling (to be implemented later)
+
     // Check if hackathon can be cancelled
     if (hackathon.status === HackathonStatus.CANCELLED) {
       throw new BadRequestException('Hackathon is already cancelled');
     }
 
     if (hackathon.status === HackathonStatus.ARCHIVED) {
-      throw new BadRequestException(
-        'Cannot cancel an archived hackathon. Archived hackathons have already been completed.',
-      );
+      throw new BadRequestException('Cannot cancel an archived hackathon.');
     }
 
     // Cancel the hackathon
