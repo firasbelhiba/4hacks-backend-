@@ -15,6 +15,7 @@ import { CreateSubmissionDto } from './dto/create.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { HackathonContextGuard } from '../guards/hackathon.guard';
 import { Hackathon } from '../decorators/hackathon.decorator';
+import { ReviewSubmissionDto } from './dto/review.dto';
 
 @ApiTags('Hackathon Submissions')
 @Controller('hackathon/:hackathonId/submissions')
@@ -42,19 +43,60 @@ export class SubmissionsController {
     description: 'ID of the hackathon',
     example: 'hackathon_12345',
   })
-    @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(
     @Hackathon() hackathon: HackathonMin,
     @Body() createSubmissionDto: CreateSubmissionDto,
     @CurrentUser() user: UserMin,
   ) {
- 
     return this.submissionsService.createSubmission(
       hackathon,
       createSubmissionDto,
       user,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Review a submission for a hackathon',
+    description:
+      'Reviews a submission associated with the specified hackathon. The review is linked to the current user.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Submission reviewed successfully',
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon, submission, or user not found',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid review data',
+  })
+  @ApiParam({
+    name: 'hackathonId',
+    description: 'ID of the hackathon',
+    example: 'hackathon_12345',
+  })
+  @ApiParam({
+    name: 'submissionId',
+    description: 'ID of the submission',
+    example: 'submission_12345',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':submissionId/review')
+  review(
+    @Hackathon() hackathon: HackathonMin,
+    @Param('submissionId') submissionId: string,
+    @Body() reviewSubmissionDto: ReviewSubmissionDto,
+    @CurrentUser() user: UserMin,
+  ) {
+    return this.submissionsService.reviewSubmission(
+      hackathon,
+      submissionId,
+      user,
+      reviewSubmissionDto,
     );
   }
 }

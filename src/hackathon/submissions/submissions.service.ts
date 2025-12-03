@@ -17,6 +17,10 @@ import {
 } from 'generated/prisma';
 import { ReviewSubmissionDto, SubmissionReviewAction } from './dto/review.dto';
 import { EmailService } from 'src/email/email.service';
+import {
+  SubmissionAcceptedEmailTemplateHtml,
+  SubmissionRejectedEmailTemplateHtml,
+} from 'src/common/templates/emails/submission.emails';
 
 @Injectable()
 export class SubmissionsService {
@@ -345,14 +349,48 @@ export class SubmissionsService {
       },
     );
 
-    // Send a notif email to teh submission creator
+    // Send a notification email to the submission creator
     try {
-      // TODO: send email
+      const emailSubject =
+        reviewData.action === SubmissionReviewAction.ACCEPT
+          ? `🎉 Your submission "${submission.title}" has been accepted!`
+          : `Submission Review Update: "${submission.title}"`;
+
+      const emailHtml =
+        reviewData.action === SubmissionReviewAction.ACCEPT
+          ? SubmissionAcceptedEmailTemplateHtml(
+              submission.creator.name || submission.creator.username,
+              submission.title,
+              hackathon.title,
+              hackathon.id,
+              submission.id,
+              reviewData.reason,
+            )
+          : SubmissionRejectedEmailTemplateHtml(
+              submission.creator.name || submission.creator.username,
+              submission.title,
+              hackathon.title,
+              hackathon.id,
+              reviewData.reason || 'No specific reason provided.',
+            );
+
+      await this.emailService.sendEmail(
+        submission.creator.email,
+        emailSubject,
+        emailHtml,
+      );
+
+      this.logger.log(
+        `Sent ${reviewData.action === SubmissionReviewAction.ACCEPT ? 'acceptance' : 'rejection'} email to ${submission.creator.email} for submission ${submission.id}`,
+      );
     } catch (error) {
       this.logger.error(
         'Failed to send notification email in review submission',
         error,
       );
+
+      // Do not throw error as it is not critical to the main flow
+      // TODO: Create a logic to store teh failed sent emails and a backgrund service to retry sending them later (use redis pub/sub, kafka,...)
     }
 
     return {
