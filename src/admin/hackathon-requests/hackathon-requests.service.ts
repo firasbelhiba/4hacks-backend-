@@ -18,7 +18,7 @@ import { EmailService } from 'src/email/email.service';
 import {
   HackathonRequestApprovedEmailTemplateHtml,
   HackathonRequestRejectedEmailTemplateHtml,
-} from 'src/common/templates/emails.templates.list';
+} from 'src/common/templates/emails/user.emails';
 
 @Injectable()
 export class HackathonRequestsService {
@@ -294,16 +294,22 @@ export class HackathonRequestsService {
 
     // Send email notification to organization owner
     try {
-      const formattedStartDate = new Date(result.startDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-      const formattedEndDate = new Date(result.endDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
+      const formattedStartDate = new Date(result.startDate).toLocaleDateString(
+        'en-US',
+        {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        },
+      );
+      const formattedEndDate = new Date(result.endDate).toLocaleDateString(
+        'en-US',
+        {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        },
+      );
 
       const emailHtml = HackathonRequestApprovedEmailTemplateHtml(
         result.organization.owner.name,
@@ -411,12 +417,16 @@ export class HackathonRequestsService {
 
     // Send email notification to organization owner
     try {
-      const formattedStartDate = new Date(updatedRequest.startDate).toLocaleDateString('en-US', {
+      const formattedStartDate = new Date(
+        updatedRequest.startDate,
+      ).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
-      const formattedEndDate = new Date(updatedRequest.endDate).toLocaleDateString('en-US', {
+      const formattedEndDate = new Date(
+        updatedRequest.endDate,
+      ).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',

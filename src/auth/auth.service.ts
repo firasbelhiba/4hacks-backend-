@@ -40,7 +40,7 @@ import {
   PasswordResetEmailTemplateHtml,
   TwoFactorEmailCodeTemplateHtml,
   VerificationEmailTemplateHtml,
-} from 'src/common/templates/emails.templates.list';
+} from 'src/common/templates/emails/user.emails';
 import { UserMin } from 'src/common/types';
 
 @Injectable()

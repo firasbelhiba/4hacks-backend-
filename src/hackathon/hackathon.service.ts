@@ -287,6 +287,8 @@ export class HackathonService {
       updateData.invitePasscode = null;
     }
 
+    // TODO: Validate dates logic(same can be taken from hackathon-request create and publish hackathon)
+
     // Update hackathon
     const updatedHackathon = await this.prisma.hackathon.update({
       where: {
@@ -748,6 +750,19 @@ export class HackathonService {
     if (hackathon.registrationEnd > hackathon.startDate) {
       throw new BadRequestException(
         'Registration must end before or when the hackathon starts',
+      );
+    }
+
+    // Validate judging dates if provided
+    if (!hackathon.judgingStart && hackathon.judgingEnd) {
+      throw new BadRequestException(
+        'Judging end date cannot exist without a judging start date',
+      );
+    }
+
+    if (!hackathon.judgingEnd && hackathon.judgingStart) {
+      throw new BadRequestException(
+        'Judging start date cannot exist without a judging end date',
       );
     }
 

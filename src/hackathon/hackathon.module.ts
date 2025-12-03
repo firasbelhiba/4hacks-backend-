@@ -4,9 +4,15 @@ import { HackathonController } from './hackathon.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { HackathonRegistrationModule } from './hackathon-registration/hackathon-registration.module';
 import { TeamsModule } from './teams/teams.module';
+import { SubmissionsModule } from './submissions/submissions.module';
 
 @Module({
-  imports: [PrismaModule, HackathonRegistrationModule, TeamsModule],
+  imports: [
+    PrismaModule,
+    HackathonRegistrationModule,
+    TeamsModule,
+    SubmissionsModule,
+  ],
   providers: [HackathonService],
   controllers: [HackathonController],
 })

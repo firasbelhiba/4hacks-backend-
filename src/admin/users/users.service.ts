@@ -11,11 +11,8 @@ import { ManageUserBanDto } from './dto/manage-user-ban.dto';
 import {
   AccountBannedEmailTemplateHtml,
   AccountUnbannedEmailTemplateHtml,
-} from 'src/common/templates/emails.templates.list';
-import {
-  QueryUsersDto,
-  PaginatedUsersDto,
-} from './dto/users.dto';
+} from 'src/common/templates/emails/user.emails';
+import { QueryUsersDto, PaginatedUsersDto } from './dto/users.dto';
 
 @Injectable()
 export class UsersService {
@@ -121,7 +118,11 @@ export class UsersService {
    * @param manageDto - Optional reason for the unban (for logging).
    * @returns A success message with unban details.
    */
-  async unbanUser(userId: string, adminId: string, manageDto?: ManageUserBanDto) {
+  async unbanUser(
+    userId: string,
+    adminId: string,
+    manageDto?: ManageUserBanDto,
+  ) {
     // Check if user exists
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
@@ -276,4 +277,3 @@ export class UsersService {
     };
   }
 }
-
