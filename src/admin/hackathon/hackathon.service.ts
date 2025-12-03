@@ -8,7 +8,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
 import { HackathonStatus } from 'generated/prisma';
 import { CancelHackathonDto } from './dto/cancel-hackathon.dto';
-import { HackathonCancelledEmailTemplateHtml } from 'src/common/templates/emails.templates.list';
+import { HackathonCancelledEmailTemplateHtml } from 'src/common/templates/emails/user.emails';
 
 @Injectable()
 export class AdminHackathonService {
