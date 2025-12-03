@@ -15,12 +15,17 @@ import {
   HackathonStatus,
   SubmissionStatus,
 } from 'generated/prisma';
+import { ReviewSubmissionDto, SubmissionReviewAction } from './dto/review.dto';
+import { EmailService } from 'src/email/email.service';
 
 @Injectable()
 export class SubmissionsService {
   private readonly logger = new Logger(SubmissionsService.name);
 
-  constructor(private prismaService: PrismaService) {}
+  constructor(
+    private prismaService: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async createSubmission(
     hackathon: HackathonMin,
@@ -196,7 +201,7 @@ export class SubmissionsService {
           technologies,
           status: hackathon.requiresApproval
             ? SubmissionStatus.UNDER_REVIEW
-            : SubmissionStatus.APPROVED,
+            : SubmissionStatus.SUBMITTED,
           submittedAt: new Date(),
           submissionReviewedAt: hackathon.requiresApproval ? null : new Date(),
         },
@@ -247,6 +252,112 @@ export class SubmissionsService {
     return {
       message: 'Submission created successfully',
       data: submission,
+    };
+  }
+
+  async reviewSubmission(
+    hackathon: HackathonMin,
+    submissionId: string,
+    reviewerUser: UserMin,
+    reviewData: ReviewSubmissionDto,
+  ) {
+    // Check if hackathon requires approval
+    if (!hackathon.requiresApproval) {
+      throw new BadRequestException('Your hackathon does not require approval');
+    }
+
+    // Check if reviewer is the hackathon organizer
+    if (reviewerUser.id !== hackathon.organization.ownerId) {
+      throw new ForbiddenException('You are not the hackathon organizer');
+    }
+
+    // Check if submission exists
+    const submission = await this.prismaService.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found');
+    }
+
+    // Check if submission belongs to this hackathon
+    if (submission.hackathonId !== hackathon.id) {
+      throw new BadRequestException(
+        'Submission does not belong to this hackathon',
+      );
+    }
+
+    if (submission.status !== SubmissionStatus.UNDER_REVIEW) {
+      throw new BadRequestException('Submission is not under review');
+    }
+
+    const updatedSubmission = await this.prismaService.$transaction(
+      async (tx) => {
+        const updatedSubmission = await tx.submission.update({
+          where: { id: submissionId },
+          data: {
+            status:
+              reviewData.action === SubmissionReviewAction.ACCEPT
+                ? SubmissionStatus.SUBMITTED
+                : SubmissionStatus.REJECTED,
+            submissionReviewedAt: new Date(),
+            reviewReason: reviewData.reason,
+            submissionReviewedById: reviewerUser.id,
+          },
+        });
+
+        // Notify the submission creator
+        await tx.notification.create({
+          data: {
+            toUserId: submission.creatorId,
+            fromUserId: reviewerUser.id,
+            type: 'SUBMISSION_REVIEWED',
+            content: `Your submission for hackathon ${hackathon.title} has been reviewed and it is ${reviewData.action === SubmissionReviewAction.ACCEPT ? 'accepted' : 'rejected'}.`,
+            payload: {
+              hackathonId: hackathon.id,
+              submissionId: submissionId,
+            },
+          },
+        });
+
+        // Store the User Activity Log
+        await tx.userActivityLog.create({
+          data: {
+            userId: submission.creatorId,
+            action: 'REVIEW_HACKATHON_SUBMISSION',
+            targetType: ActivityTargetType.SUBMISSION,
+            targetId: submission.id,
+            description: `reviewed submission ${submission.title} for hackathon ${hackathon.slug} for ${reviewData.action === SubmissionReviewAction.ACCEPT ? 'acceptance' : 'rejection'}`,
+          },
+        });
+
+        return updatedSubmission;
+      },
+    );
+
+    // Send a notif email to teh submission creator
+    try {
+      // TODO: send email
+    } catch (error) {
+      this.logger.error(
+        'Failed to send notification email in review submission',
+        error,
+      );
+    }
+
+    return {
+      message: 'Submission reviewed successfully',
+      data: updatedSubmission,
     };
   }
 }
