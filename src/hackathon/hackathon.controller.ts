@@ -6,9 +6,11 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
@@ -25,13 +27,37 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
 import { ManageSponsorsDto } from './dto/sponsor.dto';
+import {
+  QueryHackathonsDto,
+  PaginatedHackathonsDto,
+} from './dto/query-hackathons.dto';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
-import { UserMin } from 'src/common/types';
+import type { UserMin } from 'src/common/types';
 
 @ApiTags('Hackathons')
 @Controller('hackathon')
 export class HackathonController {
   constructor(private readonly hackathonService: HackathonService) {}
+
+  @ApiOperation({
+    summary: 'List/Search Hackathons',
+    description:
+      'Get a paginated list of hackathons with support for filtering, searching, and sorting. **Admins** see all hackathons. **Authenticated users** see all ACTIVE hackathons plus their own non-public hackathons (DRAFT, ARCHIVED, CANCELLED). **Unauthenticated users** see only ACTIVE hackathons. Authentication is optional.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of hackathons',
+    type: PaginatedHackathonsDto,
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get()
+  async findAll(
+    @Query() query: QueryHackathonsDto,
+    @CurrentUser() user?: UserMin,
+  ): Promise<PaginatedHackathonsDto> {
+    return await this.hackathonService.findAll(query, user);
+  }
 
   @ApiOperation({
     summary: 'Update a hackathon',
@@ -353,6 +379,87 @@ export class HackathonController {
     @CurrentUser('id') userId: string,
   ) {
     return await this.hackathonService.publishHackathon(identifier, userId);
+  }
+
+  @ApiOperation({
+    summary: 'Archive a hackathon (Owner only)',
+    description: `
+Archive a hackathon by changing its status to ARCHIVED.
+Only the organization owner can archive their hackathons.
+
+**Allowed statuses:**
+- **DRAFT** hackathons can be archived anytime
+- **ACTIVE** hackathons can be archived if:
+  - Not started yet (before registration opens), OR
+  - Everything is done (after end date and judging period if provided)
+
+**Restrictions:**
+- Cannot archive while hackathon is in progress (registration → end date)
+- Cannot archive while judging is in progress (if judging dates are set)
+- Cannot archive CANCELLED hackathons
+- Cannot archive already ARCHIVED hackathons
+    `,
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hackathon archived successfully.',
+    schema: {
+      example: {
+        message: 'Hackathon archived successfully',
+        data: {
+          id: 'cuid',
+          title: 'Hackathon Title',
+          slug: 'hackathon-slug',
+          status: 'ARCHIVED',
+          organizationId: 'cuid',
+          startDate: '2024-12-16T00:00:00.000Z',
+          endDate: '2024-12-30T00:00:00.000Z',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-15T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - User is not the organization owner',
+    schema: {
+      example: {
+        message: 'You are not authorized to archive this hackathon',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+    schema: {
+      example: {
+        message: 'Hackathon not found',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Cannot archive hackathon due to its current status or timing',
+    schema: {
+      example: {
+        message:
+          'Cannot archive hackathon before it has ended. The hackathon end date has not passed yet.',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':identifier/archive')
+  async archiveHackathon(
+    @Param('identifier') identifier: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return await this.hackathonService.archiveHackathon(identifier, userId);
   }
 
   @ApiOperation({
