@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PrizesService } from './prizes.service';
-import { ManagePrizesDto } from './dto/manage.dto';
+import { ManageTrackPrizesDto } from './dto/manage-track.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import {
   ApiBearerAuth,
@@ -52,17 +52,34 @@ export class PrizesController {
     @Param('trackId') trackId: string,
     @CurrentUser() user?: UserMin,
   ) {
-    return this.prizesService.getPrizes(trackId, user);
+    return this.prizesService.getTrackPrizes(trackId, user);
   }
 
   @ApiOperation({ summary: 'Manage prizes for a track' })
+  @ApiResponse({
+    status: 200,
+    description: 'Prizes for the track',
+    example: [
+      {
+        id: '1',
+        position: 1,
+        name: 'First Place',
+        type: 'TRACK',
+        trackId: '1',
+        amount: 100,
+        token: 'USD',
+      },
+    ],
+  })
+  @ApiNotFoundResponse({ description: 'Track not found' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
   @UseGuards(JwtAuthGuard)
   @Put()
   async managePrizes(
     @Param('trackId') trackId: string,
-    @Body() managePrizesDto: ManagePrizesDto,
+    @Body() managePrizesDto: ManageTrackPrizesDto,
     @CurrentUser() user: UserMin,
   ) {
-    return this.prizesService.managePrizes(trackId, managePrizesDto, user);
+    return this.prizesService.manageTrackPrizes(trackId, managePrizesDto, user);
   }
 }

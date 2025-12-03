@@ -2,17 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator';
-import { PrizeType } from 'generated/prisma';
 
-export class PrizeItemDto {
+export class TrackPrizeItemDto {
   @ApiPropertyOptional({ description: 'Prize ID (if updating existing prize)' })
   @IsOptional()
   @IsString()
@@ -27,22 +24,6 @@ export class PrizeItemDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ enum: PrizeType, description: 'Type of prize' })
-  @IsEnum(PrizeType)
-  type: PrizeType;
-
-  @ApiPropertyOptional({ description: 'Track ID (required if type is TRACK)' })
-  @IsOptional()
-  @IsString()
-  trackId?: string;
-
-  @ApiPropertyOptional({
-    description: 'Bounty ID (required if type is BOUNTY)',
-  })
-  @IsOptional()
-  @IsString()
-  bountyId?: string;
-
   @ApiProperty({ description: 'Prize amount' })
   @IsNumber()
   @Min(0)
@@ -54,13 +35,13 @@ export class PrizeItemDto {
   token?: string;
 }
 
-export class ManagePrizesDto {
+export class ManageTrackPrizesDto {
   @ApiProperty({
-    type: [PrizeItemDto],
-    description: 'List of prizes to manage',
+    type: [TrackPrizeItemDto],
+    description: 'List of track prizes to manage',
   })
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => PrizeItemDto)
-  prizes: PrizeItemDto[];
+  @Type(() => TrackPrizeItemDto)
+  prizes: TrackPrizeItemDto[];
 }
