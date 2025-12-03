@@ -38,9 +38,8 @@ enum Provider {
 
 enum SubmissionStatus {
   DRAFT // Not submitted yet. Team is editing privately.
-  SUBMITTED // Submitted and visible to organizers. Waiting for review.
+  SUBMITTED // Submitted and visible to organizers. (after review accepted)
   UNDER_REVIEW // A reviewer is actively reviewing it.
-  APPROVED // Approved and published for public view / judging.
   REJECTED // Rejected by organizers (spam, incomplete, not eligible).
   WITHDRAWN // Team voluntarily removed the submission.
 }
@@ -184,6 +183,9 @@ enum ActivityTargetType {
   HACKATHON
   TRACK
   BOUNTY
+  TEAM
+  SUBMISSION
+  HACKATHON_REGISTRATION
   PRIZE
   COMMENT
   OTHER
@@ -816,6 +818,7 @@ model Submission {
   status                 SubmissionStatus @default(DRAFT)
   submittedAt            DateTime?
   submissionReviewedAt   DateTime?
+  reviewReason           String?
   submissionReviewedById String?
   submissionReviewedBy   users?           @relation("SubmissionReviewedBy", fields: [submissionReviewedById], references: [id], onDelete: SetNull)
 
