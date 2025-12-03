@@ -1,14 +1,8 @@
-import {
-  Body,
-  Controller,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOperation,
   ApiParam,
@@ -16,138 +10,44 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { SubmissionsService } from './submissions.service';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
+import { UserMin } from 'src/common/types';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import type { HackathonMin, UserMin } from 'src/common/types';
-import { CreateSubmissionDto } from './dto/create.dto';
-import { UpdateSubmissionDto } from './dto/update.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
-import { HackathonContextGuard } from '../guards/hackathon.guard';
-import { Hackathon } from '../decorators/hackathon.decorator';
-import { ReviewSubmissionDto } from './dto/review.dto';
 
 @ApiTags('Hackathon Submissions')
-@Controller('hackathon/:hackathonId/submissions')
-@UseGuards(HackathonContextGuard)
+@Controller('submissions')
 export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
   @ApiOperation({
-    summary: 'Create a new submission for a hackathon',
+    summary: 'Get a submission by ID',
     description:
-      'Creates a new submission associated with the specified hackathon. The submission is linked to the current user.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Submission created successfully',
-  })
-  @ApiNotFoundResponse({
-    description: 'Hackathon, team, track, or bounty not found',
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid submission data',
-  })
-  @ApiParam({
-    name: 'hackathonId',
-    description: 'ID of the hackathon',
-    example: 'hackathon_12345',
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Post()
-  create(
-    @Hackathon() hackathon: HackathonMin,
-    @Body() createSubmissionDto: CreateSubmissionDto,
-    @CurrentUser() user: UserMin,
-  ) {
-    return this.submissionsService.createSubmission(
-      hackathon,
-      createSubmissionDto,
-      user,
-    );
-  }
-
-  @ApiOperation({
-    summary: 'Review a submission for a hackathon',
-    description:
-      'Reviews a submission associated with the specified hackathon. The review is linked to the current user.',
+      'Retrieves a submission by its ID. Authorization rules: ' +
+      '1) Public users can only view SUBMITTED submissions from public hackathons. ' +
+      '2) Admins, organization owners, and team members can view all submissions (including UNDER_REVIEW, REJECTED, DRAFT, WITHDRAWN). ' +
+      '3) Private hackathon submissions are only visible to admins, organization owners, and team members.',
   })
   @ApiResponse({
     status: 200,
-    description: 'Submission reviewed successfully',
+    description: 'Submission retrieved successfully',
   })
   @ApiNotFoundResponse({
-    description: 'Hackathon, submission, or user not found',
+    description: 'Submission not found',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Access denied: submission is not approved, hackathon is private, or user lacks permission',
   })
   @ApiBadRequestResponse({
-    description: 'Invalid review data',
-  })
-  @ApiParam({
-    name: 'hackathonId',
-    description: 'ID of the hackathon',
-    example: 'hackathon_12345',
-  })
-  @ApiParam({
-    name: 'submissionId',
-    description: 'ID of the submission',
-    example: 'submission_12345',
+    description: 'Submission does not belong to this hackathon',
   })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Post(':submissionId/review')
-  review(
-    @Hackathon() hackathon: HackathonMin,
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':submissionId')
+  getById(
     @Param('submissionId') submissionId: string,
-    @Body() reviewSubmissionDto: ReviewSubmissionDto,
-    @CurrentUser() user: UserMin,
+    @CurrentUser() user: UserMin | null,
   ) {
-    return this.submissionsService.reviewSubmission(
-      hackathon,
-      submissionId,
-      user,
-      reviewSubmissionDto,
-    );
-  }
-
-  @ApiOperation({
-    summary: 'Update a submission for a hackathon',
-    description:
-      'Updates an existing submission associated with the specified hackathon. Any team member can update the submission. Updates are only allowed during the active hackathon period and before the deadline.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Submission updated successfully',
-  })
-  @ApiNotFoundResponse({
-    description: 'Hackathon, submission, team, track, or bounty not found',
-  })
-  @ApiBadRequestResponse({
-    description:
-      'Invalid update data, hackathon not active, submission period ended, or submission is rejected',
-  })
-  @ApiParam({
-    name: 'hackathonId',
-    description: 'ID of the hackathon',
-    example: 'hackathon_12345',
-  })
-  @ApiParam({
-    name: 'submissionId',
-    description: 'ID of the submission to update',
-    example: 'submission_12345',
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Patch(':submissionId')
-  update(
-    @Hackathon() hackathon: HackathonMin,
-    @Param('submissionId') submissionId: string,
-    @Body() updateSubmissionDto: UpdateSubmissionDto,
-    @CurrentUser() user: UserMin,
-  ) {
-    return this.submissionsService.updateSubmission(
-      hackathon,
-      submissionId,
-      updateSubmissionDto,
-      user,
-    );
+    return this.submissionsService.getSubmissionById(submissionId, user);
   }
 }
