@@ -1,4 +1,11 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -12,6 +19,7 @@ import { SubmissionsService } from './submissions.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { HackathonMin, UserMin } from 'src/common/types';
 import { CreateSubmissionDto } from './dto/create.dto';
+import { UpdateSubmissionDto } from './dto/update.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { HackathonContextGuard } from '../guards/hackathon.guard';
 import { Hackathon } from '../decorators/hackathon.decorator';
@@ -97,6 +105,49 @@ export class SubmissionsController {
       submissionId,
       user,
       reviewSubmissionDto,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Update a submission for a hackathon',
+    description:
+      'Updates an existing submission associated with the specified hackathon. Any team member can update the submission. Updates are only allowed during the active hackathon period and before the deadline.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Submission updated successfully',
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon, submission, team, track, or bounty not found',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Invalid update data, hackathon not active, submission period ended, or submission is rejected',
+  })
+  @ApiParam({
+    name: 'hackathonId',
+    description: 'ID of the hackathon',
+    example: 'hackathon_12345',
+  })
+  @ApiParam({
+    name: 'submissionId',
+    description: 'ID of the submission to update',
+    example: 'submission_12345',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch(':submissionId')
+  update(
+    @Hackathon() hackathon: HackathonMin,
+    @Param('submissionId') submissionId: string,
+    @Body() updateSubmissionDto: UpdateSubmissionDto,
+    @CurrentUser() user: UserMin,
+  ) {
+    return this.submissionsService.updateSubmission(
+      hackathon,
+      submissionId,
+      updateSubmissionDto,
+      user,
     );
   }
 }

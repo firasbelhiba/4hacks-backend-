@@ -9,6 +9,7 @@ import {
 import { HackathonMin, UserMin } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateSubmissionDto } from './dto/create.dto';
+import { UpdateSubmissionDto } from './dto/update.dto';
 import {
   ActivityTargetType,
   HackathonRequiredMaterials,
@@ -395,6 +396,219 @@ export class SubmissionsService {
 
     return {
       message: 'Submission reviewed successfully',
+      data: updatedSubmission,
+    };
+  }
+
+  async updateSubmission(
+    hackathon: HackathonMin,
+    submissionId: string,
+    updateSubmissionDto: UpdateSubmissionDto,
+    requesterUser: UserMin,
+  ) {
+    this.logger.log(
+      `Updating submission ${submissionId} for hackathon ${hackathon.id} by user ${requesterUser.username}`,
+    );
+
+    // Check if submission exists
+    const submission = await this.prismaService.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        team: {
+          include: {
+            members: {
+              select: { userId: true, isLeader: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found');
+    }
+
+    // Check if team exists
+    if (!submission.team) {
+      throw new NotFoundException('Team not found for this submission');
+    }
+
+    // Check if submission belongs to this hackathon
+    if (submission.hackathonId !== hackathon.id) {
+      throw new BadRequestException(
+        'Submission does not belong to this hackathon',
+      );
+    }
+
+    // Check if user is a member of the team
+    const isTeamMember = submission.team.members.some(
+      (m) => m.userId === requesterUser.id,
+    );
+
+    if (!isTeamMember) {
+      throw new ForbiddenException(
+        'You are not a member of the team that created this submission',
+      );
+    }
+
+    // Check if hackathon is still active
+    if (hackathon.status !== HackathonStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Cannot update submission - hackathon is not active',
+      );
+    }
+
+    // Check if hackathon submission period is still open
+    const now = new Date();
+
+    if (now > hackathon.endDate) {
+      throw new BadRequestException(
+        'Cannot update submission - hackathon submission period has ended',
+      );
+    }
+
+    // Check if submission is rejected (rejected submissions cannot be updated)
+    if (submission.status === SubmissionStatus.REJECTED) {
+      throw new BadRequestException(
+        'Cannot update a rejected submission. Please contact the organizers if you believe this is an error.',
+      );
+    }
+
+    const { trackId, bountyId, ...otherUpdates } = updateSubmissionDto;
+
+    // Validate track if provided
+    if (trackId !== undefined) {
+      if (trackId) {
+        const track = await this.prismaService.track.findUnique({
+          where: { id: trackId, hackathonId: hackathon.id },
+        });
+
+        if (!track) {
+          throw new NotFoundException('Track not found for this hackathon');
+        }
+      }
+    }
+
+    // Validate bounty if provided
+    if (bountyId !== undefined) {
+      if (bountyId) {
+        const bounty = await this.prismaService.bounty.findUnique({
+          where: { id: bountyId, hackathonId: hackathon.id },
+        });
+
+        if (!bounty) {
+          throw new NotFoundException('Bounty not found for this hackathon');
+        }
+      }
+    }
+
+    // Check if at least track or bounty will remain after update
+    const finalTrackId = trackId !== undefined ? trackId : submission.trackId;
+    const finalBountyId =
+      bountyId !== undefined ? bountyId : submission.bountyId;
+
+    if (!finalTrackId && !finalBountyId) {
+      throw new BadRequestException(
+        'Submission must have at least a track or a bounty',
+      );
+    }
+
+    // Validate required materials if updating URLs
+    if (hackathon.requiredSubmissionMaterials.length > 0) {
+      const finalVideoUrl =
+        updateSubmissionDto.videoUrl !== undefined
+          ? updateSubmissionDto.videoUrl
+          : submission.videoUrl;
+      const finalPitchUrl =
+        updateSubmissionDto.pitchUrl !== undefined
+          ? updateSubmissionDto.pitchUrl
+          : submission.pitchUrl;
+      const finalRepoUrl =
+        updateSubmissionDto.repoUrl !== undefined
+          ? updateSubmissionDto.repoUrl
+          : submission.repoUrl;
+
+      if (
+        hackathon.requiredSubmissionMaterials.includes(
+          HackathonRequiredMaterials.VIDEO_DEMO,
+        ) &&
+        !finalVideoUrl
+      ) {
+        throw new BadRequestException(
+          'Video URL is required for this hackathon',
+        );
+      }
+
+      if (
+        hackathon.requiredSubmissionMaterials.includes(
+          HackathonRequiredMaterials.PITCH_DECK,
+        ) &&
+        !finalPitchUrl
+      ) {
+        throw new BadRequestException(
+          'Pitch URL is required for this hackathon',
+        );
+      }
+
+      if (
+        hackathon.requiredSubmissionMaterials.includes(
+          HackathonRequiredMaterials.GITHUB_REPOSITORY,
+        ) &&
+        !finalRepoUrl
+      ) {
+        throw new BadRequestException(
+          'Repository URL is required for this hackathon',
+        );
+      }
+    }
+
+    // Build update data object with only provided fields
+    const updateData: any = {};
+
+    if (trackId !== undefined) updateData.trackId = trackId;
+    if (bountyId !== undefined) updateData.bountyId = bountyId;
+    if (otherUpdates.title !== undefined) updateData.title = otherUpdates.title;
+    if (otherUpdates.tagline !== undefined)
+      updateData.tagline = otherUpdates.tagline;
+    if (otherUpdates.description !== undefined)
+      updateData.description = otherUpdates.description;
+    if (otherUpdates.logo !== undefined) updateData.logo = otherUpdates.logo;
+    if (otherUpdates.demoUrl !== undefined)
+      updateData.demoUrl = otherUpdates.demoUrl;
+    if (otherUpdates.videoUrl !== undefined)
+      updateData.videoUrl = otherUpdates.videoUrl;
+    if (otherUpdates.repoUrl !== undefined)
+      updateData.repoUrl = otherUpdates.repoUrl;
+    if (otherUpdates.pitchUrl !== undefined)
+      updateData.pitchUrl = otherUpdates.pitchUrl;
+    if (otherUpdates.technologies !== undefined)
+      updateData.technologies = otherUpdates.technologies;
+
+    // Update submission
+    const updatedSubmission = await this.prismaService.$transaction(
+      async (tx) => {
+        const updated = await tx.submission.update({
+          where: { id: submissionId },
+          data: updateData,
+        });
+
+        // Store the User Activity Log
+        await tx.userActivityLog.create({
+          data: {
+            userId: requesterUser.id,
+            action: 'UPDATE_HACKATHON_SUBMISSION',
+            targetType: ActivityTargetType.SUBMISSION,
+            targetId: submission.id,
+            description: `updated submission ${submission.title} for hackathon ${hackathon.slug}`,
+          },
+        });
+
+        return updated;
+      },
+    );
+
+    return {
+      message: 'Submission updated successfully',
       data: updatedSubmission,
     };
   }
