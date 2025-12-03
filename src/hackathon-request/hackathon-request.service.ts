@@ -9,7 +9,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateHackathonRequestDto } from './dto/create-request.dto';
 import { UserMin } from 'src/common/types';
-import { UserRole } from 'generated/prisma';
+import { UserRole, RequestStatus } from 'generated/prisma';
 
 @Injectable()
 export class HackathonRequestService {
@@ -141,6 +141,8 @@ export class HackathonRequestService {
         // If user is admin, they can see any request
         // If user is not admin, they can only see their own organization requests
         ...(isAdmin ? {} : { organization: { ownerId: user.id } }),
+        // Hide DELETED requests from owners (but admins can see them)
+        ...(isAdmin ? {} : { status: { not: RequestStatus.DELETED } }),
       },
       include: {
         organization: {
@@ -202,6 +204,8 @@ export class HackathonRequestService {
     const requests = await this.prisma.hackathonCreationRequest.findMany({
       where: {
         organizationId: organization.id,
+        // Hide DELETED requests from owners (but admins can see them)
+        ...(isAdmin ? {} : { status: { not: RequestStatus.DELETED } }),
       },
       orderBy: {
         createdAt: 'desc',
@@ -212,6 +216,71 @@ export class HackathonRequestService {
       organization,
       requests,
       total: requests.length,
+    };
+  }
+
+  /**
+   * Delete a hackathon request (soft delete by changing status to DELETED).
+   * Only the organization owner can delete PENDING requests.
+   * @param requestId - The ID of the request to delete
+   * @param userId - The ID of the user requesting the deletion
+   * @returns The deleted request
+   */
+  async deleteRequest(requestId: string, userId: string) {
+    // Find request with organization
+    const request = await this.prisma.hackathonCreationRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            ownerId: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Hackathon request not found');
+    }
+
+    // Check if user is the organization owner
+    if (request.organization.ownerId !== userId) {
+      throw new ForbiddenException(
+        'You are not authorized to delete this request',
+      );
+    }
+
+    // Check if status is PENDING
+    if (request.status !== RequestStatus.PENDING) {
+      throw new BadRequestException(
+        `Cannot delete request with status ${request.status}. Only PENDING requests can be deleted.`,
+      );
+    }
+
+    // Update status to DELETED
+    const deletedRequest = await this.prisma.hackathonCreationRequest.update({
+      where: { id: requestId },
+      data: { status: RequestStatus.DELETED },
+      select: {
+        id: true,
+        hackTitle: true,
+        hackSlug: true,
+        status: true,
+        organizationId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    this.logger.log(
+      `Hackathon request ${requestId} (${request.hackTitle}) deleted by owner ${userId}`,
+    );
+
+    return {
+      message: 'Hackathon request deleted successfully',
+      data: deletedRequest,
     };
   }
 }
