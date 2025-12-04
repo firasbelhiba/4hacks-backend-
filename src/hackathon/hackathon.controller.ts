@@ -509,4 +509,129 @@ Only the organization owner can archive their hackathons.
       user,
     );
   }
+
+  @ApiOperation({
+    summary: 'Get all winners for a hackathon',
+    description:
+      'Retrieve all prize winners for a specific hackathon with comprehensive details including submission, team members, and prize information. ' +
+      'Winners are grouped by prize type (TRACK/BOUNTY) and ordered by prize position. ' +
+      '\n\n**Access Control:**\n' +
+      '- **Admin**: Can access all hackathons\n' +
+      '- **Organization Owner**: Can access their own hackathons\n' +
+      '- **Active Hackathons**: Anyone can access\n' +
+      '- **Private Hackathons**: Only registered users can access\n' +
+      '- **Non-Active Hackathons**: Only admin or owner can access',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Winners retrieved successfully',
+    schema: {
+      example: {
+        hackathon: {
+          id: 'clx1234567890',
+          title: 'Web3 Innovation Hackathon',
+          slug: 'web3-innovation-hackathon',
+          organization: {
+            id: 'clx0987654321',
+            name: 'Tech Organization',
+            ownerId: 'clx1111222233',
+          },
+        },
+        winners: [
+          {
+            id: 'clx5555666677',
+            prizeId: 'clx7777888899',
+            submissionId: 'clx9999000011',
+            createdAt: '2024-01-15T00:00:00.000Z',
+            updatedAt: '2024-01-15T00:00:00.000Z',
+            prize: {
+              id: 'clx7777888899',
+              position: 1,
+              name: 'First Place - DeFi Track',
+              hackathonId: 'clx1234567890',
+              trackId: 'clx2222333344',
+              bountyId: null,
+              type: 'TRACK',
+              amount: 5000,
+              token: 'USD',
+              track: {
+                id: 'clx2222333344',
+                name: 'DeFi Track',
+                description: 'Build innovative DeFi solutions',
+              },
+              bounty: null,
+            },
+            submission: {
+              id: 'clx9999000011',
+              title: 'Amazing DeFi Project',
+              tagline: 'Revolutionary DeFi platform',
+              description: 'A comprehensive DeFi solution...',
+              logo: 'https://example.com/logo.png',
+              demoUrl: 'https://demo.example.com',
+              videoUrl: 'https://youtube.com/watch?v=...',
+              repoUrl: 'https://github.com/team/project',
+              status: 'SUBMITTED',
+              isWinner: true,
+              team: {
+                id: 'clx3333444455',
+                name: 'Team Awesome',
+                tagline: 'Building the future',
+                image: 'https://example.com/team.png',
+                members: [
+                  {
+                    id: 'clx4444555566',
+                    userId: 'clx6666777788',
+                    isLeader: true,
+                    user: {
+                      id: 'clx6666777788',
+                      name: 'John Doe',
+                      username: 'johndoe',
+                      image: 'https://example.com/john.png',
+                    },
+                  },
+                  {
+                    id: 'clx4444555567',
+                    userId: 'clx6666777789',
+                    isLeader: false,
+                    user: {
+                      id: 'clx6666777789',
+                      name: 'Jane Smith',
+                      username: 'janesmith',
+                      image: 'https://example.com/jane.png',
+                    },
+                  },
+                ],
+              },
+              track: {
+                id: 'clx2222333344',
+                name: 'DeFi Track',
+              },
+              bounty: null,
+            },
+          },
+        ],
+        totalWinners: 1,
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description:
+      'Hackathon not found, access denied, or not registered for private hackathon',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':identifier/winners')
+  async getHackathonWinners(
+    @Param('identifier') identifier: string,
+    @CurrentUser() user?: UserMin | undefined,
+  ) {
+    return await this.hackathonService.getHackathonWinners(identifier, user);
+  }
 }
