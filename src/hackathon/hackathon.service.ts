@@ -436,6 +436,9 @@ export class HackathonService {
     const tracks = await this.prisma.track.findMany({
       where: { hackathonId: hackathon.id },
       orderBy: { order: 'asc' },
+      include: {
+        prizes: true,
+      },
     });
 
     return {
@@ -953,6 +956,163 @@ export class HackathonService {
     return {
       message: 'Hackathon archived successfully',
       data: archivedHackathon,
+    };
+  }
+
+  async getHackathonWinners(hackathonIdentifier: string, user?: UserMin) {
+    const userId = user?.id;
+    const isAdmin = user?.role === UserRole.ADMIN;
+
+    // Find hackathon by id or slug
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
+      },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        status: true,
+        isPrivate: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            ownerId: true,
+          },
+        },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check authorization
+    const isOwner = userId && hackathon.organization.ownerId === userId;
+    const isActive = hackathon.status === HackathonStatus.ACTIVE;
+
+    // For private hackathons, check if user is registered
+    let isRegistered = false;
+    if (hackathon.isPrivate && userId) {
+      const registration = await this.prisma.hackathonRegistration.findUnique({
+        where: {
+          hackathonId_userId: {
+            hackathonId: hackathon.id,
+            userId,
+          },
+        },
+      });
+      isRegistered = !!registration;
+    }
+
+    // Access control:
+    // - Admin can access all
+    // - Owner can access all
+    // - For active hackathons: anyone can access
+    // - For private hackathons: only registered users can access
+    // - For non-active hackathons: only admin or owner can access
+    if (!isAdmin && !isOwner) {
+      if (hackathon.isPrivate && !isRegistered) {
+        throw new NotFoundException(
+          'You are not registered for this private hackathon',
+        );
+      }
+      if (!isActive) {
+        throw new NotFoundException('Hackathon access denied');
+      }
+    }
+
+    // Fetch all prize winners for this hackathon with comprehensive details
+    const prizeWinners = await this.prisma.prizeWinner.findMany({
+      where: {
+        prize: {
+          hackathonId: hackathon.id,
+        },
+      },
+      include: {
+        prize: {
+          include: {
+            track: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+              },
+            },
+            bounty: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                sponsorId: true,
+                sponsor: {
+                  select: {
+                    id: true,
+                    name: true,
+                    logo: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        submission: {
+          include: {
+            team: {
+              include: {
+                members: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        username: true,
+                        image: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            track: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            bounty: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        {
+          prize: {
+            type: 'asc',
+          },
+        },
+        {
+          prize: {
+            position: 'asc',
+          },
+        },
+      ],
+    });
+
+    return {
+      hackathon: {
+        id: hackathon.id,
+        title: hackathon.title,
+        slug: hackathon.slug,
+        organization: hackathon.organization,
+      },
+      winners: prizeWinners,
+      totalWinners: prizeWinners.length,
     };
   }
 }
