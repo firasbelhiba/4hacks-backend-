@@ -2,10 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import cookieParser from 'cookie-parser';
-import { AppModule } from './../src/app.module';
-import { PrismaService } from './../src/prisma/prisma.service';
-import { RegisterDto } from './../src/auth/dto/register.dto';
-import { LoginDto } from './../src/auth/dto/login.dto';
+import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { RegisterDto } from '../src/auth/dto/register.dto';
+import { LoginDto } from '../src/auth/dto/login.dto';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
