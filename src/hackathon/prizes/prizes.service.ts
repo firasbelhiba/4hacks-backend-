@@ -11,6 +11,7 @@ import { UserMin } from 'src/common/types';
 import { HackathonStatus, UserRole, PrizeType } from 'generated/prisma';
 import { MAX_WINNERS_BY_BOUNTY, MAX_WINNERS_BY_TRACK } from '../constants';
 import { ManageBountyPrizesDto } from './dto/manage-bounty.dto';
+import { UpdatePrizeDto } from './dto/update-prize.dto';
 
 @Injectable()
 export class PrizesService {
@@ -454,5 +455,99 @@ export class PrizesService {
         position: 'asc',
       },
     });
+  }
+
+  async updatePrize(
+    prizeId: string,
+    updatePrizeDto: UpdatePrizeDto,
+    user: UserMin,
+  ) {
+    // Find the prize with its related hackathon and organization info
+    const prize = await this.prismaService.prize.findUnique({
+      where: {
+        id: prizeId,
+      },
+      include: {
+        hackathon: {
+          include: {
+            organization: {
+              select: {
+                id: true,
+                ownerId: true,
+              },
+            },
+          },
+        },
+        track: true,
+        bounty: true,
+      },
+    });
+
+    if (!prize) {
+      throw new NotFoundException('Prize not found');
+    }
+
+    const isAdmin = user.role === UserRole.ADMIN;
+    const isOrganizer = user.id === prize.hackathon.organization.ownerId;
+
+    // Check if user is allowed to update the prize
+    if (!isAdmin && !isOrganizer) {
+      throw new ForbiddenException('You are not allowed to update this prize');
+    }
+
+    // If position is being updated, check for duplicates
+    if (updatePrizeDto.position !== undefined) {
+      const whereClause: any = {
+        hackathonId: prize.hackathonId,
+        position: updatePrizeDto.position,
+        id: { not: prizeId }, // Exclude current prize
+      };
+
+      // Add type-specific filters
+      if (prize.type === PrizeType.TRACK && prize.trackId) {
+        whereClause.trackId = prize.trackId;
+        whereClause.type = PrizeType.TRACK;
+      } else if (prize.type === PrizeType.BOUNTY && prize.bountyId) {
+        whereClause.bountyId = prize.bountyId;
+        whereClause.type = PrizeType.BOUNTY;
+      }
+
+      const existingPrizeWithPosition =
+        await this.prismaService.prize.findFirst({
+          where: whereClause,
+        });
+
+      if (existingPrizeWithPosition) {
+        throw new BadRequestException(
+          `A prize with position ${updatePrizeDto.position} already exists for this ${prize.type.toLowerCase()}`,
+        );
+      }
+    }
+
+    // Update the prize
+    const updatedPrize = await this.prismaService.prize.update({
+      where: {
+        id: prizeId,
+      },
+      data: {
+        ...(updatePrizeDto.position !== undefined && {
+          position: updatePrizeDto.position,
+        }),
+        ...(updatePrizeDto.name !== undefined && {
+          name: updatePrizeDto.name,
+        }),
+        ...(updatePrizeDto.amount !== undefined && {
+          amount: updatePrizeDto.amount,
+        }),
+        ...(updatePrizeDto.token !== undefined && {
+          token: updatePrizeDto.token,
+        }),
+      },
+    });
+
+    return {
+      message: 'Prize updated successfully',
+      data: updatedPrize,
+    };
   }
 }
