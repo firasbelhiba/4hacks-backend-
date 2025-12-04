@@ -707,19 +707,20 @@ model Prize {
   updatedAt   DateTime  @default(now()) @updatedAt
 
   // Relations
-  hackathon    Hackathon     @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
-  track        Track?        @relation(fields: [trackId], references: [id], onDelete: SetNull)
-  bounty       Bounty?       @relation("BountyPrizes", fields: [bountyId], references: [id], onDelete: SetNull)
-  prizeWinners PrizeWinner[]
+  hackathon   Hackathon    @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  track       Track?       @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  bounty      Bounty?      @relation("BountyPrizes", fields: [bountyId], references: [id], onDelete: SetNull)
+  prizeWinner PrizeWinner?
 
   @@index([hackathonId])
   @@index([trackId])
+  @@index([bountyId])
   @@map("prizes")
 }
 
 model PrizeWinner {
   id           String @id @default(cuid())
-  prizeId      String
+  prizeId      String @unique
   submissionId String
 
   createdAt DateTime @default(now())

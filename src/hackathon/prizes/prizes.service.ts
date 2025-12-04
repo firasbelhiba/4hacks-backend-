@@ -8,10 +8,16 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ManageTrackPrizesDto } from './dto/manage-track.dto';
 import { UserMin } from 'src/common/types';
-import { HackathonStatus, UserRole, PrizeType } from 'generated/prisma';
+import {
+  HackathonStatus,
+  UserRole,
+  PrizeType,
+  SubmissionStatus,
+} from 'generated/prisma';
 import { MAX_WINNERS_BY_BOUNTY, MAX_WINNERS_BY_TRACK } from '../constants';
 import { ManageBountyPrizesDto } from './dto/manage-bounty.dto';
 import { UpdatePrizeDto } from './dto/update-prize.dto';
+import { SetPrizeWinnerDto } from './dto/set-prize-winner.dto';
 
 @Injectable()
 export class PrizesService {
@@ -548,6 +554,229 @@ export class PrizesService {
     return {
       message: 'Prize updated successfully',
       data: updatedPrize,
+    };
+  }
+
+  async setPrizeWinner(
+    prizeId: string,
+    setPrizeWinnerDto: SetPrizeWinnerDto,
+    user: UserMin,
+  ) {
+    const { submissionId } = setPrizeWinnerDto;
+
+    // Find the prize with its related hackathon and organization info
+    const prize = await this.prismaService.prize.findUnique({
+      where: {
+        id: prizeId,
+      },
+      include: {
+        hackathon: {
+          include: {
+            organization: {
+              select: {
+                id: true,
+                ownerId: true,
+              },
+            },
+          },
+        },
+        track: true,
+        bounty: true,
+        prizeWinner: {
+          include: {
+            submission: {
+              select: {
+                id: true,
+                title: true,
+                teamId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!prize) {
+      throw new NotFoundException('Prize not found');
+    }
+
+    // Check authorization - only admin or organization owner can set winners
+    const isAdmin = user.role === UserRole.ADMIN;
+    const isOrganizer = user.id === prize.hackathon.organization.ownerId;
+
+    if (!isAdmin && !isOrganizer) {
+      throw new ForbiddenException(
+        'You are not allowed to set winners for this prize',
+      );
+    }
+
+    // NOTE: A prize can only have one winner.
+    if (prize.prizeWinner) {
+      throw new BadRequestException('This prize already has a winner.');
+    }
+
+    // Check if the hackathon is ended
+    const now = new Date();
+    if (prize.hackathon.winnerAnnouncementDate) {
+      if (now < prize.hackathon.winnerAnnouncementDate) {
+        throw new BadRequestException(
+          'The hackathon winner announcement date has not passed yet. You cannot set winners for prizes.',
+        );
+      }
+    } else if (prize.hackathon.endDate > now) {
+      throw new BadRequestException(
+        'The hackathon is not ended yet. You cannot set winners for prizes.',
+      );
+    }
+
+    // Validate that the submission exists and belongs to the same hackathon
+    const submission = await this.prismaService.submission.findUnique({
+      where: {
+        id: submissionId,
+      },
+      select: {
+        id: true,
+        hackathonId: true,
+        trackId: true,
+        bountyId: true,
+        status: true,
+        title: true,
+        hackathon: {
+          select: {
+            title: true,
+          },
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found');
+    }
+
+    // Ensure submission belongs to the same hackathon
+    if (submission.hackathonId !== prize.hackathonId) {
+      throw new BadRequestException(
+        'Submission does not belong to the same hackathon as the prize',
+      );
+    }
+
+    // Ensure submission is submitted (not draft, withdrawn, or rejected)
+    if (submission.status !== SubmissionStatus.SUBMITTED) {
+      throw new BadRequestException(
+        `Cannot set winner for a submission with status: ${submission.status}. Only SUBMITTED submissions can win prizes.`,
+      );
+    }
+
+    // For track prizes, ensure submission is in the same track
+    if (prize.type === PrizeType.TRACK && prize.trackId) {
+      if (submission.trackId !== prize.trackId) {
+        throw new BadRequestException(
+          'Submission is not participating in the same track as this prize',
+        );
+      }
+    }
+
+    // For bounty prizes, ensure submission is for the same bounty
+    if (prize.type === PrizeType.BOUNTY && prize.bountyId) {
+      if (submission.bountyId !== prize.bountyId) {
+        throw new BadRequestException(
+          'Submission is not participating in the same bounty as this prize',
+        );
+      }
+    }
+
+    // // Check if this submission is already a winner of this prize
+    // const existingWinner = prize.prizeWinner?.submissionId === submissionId;
+
+    // if (existingWinner) {
+    //   throw new BadRequestException(
+    //     'This submission is already set as the winner for this prize',
+    //   );
+    // }
+
+    // Create the prize winner record
+    const prizeWinner = await this.prismaService.$transaction(async (tx) => {
+      const prizeWinner = await tx.prizeWinner.create({
+        data: {
+          prizeId,
+          submissionId,
+        },
+        include: {
+          submission: {
+            select: {
+              id: true,
+              title: true,
+              creator: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+              team: {
+                select: {
+                  id: true,
+                  name: true,
+                  members: {
+                    select: {
+                      id: true,
+                      userId: true,
+                      isLeader: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          prize: {
+            select: {
+              id: true,
+              name: true,
+              position: true,
+              amount: true,
+              token: true,
+              type: true,
+            },
+          },
+        },
+      });
+
+      // Update the submission's isWinner flag
+      await tx.submission.update({
+        where: {
+          id: submissionId,
+        },
+        data: {
+          isWinner: true,
+        },
+      });
+
+      // Set a notfication to the submission owner
+      await tx.notification.create({
+        data: {
+          toUserId: prizeWinner.submission.creator.id,
+          type: 'PRIZE_WINNER',
+          content: `Congratulations! You have won the prize ${prizeWinner.prize.name} for the submission ${prizeWinner.submission.title} in the hackathon ${submission.hackathon.title}`,
+          payload: {
+            prizeId: prizeWinner.prize.id,
+            submissionId: prizeWinner.submission.id,
+            hackathonId: submission.hackathonId,
+          },
+        },
+      });
+
+      return prizeWinner;
+    });
+
+    return {
+      message: 'Prize winner set successfully',
+      data: prizeWinner,
     };
   }
 }
