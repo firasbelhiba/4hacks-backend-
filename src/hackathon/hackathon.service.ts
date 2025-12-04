@@ -436,6 +436,9 @@ export class HackathonService {
     const tracks = await this.prisma.track.findMany({
       where: { hackathonId: hackathon.id },
       orderBy: { order: 'asc' },
+      include: {
+        prizes: true,
+      },
     });
 
     return {
