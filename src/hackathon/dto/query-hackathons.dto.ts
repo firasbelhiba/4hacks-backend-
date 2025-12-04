@@ -14,7 +14,7 @@ import {
   HackathonStatus,
   HackathonType,
   HackathonCategory,
-} from 'generated/prisma';
+} from '@prisma/client';
 
 export enum SortOrder {
   ASC = 'asc',
@@ -266,4 +266,3 @@ export class PaginatedHackathonsDto {
   })
   meta: PaginationMeta;
 }
-

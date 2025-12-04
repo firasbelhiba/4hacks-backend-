@@ -12,7 +12,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
-import { Provider, SessionStatus, UserRole } from 'generated/prisma';
+import { Provider, SessionStatus, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { LoginDto, VerifyTwoFactorLoginDto } from './dto/login.dto';
 import {

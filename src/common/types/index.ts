@@ -1,4 +1,9 @@
-import { HackathonRequiredMaterials, HackathonStatus, Provider, UserRole } from 'generated/prisma';
+import {
+  HackathonRequiredMaterials,
+  HackathonStatus,
+  Provider,
+  UserRole,
+} from '@prisma/client';
 
 export type JwtPayload = {
   sub: string;

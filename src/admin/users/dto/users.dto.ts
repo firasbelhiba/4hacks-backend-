@@ -9,7 +9,7 @@ import {
   IsString,
   IsBoolean,
 } from 'class-validator';
-import { UserRole } from 'generated/prisma';
+import { UserRole } from '@prisma/client';
 
 export enum SortOrder {
   ASC = 'asc',
@@ -140,4 +140,3 @@ export class PaginatedUsersDto {
   @ApiProperty({ description: 'Pagination metadata', type: PaginationMeta })
   meta: PaginationMeta;
 }
-

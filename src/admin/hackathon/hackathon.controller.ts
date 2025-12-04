@@ -14,7 +14,7 @@ import {
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
-import { UserRole } from 'generated/prisma';
+import { UserRole } from '@prisma/client';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { AdminHackathonService } from './hackathon.service';
 import { CancelHackathonDto } from './dto/cancel-hackathon.dto';
@@ -125,4 +125,3 @@ Only hackathons in **DRAFT** or **ACTIVE** status can be cancelled.
     );
   }
 }
-

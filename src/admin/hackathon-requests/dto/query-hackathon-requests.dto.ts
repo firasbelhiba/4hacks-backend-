@@ -9,7 +9,7 @@ import {
   IsString,
   IsDateString,
 } from 'class-validator';
-import { RequestStatus } from 'generated/prisma';
+import { RequestStatus } from '@prisma/client';
 
 export enum SortOrder {
   ASC = 'asc',

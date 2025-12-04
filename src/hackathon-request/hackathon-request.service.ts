@@ -9,7 +9,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateHackathonRequestDto } from './dto/create-request.dto';
 import { UserMin } from 'src/common/types';
-import { UserRole, RequestStatus } from 'generated/prisma';
+import { UserRole, RequestStatus } from '@prisma/client';
 
 @Injectable()
 export class HackathonRequestService {

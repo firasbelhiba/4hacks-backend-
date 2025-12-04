@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
-import { HackathonStatus } from 'generated/prisma';
+import { HackathonStatus } from '@prisma/client';
 import { CancelHackathonDto } from './dto/cancel-hackathon.dto';
 import { HackathonCancelledEmailTemplateHtml } from 'src/common/templates/emails/user.emails';
 
@@ -125,4 +125,3 @@ export class AdminHackathonService {
     };
   }
 }
-

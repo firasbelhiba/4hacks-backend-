@@ -13,7 +13,7 @@ import {
   RequestStatus,
   HackathonStatus,
   HackathonType,
-} from 'generated/prisma';
+} from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
 import {
   HackathonRequestApprovedEmailTemplateHtml,

@@ -13,7 +13,7 @@ import {
   UserRole,
   PrizeType,
   SubmissionStatus,
-} from 'generated/prisma';
+} from '@prisma/client';
 import { MAX_WINNERS_BY_BOUNTY, MAX_WINNERS_BY_TRACK } from '../constants';
 import { ManageBountyPrizesDto } from './dto/manage-bounty.dto';
 import { UpdatePrizeDto } from './dto/update-prize.dto';

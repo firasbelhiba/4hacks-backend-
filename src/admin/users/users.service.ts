@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EmailService } from 'src/email/email.service';
-import { SessionStatus, UserRole, Prisma } from 'generated/prisma';
+import { SessionStatus, UserRole, Prisma } from '@prisma/client';
 import { ManageUserBanDto } from './dto/manage-user-ban.dto';
 import {
   AccountBannedEmailTemplateHtml,

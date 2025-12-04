@@ -14,7 +14,7 @@ import {
   QueryHackathonsDto,
   PaginatedHackathonsDto,
 } from './dto/query-hackathons.dto';
-import { HackathonStatus, UserRole, Prisma } from 'generated/prisma';
+import { HackathonStatus, UserRole, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { UserMin } from 'src/common/types';
 

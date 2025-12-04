@@ -22,7 +22,7 @@ import {
   MarketingHelpDetails,
   EstimatedReach,
   EventLogisticsDetails,
-} from 'generated/prisma';
+} from '@prisma/client';
 
 export class CreateHackathonRequestDto {
   @ApiProperty({

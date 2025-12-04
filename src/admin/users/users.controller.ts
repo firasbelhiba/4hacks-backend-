@@ -23,14 +23,11 @@ import {
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
-import { UserRole } from 'generated/prisma';
+import { UserRole } from '@prisma/client';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UsersService } from './users.service';
 import { ManageUserBanDto } from './dto/manage-user-ban.dto';
-import {
-  QueryUsersDto,
-  PaginatedUsersDto,
-} from './dto/users.dto';
+import { QueryUsersDto, PaginatedUsersDto } from './dto/users.dto';
 
 @ApiTags('Admin - User Management')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -93,13 +90,16 @@ export class UsersController {
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
   @ApiForbiddenResponse({
     description: 'Forbidden - User does not have ADMIN role',
   })
   @ApiBody({
     type: ManageUserBanDto,
-    description: 'Ban reason (optional). If provided, this will be sent to the user via email.',
+    description:
+      'Ban reason (optional). If provided, this will be sent to the user via email.',
     examples: {
       'Violation example': {
         value: {
@@ -180,7 +180,9 @@ export class UsersController {
       },
     },
   })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
   @ApiForbiddenResponse({
     description: 'Forbidden - User does not have ADMIN role',
   })
@@ -213,10 +215,7 @@ export class UsersController {
   @ApiForbiddenResponse({ description: 'Forbidden access' })
   @ApiBearerAuth()
   @Get()
-  async findAll(
-    @Query() query: QueryUsersDto,
-  ): Promise<PaginatedUsersDto> {
+  async findAll(@Query() query: QueryUsersDto): Promise<PaginatedUsersDto> {
     return await this.usersService.findAll(query);
   }
 }
-

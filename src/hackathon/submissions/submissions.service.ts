@@ -15,7 +15,7 @@ import {
   HackathonRequiredMaterials,
   HackathonStatus,
   SubmissionStatus,
-} from 'generated/prisma';
+} from '@prisma/client';
 import { ReviewSubmissionDto, SubmissionReviewAction } from './dto/review.dto';
 import { EmailService } from 'src/email/email.service';
 import {

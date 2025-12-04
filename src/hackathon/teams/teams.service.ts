@@ -13,7 +13,7 @@ import {
   ActivityTargetType,
   HackathonStatus,
   InvitationStatus,
-} from 'generated/prisma';
+} from '@prisma/client';
 import { TeamMemberDto } from './dto/member.dto';
 
 @Injectable()

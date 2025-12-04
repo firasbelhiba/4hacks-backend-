@@ -24,7 +24,7 @@ import { HackathonRequestsService } from './hackathon-requests.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
-import { UserRole } from 'generated/prisma';
+import { UserRole } from '@prisma/client';
 import { QueryHackathonRequestsDto } from './dto/query-hackathon-requests.dto';
 import { PaginatedHackathonRequestsDto } from './dto/paginated-hackathon-requests.dto';
 import { RejectRequestDto } from './dto/reject-request.dto';
@@ -41,7 +41,8 @@ export class HackathonRequestsController {
   ) {}
 
   @ApiOperation({
-    summary: 'Get all hackathon requests with pagination, filtering, and sorting',
+    summary:
+      'Get all hackathon requests with pagination, filtering, and sorting',
     description:
       'Get all hackathon requests with support for pagination, filtering by status/organization/date, searching, and sorting. This endpoint can be accessed by ADMIN role only.',
   })
@@ -82,7 +83,8 @@ export class HackathonRequestsController {
     description: 'Request is not in PENDING status',
   })
   @ApiConflictResponse({
-    description: 'Hackathon with this slug already exists or request already approved',
+    description:
+      'Hackathon with this slug already exists or request already approved',
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
   @ApiForbiddenResponse({ description: 'Forbidden access' })

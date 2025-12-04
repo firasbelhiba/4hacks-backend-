@@ -21,7 +21,7 @@ import {
   HackathonType,
   HackathonStatus,
   HackathonRequiredMaterials,
-} from 'generated/prisma';
+} from '@prisma/client';
 
 class LocationDto {
   @ApiPropertyOptional({ example: 'United States' })

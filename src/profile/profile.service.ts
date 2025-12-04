@@ -22,7 +22,7 @@ import {
   Provider,
   SessionStatus,
   UserRole,
-} from 'generated/prisma';
+} from '@prisma/client';
 import {
   PasswordChangedEmailTemplateHtml,
   TwoFactorEmailCodeTemplateHtml,

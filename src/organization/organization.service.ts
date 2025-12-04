@@ -15,7 +15,7 @@ import {
   Prisma,
   RequestStatus,
   UserRole,
-} from 'generated/prisma';
+} from '@prisma/client';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
 import {
   QueryOrganizationsDto,
@@ -645,8 +645,8 @@ export class OrganizationService {
     }
 
     // Unarchive the organization
-    const unarchivedOrganization =
-      await this.prismaService.organization.update({
+    const unarchivedOrganization = await this.prismaService.organization.update(
+      {
         where: { id: organization.id },
         data: {
           isArchived: false,
@@ -662,7 +662,8 @@ export class OrganizationService {
           createdAt: true,
           updatedAt: true,
         },
-      });
+      },
+    );
 
     this.logger.log(
       `Organization ${organization.id} (${organization.name}) unarchived by owner ${userId}`,

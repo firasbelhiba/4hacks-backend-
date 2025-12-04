@@ -16,7 +16,7 @@ import {
   HackathonRegistrationStatus,
   HackathonStatus,
   UserRole,
-} from 'generated/prisma';
+} from '@prisma/client';
 
 @Injectable()
 export class HackathonRegistrationService {

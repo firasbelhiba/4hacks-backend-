@@ -1,18 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsOptional,
-  IsInt,
-  Min,
-  Max,
-  IsEnum,
-  IsString,
-} from 'class-validator';
-import {
-  OrganizationType,
-  OrganizationSize,
-  Region,
-} from 'generated/prisma';
+import { IsOptional, IsInt, Min, Max, IsEnum, IsString } from 'class-validator';
+import { OrganizationType, OrganizationSize, Region } from '@prisma/client';
 
 export enum SortOrder {
   ASC = 'asc',
@@ -194,4 +183,3 @@ export class PaginatedOrganizationsDto {
   })
   meta: PaginationMeta;
 }
-
