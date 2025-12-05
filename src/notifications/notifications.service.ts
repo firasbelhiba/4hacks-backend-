@@ -87,4 +87,21 @@ export class NotificationsService {
       data: updatedNotification,
     };
   }
+
+  async markAllNotificationsAsRead(user: UserMin) {
+    const result = await this.prismaService.notification.updateMany({
+      where: {
+        toUserId: user.id,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+      },
+    });
+
+    return {
+      message: 'All notifications marked as read',
+      notificationsCount: result.count,
+    };
+  }
 }

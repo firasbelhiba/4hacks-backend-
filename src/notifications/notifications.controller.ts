@@ -120,4 +120,24 @@ export class NotificationsController {
   ) {
     return await this.notificationsService.markNotificationAsRead(user, id);
   }
+
+  @ApiOperation({
+    summary: 'Mark all notifications as read',
+    description: 'Mark all notifications as read',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Mark all notifications as read',
+    example: {
+      message: 'All notifications marked as read',
+      notificationsCount: 7,
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized access',
+  })
+  @Patch('mark-all-as-read')
+  async markAllNotificationsAsRead(@CurrentUser() user: UserMin) {
+    return await this.notificationsService.markAllNotificationsAsRead(user);
+  }
 }
