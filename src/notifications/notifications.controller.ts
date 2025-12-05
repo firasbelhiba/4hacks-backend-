@@ -1,6 +1,16 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -63,12 +73,51 @@ export class NotificationsController {
       limit: 2,
     },
   })
-  @ApiUnauthorizedResponse({})
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized access',
+  })
   @Get('')
   async getUserNotifications(
     @CurrentUser() user: UserMin,
     @Query() query: GetUserNotificationsDto,
   ) {
     return await this.notificationsService.getUserNotifications(user, query);
+  }
+
+  @ApiOperation({
+    summary: 'Mark notification as read',
+    description: 'Mark notification as read',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Mark notification as read',
+    example: {
+      message: 'Notification marked as read',
+      data: {
+        id: 'cmiobryrf0001ukfdov2oe58r',
+        content:
+          'You have been removed from team Buoya 1 for hackathon cmimw0vlx00053ofdy2gnfwfy by aibuoya',
+        isRead: true,
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized access',
+  })
+  @ApiNotFoundResponse({
+    description: 'Notification not found',
+  })
+  @ApiForbiddenResponse({
+    description: 'You are forbidden to mark this notification as read',
+  })
+  @ApiBadRequestResponse({
+    description: 'Notification is already read',
+  })
+  @Patch(':id/mark-as-read')
+  async markNotificationAsRead(
+    @CurrentUser() user: UserMin,
+    @Param('id') id: string,
+  ) {
+    return await this.notificationsService.markNotificationAsRead(user, id);
   }
 }

@@ -1,4 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { UserMin } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { GetUserNotificationsDto } from './dto/notfications.dto';
@@ -38,6 +44,47 @@ export class NotificationsService {
       total,
       page,
       limit,
+    };
+  }
+
+  async markNotificationAsRead(user: UserMin, notificationId: string) {
+    const notification = await this.prismaService.notification.findUnique({
+      where: {
+        id: notificationId,
+      },
+    });
+
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    if (notification.toUserId !== user.id) {
+      throw new ForbiddenException(
+        'You are forbidden to mark this notification as read',
+      );
+    }
+
+    if (notification.isRead) {
+      throw new BadRequestException('Notification is already read');
+    }
+
+    const updatedNotification = await this.prismaService.notification.update({
+      where: {
+        id: notificationId,
+      },
+      data: {
+        isRead: true,
+      },
+      select: {
+        id: true,
+        content: true,
+        isRead: true,
+      },
+    });
+
+    return {
+      message: 'Notification marked as read',
+      data: updatedNotification,
     };
   }
 }
