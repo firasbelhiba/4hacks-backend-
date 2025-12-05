@@ -17,6 +17,7 @@ import Keyv from 'keyv';
 import KeyvRedis from '@keyv/redis';
 import { HackathonRequestModule } from './hackathon-request/hackathon-request.module';
 import { AdminModule } from './admin/admin.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { AdminModule } from './admin/admin.module';
     R2Module,
     HackathonRequestModule,
     AdminModule,
+    NotificationsModule,
   ],
   controllers: [AppController, R2Controller],
   providers: [AppService, R2Service],
