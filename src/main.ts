@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,6 +19,9 @@ async function bootstrap() {
 
   // Enable Cookie Parser Middleware
   app.use(cookieParser());
+
+  // Enable Helmet Middleware (middleware that adds security headers)
+  app.use(helmet());
 
   // Enable Validation Pipe globally
   app.useGlobalPipes(
