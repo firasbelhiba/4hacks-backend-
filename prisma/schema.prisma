@@ -509,6 +509,7 @@ model HackathonCreationRequest {
   @@index([organizationId])
   @@index([rejectedById])
   @@index([approvedById])
+  @@index([organizationId, status])
   @@map("hackathon_creation_requests")
 }
 
@@ -604,7 +605,7 @@ model HackathonRegistrationAnswer {
   answers        Json // JSON object with question IDs as keys and answers as values
   submittedAt    DateTime @default(now())
   createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now()) @updatedAt
+  updatedAt      DateTime @updatedAt
 
   registration HackathonRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
@@ -619,11 +620,11 @@ model CustomHackathonTab {
   slug        String // Unique per hackathon
   content     String   @db.Text // Markdown content
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  updatedAt   DateTime @updatedAt
 
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
 
-  @@index([hackathonId])
+  @@unique([hackathonId, slug])
   @@map("custom_hackathon_tabs")
 }
 
@@ -639,10 +640,10 @@ model HackathonQuestionThread {
   attachments String[] @default([]) // image URLs
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt DateTime @updatedAt
 
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
-  user      users     @relation(fields: [userId], references: [id])
+  user      users     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   replies HackathonQuestionReply[]
 
@@ -663,12 +664,14 @@ model HackathonQuestionReply {
   createdAt DateTime @default(now())
 
   thread   HackathonQuestionThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  user     users                    @relation(fields: [userId], references: [id])
+  user     users                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent   HackathonQuestionReply?  @relation("ReplyToParent", fields: [parentId], references: [id])
   children HackathonQuestionReply[] @relation("ReplyToParent")
 
   @@index([threadId])
   @@index([parentId])
+  @@index([userId])
+  @@index([threadId, userId])
   @@map("hackathon_question_replies")
 }
 
@@ -681,7 +684,7 @@ model Track {
   order           Int      @default(0)
   winnersCount    Int      @default(1)
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @default(now()) @updatedAt
+  updatedAt       DateTime @updatedAt
 
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
 
@@ -689,6 +692,7 @@ model Track {
   prizes      Prize[]
 
   @@index([hackathonId])
+  @@index([hackathonId, order])
   @@map("tracks")
 }
 
@@ -704,7 +708,7 @@ model Prize {
   amount      Float     @default(0)
   token       String    @default("USD")
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now()) @updatedAt
+  updatedAt   DateTime  @updatedAt
 
   // Relations
   hackathon   Hackathon    @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
@@ -771,6 +775,7 @@ model Sponsor {
   bounties Bounty[]
 
   @@index([name])
+  @@index([hackathonId])
   @@map("sponsors")
 }
 
@@ -802,8 +807,7 @@ model HackathonRegistration {
 
   @@unique([hackathonId, userId])
   @@index([hackathonId, status])
-  @@index([hackathonId])
-  @@index([userId])
+  @@index([hackathonId, userId])
   @@map("hackathon_registrations")
 }
 
@@ -844,7 +848,7 @@ model Submission {
 
   hackathon    Hackathon     @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   team         Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  creator      users         @relation(fields: [creatorId], references: [id])
+  creator      users         @relation(fields: [creatorId], references: [id], onDelete: Restrict)
   track        Track?        @relation(fields: [trackId], references: [id], onDelete: SetNull)
   bounty       Bounty?       @relation(fields: [bountyId], references: [id], onDelete: SetNull)
   prizeWinners PrizeWinner[]
@@ -855,6 +859,9 @@ model Submission {
   @@index([trackId])
   @@index([creatorId])
   @@index([submittedAt])
+  @@index([bountyId])
+  @@index([hackathonId, teamId])
+  @@index([trackId, status])
   @@map("submissions")
 }
 
@@ -895,6 +902,7 @@ model TeamMember {
   @@unique([teamId, userId])
   @@index([teamId])
   @@index([userId])
+  @@index([userId, teamId])
   @@map("team_members")
 }
 
@@ -942,5 +950,7 @@ model Notification {
   @@index([toUserId])
   @@index([fromUserId])
   @@index([type])
+  @@index([toUserId, isRead])
+  @@index([createdAt])
   @@map("notifications")
 }
