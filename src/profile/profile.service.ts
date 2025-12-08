@@ -174,6 +174,7 @@ export class ProfileService {
         otherSocials: true,
         createdAt: true,
         updatedAt: true,
+        isArchived: true,
         owner: {
           select: {
             id: true,
