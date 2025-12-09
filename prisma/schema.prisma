@@ -43,11 +43,6 @@ enum SubmissionStatus {
   WITHDRAWN // Team voluntarily removed the submission.
 }
 
-enum HackathonCategory {
-  WEB3
-  AI
-}
-
 enum PrizeType {
   TRACK
   BOUNTY
@@ -389,7 +384,8 @@ model HackathonCreationRequest {
   approvedById      String?
   approvedBy        users?            @relation("approvedHackathonCreationRequests", fields: [approvedById], references: [id], onDelete: Cascade)
   hackType          HackathonType
-  hackCategory      HackathonCategory
+  hackCategoryId    String
+  hackCategory      HackathonCategory @relation(fields: [hackCategoryId], references: [id])
   focus             String
   audience          String
   expectedAttendees Int
@@ -535,7 +531,8 @@ model Hackathon {
   banner                  String?
   tagline                 String            @default("")
   description             String            @default("") @db.Text
-  category                HackathonCategory
+  categoryId              String
+  category                HackathonCategory @relation(fields: [categoryId], references: [id])
   type                    HackathonType     @default(ONLINE)
   status                  HackathonStatus   @default(DRAFT)
   tags                    String[]          @default([])
@@ -557,8 +554,8 @@ model Hackathon {
   // Settings
   maxTeamSize               Int      @default(4) // when this  = 1, it means only individual participation is allowed
   minTeamSize               Int      @default(1)
-  maxTracksByProject        Int      @default(6)
-  requiresApproval          Boolean  @default(false) // If true, participants need approval to join
+  maxTracksByProject        Int      @default(6) // TOOD: need to be checked if we need it
+  requiresApproval          Boolean  @default(false) // If true, participants need approval to submit their project
   isPrivate                 Boolean  @default(false) // If true, hackathon can be accessed by invite only (participants need an invite passcode)
   invitePasscode            String? // Required if isPrivate is true, should be hashed using bcrypt before storing
   isProjectWhiteListEnabled Boolean  @default(false) // If true, only whitelisted emails can submit submissions
@@ -597,6 +594,17 @@ model Hackathon {
   @@index([status, isPrivate])
   @@index([startDate, endDate])
   @@map("hackathons")
+}
+
+// Categories
+model HackathonCategory {
+  id                        String                     @id @default(cuid())
+  name                      String                     @unique
+  description               String?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  hackathonCreationRequests HackathonCreationRequest[]
+  hackathons                Hackathon[]
 }
 
 model HackathonRegistrationAnswer {

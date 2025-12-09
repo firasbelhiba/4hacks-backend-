@@ -94,7 +94,9 @@ export class HackathonService {
     }
 
     if (category) {
-      filterWhere.category = category;
+      filterWhere.category = {
+        name: category,
+      };
     }
 
     if (isPrivate !== undefined) {
@@ -154,7 +156,13 @@ export class HackathonService {
       slug: true,
       status: true,
       type: true,
-      category: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+      },
       banner: true,
       tagline: true,
       prizePool: true,
@@ -272,7 +280,26 @@ export class HackathonService {
     }
 
     // Prepare update data
-    const updateData: any = { ...updateHackathonDto };
+    const updateData: any = {
+      ...updateHackathonDto,
+      categoryId: undefined,
+      category: undefined,
+    };
+
+    // Validate the category
+    if (updateHackathonDto.category) {
+      console.log(updateHackathonDto.category);
+      const category = await this.prisma.hackathonCategory.findUnique({
+        where: { name: updateHackathonDto.category.toUpperCase() },
+        select: { id: true },
+      });
+
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      updateData.categoryId = category.id;
+    }
 
     // Hash invite passcode if provided
     if (updateHackathonDto.invitePasscode) {
@@ -295,6 +322,9 @@ export class HackathonService {
         id: hackathon.id,
       },
       data: updateData,
+      include: {
+        category: true,
+      },
     });
 
     return {

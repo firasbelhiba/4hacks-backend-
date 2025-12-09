@@ -103,11 +103,21 @@ export class HackathonRequestService {
 
     this.logger.log('Creating hackathon request');
 
+    // Find category by name
+    const category = await this.prisma.hackathonCategory.findUnique({
+      where: { id: createRequestDto.hackCategoryId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
     try {
       // Create the request
       const request = await this.prisma.hackathonCreationRequest.create({
         data: {
           ...createRequestDto,
+          hackCategoryId: category.id,
         },
       });
 

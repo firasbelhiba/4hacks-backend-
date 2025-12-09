@@ -10,11 +10,7 @@ import {
   IsBoolean,
   IsDateString,
 } from 'class-validator';
-import {
-  HackathonStatus,
-  HackathonType,
-  HackathonCategory,
-} from '@prisma/client';
+import { HackathonStatus, HackathonType } from '@prisma/client';
 
 export enum SortOrder {
   ASC = 'asc',
@@ -80,13 +76,12 @@ export class QueryHackathonsDto {
   type?: HackathonType;
 
   @ApiPropertyOptional({
-    description: 'Filter by hackathon category',
-    enum: HackathonCategory,
-    example: HackathonCategory.WEB3,
+    description: 'Hackathon category',
+    example: 'Web3',
   })
+  @IsString()
   @IsOptional()
-  @IsEnum(HackathonCategory)
-  category?: HackathonCategory;
+  category?: string;
 
   @ApiPropertyOptional({
     description:
@@ -211,8 +206,24 @@ export class HackathonListItemDto {
   @ApiProperty({ description: 'Hackathon type', enum: HackathonType })
   type: HackathonType;
 
-  @ApiProperty({ description: 'Hackathon category', enum: HackathonCategory })
-  category: HackathonCategory;
+  @ApiProperty({
+    description: 'Hackathon category',
+    type: 'object',
+    properties: {
+      id: { type: 'string', description: 'Category ID' },
+      name: { type: 'string', description: 'Category name' },
+      description: {
+        type: 'string',
+        nullable: true,
+        description: 'Category description',
+      },
+    },
+  })
+  category: {
+    id: string;
+    name: string;
+    description: string | null;
+  };
 
   @ApiPropertyOptional({ description: 'Banner image URL', nullable: true })
   banner: string | null;

@@ -209,7 +209,7 @@ export class HackathonRequestsService {
                   },
                 ]
               : Prisma.JsonNull,
-          category: request.hackCategory,
+          categoryId: request.hackCategoryId,
           type: request.hackType,
           status: HackathonStatus.DRAFT,
           prizePool: request.prizePool,
