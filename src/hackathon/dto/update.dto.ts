@@ -89,7 +89,7 @@ export class UpdateHackathonDto {
   })
   @IsString()
   @IsOptional()
-  category?: String;
+  category?: string;
 
   @ApiPropertyOptional({
     description: 'Hackathon type',
