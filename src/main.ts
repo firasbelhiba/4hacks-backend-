@@ -59,6 +59,7 @@ async function bootstrap() {
       'Hackathon Prizes',
       'Endpoints related to hackathon prizes management',
     )
+    .addTag('Hackathon Announcements', 'Endpoints related to hackathon announcements management')
     .addTag('Hackathon Registration', 'Endpoints for hackathon registrations')
     .addTag('Hackathon Teams', 'Endpoints for hackathon teams')
     .addTag('Hackathon Submissions', 'Endpoints for hackathon submissions')
