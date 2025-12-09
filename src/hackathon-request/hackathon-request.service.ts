@@ -105,7 +105,7 @@ export class HackathonRequestService {
 
     // Find category by name
     const category = await this.prisma.hackathonCategory.findUnique({
-      where: { id: createRequestDto.hackCategoryId },
+      where: { name: createRequestDto.hackCategory.toUpperCase() },
     });
 
     if (!category) {
@@ -117,7 +117,11 @@ export class HackathonRequestService {
       const request = await this.prisma.hackathonCreationRequest.create({
         data: {
           ...createRequestDto,
+          hackCategory: undefined,
           hackCategoryId: category.id,
+        },
+        include: {
+          hackCategory: true,
         },
       });
 

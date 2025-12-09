@@ -57,12 +57,12 @@ export class CreateHackathonRequestDto {
   hackType: HackathonType;
 
   @ApiProperty({
-    description: 'The ID of the hackathon category',
-    example: 'cm_123456789',
+    description: 'The name of the hackathon category',
+    example: 'WEB3',
   })
   @IsString()
   @IsNotEmpty()
-  hackCategoryId: string;
+  hackCategory: string;
 
   @ApiProperty({
     description: 'The focus of the hackathon',
