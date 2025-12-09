@@ -515,6 +515,7 @@ export class HackathonService {
         tracks: true,
         bounties: true,
         prizes: true,
+        category: true,
         organization: {
           include: {
             owner: {

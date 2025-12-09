@@ -159,6 +159,7 @@ export class HackathonRequestService {
         ...(isAdmin ? {} : { status: { not: RequestStatus.DELETED } }),
       },
       include: {
+        hackCategory: true,
         organization: {
           include: {
             owner: {
