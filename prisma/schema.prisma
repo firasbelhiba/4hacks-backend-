@@ -113,6 +113,7 @@ model users {
   teamInvitationsReceived           TeamInvitation[]           @relation("TeamInvitationsReceived")
   teamInvitationsSent               TeamInvitation[]           @relation("TeamInvitationsSent")
   reviewedSubmissions               Submission[]               @relation("SubmissionReviewedBy")
+  announcements                     Announcement[]
 
   @@index([email])
   @@index([username])
@@ -588,12 +589,62 @@ model Hackathon {
   bounties                  Bounty[]
   hackathonRegistrations    HackathonRegistration[]
   teams                     Team[]
+  announcements             Announcement[]
 
   @@index([slug])
   @@index([organizationId])
   @@index([status, isPrivate])
   @@index([startDate, endDate])
   @@map("hackathons")
+}
+
+enum AnnouncementVisibility {
+  PUBLIC
+  REGISTERED_ONLY
+}
+
+model Announcement {
+  id          String @id @default(cuid())
+  hackathonId String
+  createdById String
+
+  title   String
+  message String  @db.Text
+  image   String? // optional banner/image
+  link    String? // optional external resource
+
+  visibility AnnouncementVisibility @default(PUBLIC)
+  targetType AnnouncementTargetType @default(ALL)
+  isPinned   Boolean                @default(false)
+  isDeleted  Boolean                @default(false)
+
+  trackId  String? // used if targetType = TRACK
+  bountyId String? // used if targetType = BOUNTY
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  createdBy users     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  track     Track?    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  bounty    Bounty?   @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+
+  @@index([hackathonId])
+  @@index([createdById])
+  @@index([isPinned])
+  @@index([visibility])
+  @@index([targetType])
+  @@index([trackId])
+  @@index([bountyId])
+  @@map("announcements")
+}
+
+enum AnnouncementTargetType {
+  ALL
+  REGISTERED
+  SUBMITTED
+  TRACK
+  BOUNTY
 }
 
 // Categories
@@ -696,8 +747,9 @@ model Track {
 
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
 
-  submissions Submission[]
-  prizes      Prize[]
+  submissions   Submission[]
+  prizes        Prize[]
+  announcements Announcement[]
 
   @@index([hackathonId])
   @@index([hackathonId, order])
@@ -762,8 +814,9 @@ model Bounty {
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   sponsor   Sponsor   @relation(fields: [sponsorId], references: [id])
 
-  prizes      Prize[]      @relation("BountyPrizes")
-  submissions Submission[]
+  prizes        Prize[]        @relation("BountyPrizes")
+  submissions   Submission[]
+  announcements Announcement[]
 
   @@index([hackathonId])
   @@index([sponsorId])
