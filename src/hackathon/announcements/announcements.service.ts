@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAnnouncementDto } from './dto/create.dto';
+import { UpdateAnnouncementDto } from './dto/update.dto';
 import { HackathonMin, UserMin } from 'src/common/types';
 import {
   AnnouncementTargetType,
@@ -134,30 +135,30 @@ export class AnnouncementsService {
     if (!isOwner && !isAdmin) {
       if (requesterUser) {
         // Check if user is registered to the hackathon
-          const isRegistered =
-            await this.prismaService.hackathonRegistration.findUnique({
-              where: {
-                hackathonId_userId: {
-                  hackathonId: hackathon.id,
-                  userId: requesterUser.id,
-                },
-                status: HackathonRegistrationStatus.APPROVED,
+        const isRegistered =
+          await this.prismaService.hackathonRegistration.findUnique({
+            where: {
+              hackathonId_userId: {
+                hackathonId: hackathon.id,
+                userId: requesterUser.id,
               },
-              select: {
-                id: true,
-              },
-            });
+              status: HackathonRegistrationStatus.APPROVED,
+            },
+            select: {
+              id: true,
+            },
+          });
 
-          // If registered, show PUBLIC and REGISTERED_ONLY announcements
-          // If not registered, show only PUBLIC announcements
-          whereClause.visibility = isRegistered
-            ? {
-                in: [
-                  AnnouncementVisibility.PUBLIC,
-                  AnnouncementVisibility.REGISTERED_ONLY,
-                ],
-              }
-            : AnnouncementVisibility.PUBLIC;
+        // If registered, show PUBLIC and REGISTERED_ONLY announcements
+        // If not registered, show only PUBLIC announcements
+        whereClause.visibility = isRegistered
+          ? {
+              in: [
+                AnnouncementVisibility.PUBLIC,
+                AnnouncementVisibility.REGISTERED_ONLY,
+              ],
+            }
+          : AnnouncementVisibility.PUBLIC;
       } else {
         // No user logged in, show only PUBLIC announcements
         whereClause.visibility = AnnouncementVisibility.PUBLIC;
@@ -197,5 +198,145 @@ export class AnnouncementsService {
     });
 
     return announcements;
+  }
+
+  async updateAnnouncement(
+    announcementId: string,
+    hackathon: HackathonMin,
+    updateData: UpdateAnnouncementDto,
+    requesterUser: UserMin,
+  ) {
+    // Check that the requester is the owner of the hackathon
+    if (requesterUser.id !== hackathon.organization.ownerId) {
+      throw new ForbiddenException(
+        'You are not authorized to update announcements for this hackathon',
+      );
+    }
+
+    // Check if announcement exists and belongs to this hackathon
+    const existingAnnouncement =
+      await this.prismaService.announcement.findUnique({
+        where: {
+          id: announcementId,
+        },
+        select: {
+          id: true,
+          hackathonId: true,
+          isDeleted: true,
+          title: true,
+        },
+      });
+
+    if (!existingAnnouncement) {
+      throw new NotFoundException('Announcement not found');
+    }
+
+    if (existingAnnouncement.hackathonId !== hackathon.id) {
+      throw new ConflictException(
+        "Announcement doesn't belong to this hackathon",
+      );
+    }
+
+    if (existingAnnouncement.isDeleted) {
+      throw new BadRequestException('Cannot update a deleted announcement');
+    }
+
+    const { trackId, bountyId, targetType } = updateData;
+
+    // Validate trackId if provided
+    if (trackId !== undefined) {
+      if (trackId) {
+        // Check if targetType is TRACK
+        if (targetType && targetType !== AnnouncementTargetType.TRACK) {
+          throw new BadRequestException(
+            'Target type must be TRACK if trackId is provided',
+          );
+        }
+
+        // Check if track exists and belongs to this hackathon
+        const track = await this.prismaService.track.findUnique({
+          where: {
+            id: trackId,
+          },
+          select: {
+            hackathonId: true,
+          },
+        });
+
+        if (!track) {
+          throw new NotFoundException('Track not found');
+        }
+
+        if (track.hackathonId !== hackathon.id) {
+          throw new ConflictException("Track doesn't belong to this hackathon");
+        }
+      } else {
+        // If trackId is explicitly set to null/empty, remove it from update
+        delete updateData.trackId;
+      }
+    }
+
+    // Validate bountyId if provided
+    if (bountyId !== undefined) {
+      if (bountyId) {
+        // Check if targetType is BOUNTY
+        if (targetType && targetType !== AnnouncementTargetType.BOUNTY) {
+          throw new BadRequestException(
+            'Target type must be BOUNTY if bountyId is provided',
+          );
+        }
+
+        // Check if bounty exists and belongs to this hackathon
+        const bounty = await this.prismaService.bounty.findUnique({
+          where: {
+            id: bountyId,
+          },
+          select: {
+            hackathonId: true,
+          },
+        });
+
+        if (!bounty) {
+          throw new NotFoundException('Bounty not found');
+        }
+
+        if (bounty.hackathonId !== hackathon.id) {
+          throw new ConflictException(
+            "Bounty doesn't belong to this hackathon",
+          );
+        }
+      } else {
+        // If bountyId is explicitly set to null/empty, remove it from update
+        delete updateData.bountyId;
+      }
+    }
+
+    // Update the announcement
+    const announcement = await this.prismaService.$transaction(async (tx) => {
+      const updatedAnnouncement = await tx.announcement.update({
+        where: {
+          id: announcementId,
+        },
+        data: updateData,
+      });
+
+      // Store activity logs
+      await tx.userActivityLog.create({
+        data: {
+          description: `Updated announcement ${existingAnnouncement.title} in hackathon ${hackathon.title}`,
+          userId: requesterUser.id,
+          isPublic: false,
+          action: 'UPDATE_ANNOUNCEMENT',
+          targetId: announcementId,
+        },
+      });
+
+      return updatedAnnouncement;
+    });
+
+    return {
+      message: 'Announcement updated successfully',
+      announcement,
+    };
   }
 }
