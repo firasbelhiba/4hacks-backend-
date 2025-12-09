@@ -8,7 +8,12 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAnnouncementDto } from './dto/create.dto';
 import { HackathonMin, UserMin } from 'src/common/types';
-import { AnnouncementTargetType } from '@prisma/client';
+import {
+  AnnouncementTargetType,
+  AnnouncementVisibility,
+  HackathonRegistrationStatus,
+  UserRole,
+} from '@prisma/client';
 
 @Injectable()
 export class AnnouncementsService {
@@ -110,5 +115,87 @@ export class AnnouncementsService {
       message: 'Announcement created successfully',
       announcement,
     };
+  }
+
+  async getHackathonAnnouncements(
+    hackathon: HackathonMin,
+    requesterUser?: UserMin,
+  ) {
+    const isOwner = requesterUser?.id === hackathon.organization.ownerId;
+    const isAdmin = requesterUser?.role === UserRole.ADMIN;
+
+    // Build the where clause for database-level filtering
+    const whereClause: any = {
+      hackathonId: hackathon.id,
+      isDeleted: false,
+    };
+
+    // If user is not owner or admin, apply visibility filtering
+    if (!isOwner && !isAdmin) {
+      if (requesterUser) {
+        // Check if user is registered to the hackathon
+          const isRegistered =
+            await this.prismaService.hackathonRegistration.findUnique({
+              where: {
+                hackathonId_userId: {
+                  hackathonId: hackathon.id,
+                  userId: requesterUser.id,
+                },
+                status: HackathonRegistrationStatus.APPROVED,
+              },
+              select: {
+                id: true,
+              },
+            });
+
+          // If registered, show PUBLIC and REGISTERED_ONLY announcements
+          // If not registered, show only PUBLIC announcements
+          whereClause.visibility = isRegistered
+            ? {
+                in: [
+                  AnnouncementVisibility.PUBLIC,
+                  AnnouncementVisibility.REGISTERED_ONLY,
+                ],
+              }
+            : AnnouncementVisibility.PUBLIC;
+      } else {
+        // No user logged in, show only PUBLIC announcements
+        whereClause.visibility = AnnouncementVisibility.PUBLIC;
+      }
+    }
+    // If owner or admin, no visibility filter needed (they see all)
+
+    // Fetch announcements with database-level filtering
+    const announcements = await this.prismaService.announcement.findMany({
+      where: whereClause,
+      orderBy: [
+        { isPinned: 'desc' }, // Pinned announcements first
+        { createdAt: 'desc' }, // Then by creation date (newest first)
+      ],
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            image: true,
+          },
+        },
+        track: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        bounty: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+
+    return announcements;
   }
 }

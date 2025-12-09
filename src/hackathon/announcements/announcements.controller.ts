@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -16,6 +16,7 @@ import type { HackathonMin, UserMin } from 'src/common/types';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { HackathonContextGuard } from '../guards/hackathon.guard';
 import { Hackathon } from '../decorators/hackathon.decorator';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 
 @ApiTags('Hackathon Announcements')
 @Controller('')
@@ -61,5 +62,40 @@ export class AnnouncementsController {
     );
   }
 
-  
+  @ApiOperation({
+    summary: 'Get hackathon announcements',
+    description:
+      'Get hackathon announcements. Called only by hackathon organization owner',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Announcements retrieved successfully',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden',
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+  })
+  @ApiParam({
+    name: 'hackathonId',
+    description: 'ID of the hackathon',
+    required: true,
+    type: 'string',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard, HackathonContextGuard)
+  @Get('hackathon/:hackathonId/announcements')
+  async getHackathonAnnouncements(
+    @Hackathon() hackathon: HackathonMin,
+    @CurrentUser() requesterUser?: UserMin,
+  ) {
+    return await this.announcementsService.getHackathonAnnouncements(
+      hackathon,
+      requesterUser,
+    );
+  }
 }
