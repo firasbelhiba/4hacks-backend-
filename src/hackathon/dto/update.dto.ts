@@ -17,7 +17,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
-  HackathonCategory,
   HackathonType,
   HackathonStatus,
   HackathonRequiredMaterials,
@@ -86,12 +85,11 @@ export class UpdateHackathonDto {
 
   @ApiPropertyOptional({
     description: 'Hackathon category',
-    enum: HackathonCategory,
-    example: HackathonCategory.WEB3,
+    example: 'Web3',
   })
-  @IsEnum(HackathonCategory)
+  @IsString()
   @IsOptional()
-  category?: HackathonCategory;
+  category?: String;
 
   @ApiPropertyOptional({
     description: 'Hackathon type',

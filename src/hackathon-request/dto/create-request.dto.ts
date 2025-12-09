@@ -14,7 +14,6 @@ import {
 } from 'class-validator';
 import {
   HackathonType,
-  HackathonCategory,
   GeographicScope,
   FundingSource,
   SponsorLevel,
@@ -58,12 +57,12 @@ export class CreateHackathonRequestDto {
   hackType: HackathonType;
 
   @ApiProperty({
-    enum: HackathonCategory,
-    description: 'The category of the hackathon',
-    example: HackathonCategory.WEB3,
+    description: 'The ID of the hackathon category',
+    example: 'cm_123456789',
   })
-  @IsEnum(HackathonCategory)
-  hackCategory: HackathonCategory;
+  @IsString()
+  @IsNotEmpty()
+  hackCategoryId: string;
 
   @ApiProperty({
     description: 'The focus of the hackathon',

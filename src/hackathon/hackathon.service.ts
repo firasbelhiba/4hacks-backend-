@@ -94,7 +94,9 @@ export class HackathonService {
     }
 
     if (category) {
-      filterWhere.category = category;
+      filterWhere.category = {
+        name: category,
+      };
     }
 
     if (isPrivate !== undefined) {
@@ -154,7 +156,13 @@ export class HackathonService {
       slug: true,
       status: true,
       type: true,
-      category: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+      },
       banner: true,
       tagline: true,
       prizePool: true,
