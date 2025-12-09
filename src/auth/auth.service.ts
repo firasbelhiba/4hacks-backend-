@@ -12,7 +12,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
-import { Provider, SessionStatus, UserRole } from 'generated/prisma';
+import { Provider, SessionStatus, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { LoginDto, VerifyTwoFactorLoginDto } from './dto/login.dto';
 import {
@@ -40,7 +40,7 @@ import {
   PasswordResetEmailTemplateHtml,
   TwoFactorEmailCodeTemplateHtml,
   VerificationEmailTemplateHtml,
-} from 'src/common/templates/emails.templates.list';
+} from 'src/common/templates/emails/user.emails';
 import { UserMin } from 'src/common/types';
 
 @Injectable()
@@ -63,6 +63,7 @@ export class AuthService {
   async register(
     registerDto: RegisterDto,
     provider: Provider = Provider.CREDENTIAL,
+    image?: string,
   ) {
     const { name, email, password, username: usernameBody } = registerDto;
 
@@ -117,6 +118,7 @@ export class AuthService {
         providers: [provider],
         isEmailVerified: isOAuthProvider,
         emailVerifiedAt: isOAuthProvider ? new Date() : null,
+        image: image || null,
       },
       select: {
         id: true,
@@ -157,7 +159,7 @@ export class AuthService {
             createdAt: true,
             providers: true,
             twoFactorEnabled: true,
-            isDisabled: true,
+            isBanned: true,
           },
         })
       : await this.prisma.users.findUnique({
@@ -172,7 +174,7 @@ export class AuthService {
             createdAt: true,
             providers: true,
             twoFactorEnabled: true,
-            isDisabled: true,
+            isBanned: true,
           },
         });
 
@@ -187,17 +189,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (user.isDisabled) {
+    if (user.isBanned) {
       await this.prisma.failedLogin.create({
         data: {
           userId: user.id,
           identifier,
-          reason: 'account-disabled',
+          reason: 'account-banned',
         },
       });
 
       throw new ForbiddenException(
-        'This account has been disabled. Please contact support if you believe this is an error.',
+        'This account has been banned. Please contact support if you believe this is an error.',
       );
     }
 
@@ -651,21 +653,42 @@ export class AuthService {
         role: true,
         createdAt: true,
         providers: true,
+        isEmailVerified: true,
+        image: true,
       },
     });
 
     if (user) {
       // If user exists, ensure Google is listed as a provider
       if (!user.providers.includes(Provider.GOOGLE)) {
+        // Also verify email if not already verified (OAuth providers verify emails)
         await this.prisma.users.update({
           where: { id: user.id },
-          data: { providers: { push: Provider.GOOGLE } },
+          data: {
+            providers: { push: Provider.GOOGLE },
+            ...(user.isEmailVerified
+              ? {}
+              : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
+          },
+        });
+      } else {
+        // Update user image and isEmailVerified if not already set
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: {
+            ...(user.isEmailVerified
+              ? {}
+              : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
+          },
         });
       }
+
       return user;
     }
 
-    // If user does not exist, create a new user
+    // If user does not exist, create a new user with OAuth image
     const result = await this.register(
       {
         name,
@@ -673,6 +696,7 @@ export class AuthService {
         password: '',
       },
       Provider.GOOGLE,
+      image,
     );
 
     return result.data;
@@ -723,7 +747,6 @@ export class AuthService {
     name: string,
     image: string,
   ): Promise<UserMin> {
-    console.log('Validating Github OAuth user');
     let user = await this.prisma.users.findUnique({
       where: { email },
       select: {
@@ -734,22 +757,42 @@ export class AuthService {
         role: true,
         createdAt: true,
         providers: true,
+        isEmailVerified: true,
+        image: true,
       },
     });
 
     if (user) {
       // If user exists, ensure Github is listed as a provider
       if (!user.providers.includes(Provider.GITHUB)) {
+        // Also verify email if not already verified (OAuth providers verify emails)
         await this.prisma.users.update({
           where: { id: user.id },
-          data: { providers: { push: Provider.GITHUB } },
+          data: {
+            providers: { push: Provider.GITHUB },
+            ...(user.isEmailVerified
+              ? {}
+              : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
+          },
+        });
+      } else {
+        // Update user image and isEmailVerified if not already set
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: {
+            ...(user.isEmailVerified
+              ? {}
+              : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
+          },
         });
       }
+
       return user;
     }
 
-    console.log('Creating new user for Github OAuth');
-    // If user does not exist, create a new user
+    // If user does not exist, create a new user with OAuth image
     const result = await this.register(
       {
         name,
@@ -757,6 +800,7 @@ export class AuthService {
         password: '',
       },
       Provider.GITHUB,
+      image,
     );
 
     return result.data;
@@ -807,7 +851,6 @@ export class AuthService {
     name: string,
     image: string,
   ): Promise<UserMin> {
-    console.log('Validating LinkedIn OAuth user');
     let user = await this.prisma.users.findUnique({
       where: { email },
       select: {
@@ -818,22 +861,42 @@ export class AuthService {
         role: true,
         createdAt: true,
         providers: true,
+        isEmailVerified: true,
+        image: true,
       },
     });
 
     if (user) {
       // If user exists, ensure LinkedIn is listed as a provider
       if (!user.providers.includes(Provider.LINKEDIN)) {
+        // Also verify email if not already verified (OAuth providers verify emails)
         await this.prisma.users.update({
           where: { id: user.id },
-          data: { providers: { push: Provider.LINKEDIN } },
+          data: {
+            providers: { push: Provider.LINKEDIN },
+            ...(user.isEmailVerified
+              ? {}
+              : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
+          },
+        });
+      } else {
+        // Update user image and isEmailVerified if not already set
+        await this.prisma.users.update({
+          where: { id: user.id },
+          data: {
+            ...(user.isEmailVerified
+              ? {}
+              : { isEmailVerified: true, emailVerifiedAt: new Date() }),
+            ...(!user.image && image ? { image } : {}),
+          },
         });
       }
+
       return user;
     }
 
-    console.log('Creating new user for LinkedIn OAuth');
-    // If user does not exist, create a new user
+    // If user does not exist, create a new user with OAuth image
     const result = await this.register(
       {
         name,
@@ -841,6 +904,7 @@ export class AuthService {
         password: '',
       },
       Provider.LINKEDIN,
+      image,
     );
 
     return result.data;

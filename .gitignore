@@ -14,6 +14,9 @@ lerna-debug.log*
 
 # OS
 .DS_Store
+.c*
+C*.md
+G*.md
 
 # Tests
 /coverage
@@ -62,3 +65,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 uploads
 
 docs
+
+# Helpful documents for development
+/dev-docs

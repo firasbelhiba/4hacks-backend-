@@ -7,7 +7,6 @@ import { AuthModule } from './auth/auth.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { EmailModule } from './email/email.module';
 import { ProfileModule } from './profile/profile.module';
-import { FileUploadService } from './file-upload/file-upload.service';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { OrganizationModule } from './organization/organization.module';
 import { HackathonModule } from './hackathon/hackathon.module';
@@ -16,6 +15,9 @@ import { R2Controller } from './r2/r2.controller';
 import { R2Module } from './r2/r2.module';
 import Keyv from 'keyv';
 import KeyvRedis from '@keyv/redis';
+import { HackathonRequestModule } from './hackathon-request/hackathon-request.module';
+import { AdminModule } from './admin/admin.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -46,6 +48,9 @@ import KeyvRedis from '@keyv/redis';
     OrganizationModule,
     HackathonModule,
     R2Module,
+    HackathonRequestModule,
+    AdminModule,
+    NotificationsModule,
   ],
   controllers: [AppController, R2Controller],
   providers: [AppService, R2Service],

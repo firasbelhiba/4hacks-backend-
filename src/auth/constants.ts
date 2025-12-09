@@ -24,7 +24,6 @@ export const twoFactorEnableRedisPrefix = '2fa_enable_';
 export const twoFactorDisableRedisPrefix = '2fa_disable_';
 export const twoFactorLoginRedisPrefix = '2fa_login_';
 export const twoFactorEmailRedisTTL = 5 * 60 * 1000; // 5 minutes in milliseconds
-export const accountDisableRedisPrefix = 'account_disable_';
 export const changeEmailRedisPrefix = 'change_email_';
 
 export const googleOAuthConstants = {

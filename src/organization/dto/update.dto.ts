@@ -11,7 +11,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { OrganizationType, OrganizationSize, Region } from 'generated/prisma';
+import { OrganizationType, OrganizationSize, Region } from '@prisma/client';
 
 export class UpdateOrganizationDto {
   // Basic Information

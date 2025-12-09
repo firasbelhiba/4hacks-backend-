@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsDate,
@@ -6,106 +6,372 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  Matches,
+  IsNumber,
+  IsArray,
+  Min,
+  Max,
+  ValidateNested,
+  IsObject,
+  ArrayMaxSize,
+  MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { HackathonCategory, HackathonType } from 'generated/prisma';
+import {
+  HackathonCategory,
+  HackathonType,
+  HackathonStatus,
+  HackathonRequiredMaterials,
+} from '@prisma/client';
+
+class LocationDto {
+  @ApiPropertyOptional({ example: 'United States' })
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @ApiPropertyOptional({ example: 'San Francisco' })
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @ApiPropertyOptional({ example: 'California' })
+  @IsString()
+  @IsOptional()
+  state?: string;
+
+  @ApiPropertyOptional({ example: '94102' })
+  @IsString()
+  @IsOptional()
+  zipCode?: string;
+
+  @ApiPropertyOptional({ example: '123 Main Street' })
+  @IsString()
+  @IsOptional()
+  address?: string;
+}
 
 export class UpdateHackathonDto {
-  @ApiProperty({
-    description: 'Hackathon New title',
-    example: 'Hackathon Name',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Hackathon title',
+    example: 'Web3 Innovation Hackathon 2025',
   })
   @IsString()
   @IsNotEmpty()
   @IsOptional()
   title?: string;
 
-  @ApiProperty({
-    description: 'Hacathon new description ',
-    example: 'Hackathon Description',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Hackathon banner image URL',
+    example: 'https://example.com/banner.jpg',
   })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
+  banner?: string;
+
+  @ApiPropertyOptional({
+    description: 'Short tagline for the hackathon',
+    example: 'Build the future of decentralized applications',
+  })
+  @IsString()
+  @IsOptional()
+  tagline?: string;
+
+  @ApiPropertyOptional({
+    description: 'Hackathon description',
+    example: 'A comprehensive hackathon focused on Web3 technologies...',
+  })
+  @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({
-    description: 'Hackathon New location',
-    example: 'Nahj Sahel, Beni Khalled, Nabeul, Tunisia',
-    required: false,
-  })
-  @IsString()
-  @IsNotEmpty()
-  @IsOptional()
-  location?: string;
-
-  @ApiProperty({
-    description: 'Hackathon New category',
-    example: 'Hackathon Category',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Hackathon category',
+    enum: HackathonCategory,
+    example: HackathonCategory.WEB3,
   })
   @IsEnum(HackathonCategory)
   @IsOptional()
   category?: HackathonCategory;
 
-  @ApiProperty({
-    description: 'Hackathon New type',
-    example: 'Hackathon Type',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Hackathon type',
+    enum: HackathonType,
+    example: HackathonType.HYBRID,
   })
   @IsEnum(HackathonType)
   @IsOptional()
   type?: HackathonType;
 
-  @ApiProperty({
-    description: 'Hackathon New registration start date',
-    example: 'Hackathon Registration Start Date',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Tags for the hackathon',
+    example: ['blockchain', 'defi', 'nft'],
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Total prize pool amount',
+    example: 50000,
+  })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  prizePool?: number;
+
+  @ApiPropertyOptional({
+    description: 'Prize token/currency',
+    example: 'USD',
+  })
+  @IsString()
+  @IsOptional()
+  prizeToken?: string;
+
+  @ApiPropertyOptional({
+    description: 'Eligibility requirements for participants',
+    example: 'Open to all developers worldwide...',
+  })
+  @IsString()
+  @IsOptional()
+  eligibilityRequirements?: string;
+
+  @ApiPropertyOptional({
+    description: 'Submission guidelines for projects',
+    example: 'All projects must include a working demo...',
+  })
+  @IsString()
+  @IsOptional()
+  submissionGuidelines?: string;
+
+  @ApiPropertyOptional({
+    description: 'Resources and helpful links for participants',
+    example: 'Documentation: https://..., API Keys: ...',
+  })
+  @IsString()
+  @IsOptional()
+  ressources?: string;
+
+  @ApiPropertyOptional({
+    description: 'Registration start date',
+    example: '2025-05-01T00:00:00Z',
   })
   @Type(() => Date)
   @IsDate()
   @IsOptional()
   registrationStart?: Date;
 
-  @ApiProperty({
-    description: 'Hackathon New registration end date',
-    example: 'Hackathon Registration End Date',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Registration end date',
+    example: '2025-05-31T00:00:00Z',
   })
   @Type(() => Date)
   @IsDate()
   @IsOptional()
   registrationEnd?: Date;
 
-  @ApiProperty({
-    description: 'Hackathon New start date',
-    example: 'Hackathon Start Date',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Hackathon start date',
+    example: '2025-06-01T00:00:00Z',
   })
   @Type(() => Date)
   @IsDate()
   @IsOptional()
   startDate?: Date;
 
-  @ApiProperty({
-    description: 'Hackathon New end date',
-    example: 'Hackathon End Date',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Hackathon end date',
+    example: '2025-06-03T00:00:00Z',
   })
   @Type(() => Date)
   @IsDate()
   @IsOptional()
   endDate?: Date;
 
-  @ApiProperty({
-    description: 'Hackathon New is private',
-    example: 'Hackathon Is Private',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Judging start date',
+    example: '2025-06-04T00:00:00Z',
+  })
+  @Type(() => Date)
+  @IsDate()
+  @IsOptional()
+  judgingStart?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Judging end date',
+    example: '2025-06-10T00:00:00Z',
+  })
+  @Type(() => Date)
+  @IsDate()
+  @IsOptional()
+  judgingEnd?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Winner announcement date',
+    example: '2025-06-15T00:00:00Z',
+  })
+  @Type(() => Date)
+  @IsDate()
+  @IsOptional()
+  winnerAnnouncementDate?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Maximum team size (1 means individual only)',
+    example: 4,
+    minimum: 1,
+  })
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  maxTeamSize?: number;
+
+  @ApiPropertyOptional({
+    description: 'Minimum team size',
+    example: 1,
+    minimum: 1,
+  })
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  minTeamSize?: number;
+
+  @ApiPropertyOptional({
+    description: 'Maximum tracks a project can be submitted to',
+    example: 1,
+    minimum: 1,
+  })
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  maxTracksByProject?: number;
+
+  @ApiPropertyOptional({
+    description: 'Whether participants need approval to join',
+    example: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  requiresApproval?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Whether hackathon is private (requires invite passcode)',
+    example: false,
   })
   @IsBoolean()
   @IsOptional()
   isPrivate?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Invite passcode for private hackathons (will be hashed)',
+    example: 'secret-code-2025',
+    minLength: 6,
+  })
+  @IsString()
+  @MinLength(6)
+  @IsOptional()
+  invitePasscode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Enable project submission whitelist',
+    example: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isProjectWhiteListEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Whitelisted emails for project submission',
+    example: ['user1@example.com', 'user2@example.com'],
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  projectWhitelistEmails?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Required submission materials',
+    enum: HackathonRequiredMaterials,
+    isArray: true,
+    example: [
+      HackathonRequiredMaterials.VIDEO_DEMO,
+      HackathonRequiredMaterials.GITHUB_REPOSITORY,
+    ],
+  })
+  @IsArray()
+  @IsEnum(HackathonRequiredMaterials, { each: true })
+  @IsOptional()
+  requiredSubmissionMaterials?: HackathonRequiredMaterials[];
+
+  @ApiPropertyOptional({
+    description: 'Maximum number of custom tabs',
+    example: 5,
+    minimum: 0,
+    maximum: 10,
+  })
+  @IsNumber()
+  @Min(0)
+  @Max(10)
+  @IsOptional()
+  maxCustomTabs?: number;
+
+  @ApiPropertyOptional({
+    description: 'Primary location (for in-person or hybrid events)',
+    type: LocationDto,
+  })
+  @IsObject()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  @IsOptional()
+  location?: LocationDto;
+
+  @ApiPropertyOptional({
+    description: 'Additional locations for the hackathon',
+    type: [LocationDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LocationDto)
+  @IsOptional()
+  otherLocations?: LocationDto[];
+
+  @ApiPropertyOptional({
+    description: 'Dynamic registration questions',
+    example: [
+      {
+        id: 'q1',
+        content: 'What is your experience level?',
+        required: true,
+      },
+    ],
+  })
+  @IsArray()
+  @IsOptional()
+  registrationQuestions?: RegistrationQuestionDto[];
+}
+
+export class RegistrationQuestionDto {
+  @ApiProperty({
+    description: 'Unique identifier for the question',
+    example: 'q1',
+  })
+  @IsString()
+  @IsNotEmpty()
+  id: string;
+
+  @ApiProperty({
+    description: 'Label or text of the question',
+    example: 'What is your experience level?',
+  })
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+
+  @ApiProperty({
+    description: 'Whether the question is required',
+    example: true,
+  })
+  @IsBoolean()
+  required: boolean;
 }

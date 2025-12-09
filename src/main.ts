@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { BadRequestException, Logger, ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,6 +19,9 @@ async function bootstrap() {
 
   // Enable Cookie Parser Middleware
   app.use(cookieParser());
+
+  // Enable Helmet Middleware (middleware that adds security headers)
+  app.use(helmet());
 
   // Enable Validation Pipe globally
   app.useGlobalPipes(
@@ -43,8 +47,22 @@ async function bootstrap() {
       'Profile Management',
       'Endpoints related to user profile management',
     )
+    .addTag('Notifications', 'Endpoints related to notifications management')
     .addTag('Organizations', 'Endpoints related to organization management')
+    .addTag('Hackathon Requests', 'Endpoints related to hackathon requests')
     .addTag('Hackathons', 'Endpoints related to hackathon management')
+    .addTag(
+      'Hackathon Prizes',
+      'Endpoints related to hackathon prizes management',
+    )
+    .addTag('Hackathon Registration', 'Endpoints for hackathon registrations')
+    .addTag('Hackathon Teams', 'Endpoints for hackathon teams')
+    .addTag('Hackathon Submissions', 'Endpoints for hackathon submissions')
+    .addTag('Admin - User Management', 'Admin endpoints for user management')
+    .addTag(
+      'Test',
+      'Endpoints for testing purposes. do not use them in frontend',
+    )
     .addBearerAuth({
       type: 'http',
       scheme: 'bearer',

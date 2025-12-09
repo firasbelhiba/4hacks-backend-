@@ -5,14 +5,18 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -23,13 +27,38 @@ import { UpdateOrganizationDto } from './dto/update.dto';
 import { OrganizationService } from './organization.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import type { UserMin } from 'src/common/types';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  QueryOrganizationsDto,
+  PaginatedOrganizationsDto,
+} from './dto/query-organizations.dto';
 
 @ApiTags('Organizations')
 @Controller('organization')
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
+
+  @ApiOperation({
+    summary: 'List/Search Organizations',
+    description:
+      'Get a paginated list of organizations with support for filtering, searching, and sorting. **Public users** see only public information (no sensitive data like email or phone). **Admins** see all fields including sensitive data and can search by email and phone. Authentication is optional - the endpoint works with or without a token.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of organizations',
+    type: PaginatedOrganizationsDto,
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get()
+  async findAll(
+    @Query() query: QueryOrganizationsDto,
+    @CurrentUser() user?: UserMin,
+  ): Promise<PaginatedOrganizationsDto> {
+    return await this.organizationService.findAll(query, user);
+  }
 
   @ApiOperation({
     summary: 'Create a new organization',
@@ -193,13 +222,13 @@ export class OrganizationController {
           type: 'string',
           format: 'uri',
           description: 'LinkedIn profile URL',
-          example: 'https://linkedin.com/company/darblockchain',
+          example: 'https://www.linkedin.com/in/dar-blockchain/',
         },
         github: {
           type: 'string',
           format: 'uri',
           description: 'GitHub organization URL',
-          example: 'https://github.com/darblockchain',
+          example: 'https://github.com/Dar-Blockchain',
         },
         twitter: {
           type: 'string',
@@ -382,58 +411,55 @@ export class OrganizationController {
     description: 'Organization fetched successfully',
     schema: {
       example: {
-        message: 'Organization fetched successfully',
-        data: {
-          id: 'cm4abc123xyz',
-          name: 'Dar Blockchain',
-          slug: 'dar-blockchain',
-          displayName: 'Dar Blockchain',
-          logo: 'https://r2.example.com/4hacks/profiles/user123/1234567890-logo.png',
-          tagline: 'Building the future of blockchain in Tunisia',
-          description: 'We are a blockchain organization focused on education',
-          type: 'STARTUP',
-          establishedYear: 2020,
-          size: 'ELEVEN_TO_FIFTY',
-          operatingRegions: ['AFRICA', 'EUROPE'],
-          email: 'contact@darblockchain.io',
-          phone: '+216 12 345 678',
-          country: 'Tunisia',
-          city: 'Tunis',
-          state: 'Tunis',
-          zipCode: '1000',
-          loc_address: '123 Blockchain Street',
-          website: 'https://darblockchain.io',
-          linkedin: 'https://linkedin.com/company/darblockchain',
-          github: 'https://github.com/darblockchain',
-          twitter: 'https://twitter.com/darblockchain',
-          discord: 'https://discord.gg/darblockchain',
-          telegram: 'https://t.me/darblockchain',
-          medium: null,
-          youtube: null,
-          facebook: null,
-          instagram: null,
-          reddit: null,
-          warpcast: null,
-          otherSocials: [],
-          sector: 'Blockchain Technology',
-          ownerId: 'user123',
-          createdAt: '2024-11-26T19:37:00.000Z',
-          updatedAt: '2024-11-26T19:37:00.000Z',
-          owner: {
-            id: 'user123',
-            name: 'John Doe',
-            email: 'john@example.com',
-            image: 'https://example.com/image.png',
-          },
-          hackathons: [
-            {
-              id: 'hackathon123',
-              slug: 'web3-hackathon-2024',
-              title: 'Web3 Hackathon 2024',
-              organizationId: 'cm4abc123xyz',
-            },
-          ],
+        id: 'cm4abc123xyz',
+        name: 'Dar Blockchain',
+        slug: 'dar-blockchain',
+        displayName: 'Dar Blockchain',
+        logo: 'https://r2.example.com/4hacks/profiles/user123/1234567890-logo.png',
+        tagline: 'Building the future of blockchain in Tunisia',
+        description: 'We are a blockchain organization focused on education',
+        type: 'STARTUP',
+        establishedYear: 2020,
+        size: 'ELEVEN_TO_FIFTY',
+        operatingRegions: ['AFRICA', 'EUROPE'],
+        email: 'contact@darblockchain.io',
+        phone: '+216 12 345 678',
+        country: 'Tunisia',
+        city: 'Tunis',
+        state: 'Tunis',
+        zipCode: '1000',
+        loc_address: '123 Blockchain Street',
+        website: 'https://darblockchain.io',
+        linkedin: 'https://linkedin.com/company/darblockchain',
+        github: 'https://github.com/darblockchain',
+        twitter: 'https://twitter.com/darblockchain',
+        discord: 'https://discord.gg/darblockchain',
+        telegram: 'https://t.me/darblockchain',
+        medium: null,
+        youtube: null,
+        facebook: null,
+        instagram: null,
+        reddit: null,
+        warpcast: null,
+        otherSocials: [],
+        sector: 'Blockchain Technology',
+        ownerId: 'user123',
+        createdAt: '2024-11-26T19:37:00.000Z',
+        updatedAt: '2024-11-26T19:37:00.000Z',
+        owner: {
+          id: 'user123',
+          name: 'John Doe',
+          email: 'john@example.com',
+          image: 'https://example.com/image.png',
         },
+        hackathons: [
+          {
+            id: 'hackathon123',
+            slug: 'web3-hackathon-2024',
+            title: 'Web3 Hackathon 2024',
+            organizationId: 'cm4abc123xyz',
+          },
+        ],
       },
     },
   })
@@ -796,6 +822,172 @@ export class OrganizationController {
       identifier,
       updateOrganizationDto,
       logo,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Archive an organization (Owner only)',
+    description: `
+Archive an organization to hide it from public listings.
+Only the organization owner can archive their organization.
+
+**Restrictions:**
+- Cannot archive if there are **ACTIVE** hackathons (archive or cancel them first)
+- Cannot archive if there are **DRAFT** hackathons (delete or publish them first)
+- Cannot archive if there are **PENDING** hackathon creation requests (wait for approval/rejection)
+- Cannot archive an already archived organization
+
+**Effects:**
+- Organization will be hidden from public listings
+- Organization can be unarchived later by the owner
+    `,
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'Organization ID or slug',
+    required: true,
+    type: String,
+    example: 'my-organization',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Organization archived successfully',
+    schema: {
+      example: {
+        message: 'Organization archived successfully',
+        data: {
+          id: 'clxyz123',
+          name: 'My Organization',
+          slug: 'my-organization',
+          displayName: 'My Org',
+          isArchived: true,
+          archivedAt: '2025-01-15T00:00:00.000Z',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2025-01-15T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'Organization not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'User is not the organization owner',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'You are not authorized to archive this organization',
+        error: 'Forbidden',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Cannot archive due to existing hackathons or requests',
+    schema: {
+      example: {
+        statusCode: 400,
+        message:
+          'Cannot archive organization - has 2 active hackathon(s). Archive or cancel them first.',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':identifier/archive')
+  async archiveOrganization(
+    @CurrentUser('id') userId: string,
+    @Param('identifier') identifier: string,
+  ) {
+    return await this.organizationService.archiveOrganization(
+      identifier,
+      userId,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Unarchive an organization (Owner only)',
+    description: `
+Unarchive a previously archived organization to make it visible again in public listings.
+Only the organization owner can unarchive their organization.
+
+**Requirements:**
+- Organization must be currently archived
+    `,
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'Organization ID or slug',
+    required: true,
+    type: String,
+    example: 'my-organization',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Organization unarchived successfully',
+    schema: {
+      example: {
+        message: 'Organization unarchived successfully',
+        data: {
+          id: 'clxyz123',
+          name: 'My Organization',
+          slug: 'my-organization',
+          displayName: 'My Org',
+          isArchived: false,
+          archivedAt: null,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2025-01-15T00:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'Organization not found',
+        error: 'Not Found',
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'User is not the organization owner',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'You are not authorized to unarchive this organization',
+        error: 'Forbidden',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Organization is not archived',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Organization is not archived',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':identifier/unarchive')
+  async unarchiveOrganization(
+    @CurrentUser('id') userId: string,
+    @Param('identifier') identifier: string,
+  ) {
+    return await this.organizationService.unarchiveOrganization(
+      identifier,
+      userId,
     );
   }
 }
