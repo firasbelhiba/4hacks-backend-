@@ -88,6 +88,7 @@ export class HackathonRequestsService {
         take: limit,
         orderBy,
         include: {
+          hackCategory: true,
           organization: {
             select: {
               id: true,

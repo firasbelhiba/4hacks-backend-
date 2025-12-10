@@ -225,6 +225,9 @@ export class HackathonRequestService {
       orderBy: {
         createdAt: 'desc',
       },
+      include: {
+        hackCategory: true,
+      },
     });
 
     return {
