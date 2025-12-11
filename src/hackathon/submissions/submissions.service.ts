@@ -12,9 +12,11 @@ import { CreateSubmissionDto } from './dto/create.dto';
 import { UpdateSubmissionDto } from './dto/update.dto';
 import {
   ActivityTargetType,
+  HackathonRegistrationStatus,
   HackathonRequiredMaterials,
   HackathonStatus,
   SubmissionStatus,
+  UserRole,
 } from '@prisma/client';
 import { ReviewSubmissionDto, SubmissionReviewAction } from './dto/review.dto';
 import { EmailService } from 'src/email/email.service';
@@ -721,6 +723,263 @@ export class SubmissionsService {
     return {
       message: 'Submission retrieved successfully',
       data: submission,
+    };
+  }
+
+  async getAllSubmissions(
+    queryDto: any,
+    requesterUser: UserMin | null,
+  ): Promise<any> {
+    this.logger.log(
+      `Getting all submissions by user ${requesterUser?.username || 'anonymous'}`,
+    );
+
+    const {
+      page = 1,
+      limit = 10,
+      hackathonId,
+      trackId,
+      bountyId,
+      status,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = queryDto;
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+    const take = limit;
+
+    // Build the where clause based on authorization
+    const whereConditions: any = {
+      AND: [],
+    };
+
+    // Check if user is admin
+    const isAdmin = requesterUser?.role === UserRole.ADMIN;
+
+    if (!isAdmin) {
+      // For non-admin users, we need to apply complex authorization logic
+      const orConditions: any[] = [];
+
+      if (!requesterUser) {
+        // Anonymous users: only SUBMITTED submissions from public hackathons
+        orConditions.push({
+          status: SubmissionStatus.SUBMITTED,
+          hackathon: {
+            isPrivate: false,
+          },
+        });
+      } else {
+        // Authenticated users
+        const userId = requesterUser.id;
+
+        // Get user's registered hackathons
+        const userRegistrations =
+          await this.prismaService.hackathonRegistration.findMany({
+            where: {
+              userId,
+              status: HackathonRegistrationStatus.APPROVED,
+            },
+            select: { hackathonId: true },
+          });
+
+        const registeredHackathonIds = userRegistrations.map(
+          (r) => r.hackathonId,
+        );
+
+        // Get hackathons where user is a judge
+        const judgeHackathons =
+          await this.prismaService.hackathonJudge.findMany({
+            where: { userId },
+            select: { hackathonId: true },
+          });
+
+        const judgeHackathonIds = judgeHackathons.map((j) => j.hackathonId);
+
+        // Get hackathons where user is the organization owner
+        const ownedOrganizations =
+          await this.prismaService.organization.findMany({
+            where: { ownerId: userId },
+            select: { id: true },
+          });
+
+        const ownedOrgIds = ownedOrganizations.map((o) => o.id);
+
+        // Get teams where user is a member
+        const userTeams = await this.prismaService.teamMember.findMany({
+          where: { userId },
+          select: { teamId: true },
+        });
+
+        const userTeamIds = userTeams.map((t) => t.teamId);
+
+        // Condition 1: SUBMITTED submissions from public hackathons
+        orConditions.push({
+          status: SubmissionStatus.SUBMITTED,
+          hackathon: {
+            isPrivate: false,
+          },
+        });
+
+        // Condition 2: SUBMITTED submissions from private hackathons where user is registered
+        if (registeredHackathonIds.length > 0) {
+          orConditions.push({
+            status: SubmissionStatus.SUBMITTED,
+            hackathon: {
+              isPrivate: true,
+              id: { in: registeredHackathonIds },
+            },
+          });
+        }
+
+        // Condition 3: ALL submissions from private hackathons where user is a judge
+        if (judgeHackathonIds.length > 0) {
+          orConditions.push({
+            hackathon: {
+              isPrivate: true,
+              id: { in: judgeHackathonIds },
+            },
+          });
+        }
+
+        // Condition 4: ALL submissions from hackathons where user is the organization owner
+        if (ownedOrgIds.length > 0) {
+          orConditions.push({
+            hackathon: {
+              organizationId: { in: ownedOrgIds },
+            },
+          });
+        }
+
+        // Condition 5: ALL submissions where user is a team member
+        if (userTeamIds.length > 0) {
+          orConditions.push({
+            teamId: { in: userTeamIds },
+          });
+        }
+      }
+
+      // Add OR conditions to the main where clause
+      if (orConditions.length > 0) {
+        whereConditions.AND.push({ OR: orConditions });
+      } else {
+        // If no conditions match, return empty result
+        return {
+          data: [],
+          meta: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasNextPage: false,
+            hasPrevPage: false,
+          },
+        };
+      }
+    }
+
+    // Apply filters
+    if (hackathonId) {
+      whereConditions.AND.push({ hackathonId });
+    }
+
+    if (trackId) {
+      whereConditions.AND.push({ trackId });
+    }
+
+    if (bountyId) {
+      whereConditions.AND.push({ bountyId });
+    }
+
+    if (status) {
+      // Only allow status filtering for admins or if user has special access
+      // For now, we'll add it to the where clause and let the authorization logic handle it
+      whereConditions.AND.push({ status });
+    }
+
+    if (search) {
+      whereConditions.AND.push({
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { tagline: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    // Clean up empty AND array
+    if (whereConditions.AND.length === 0) {
+      delete whereConditions.AND;
+    }
+
+    // Build order by clause
+    const orderBy: any = {};
+    orderBy[sortBy] = sortOrder;
+
+    // Execute query
+    const [submissions, total] = await Promise.all([
+      this.prismaService.submission.findMany({
+        where: whereConditions,
+        skip,
+        take,
+        orderBy,
+        include: {
+          hackathon: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              isPrivate: true,
+            },
+          },
+          team: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+          track: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          bounty: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          creator: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      }),
+      this.prismaService.submission.count({ where: whereConditions }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      data: submissions,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+      },
     };
   }
 }
