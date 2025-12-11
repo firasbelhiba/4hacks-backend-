@@ -550,7 +550,85 @@ $150,000 in prizes for builders pushing the boundaries of privacy!`,
     },
   });
 
-  console.log(`✅ Created 3 active hackathons\n`);
+  // Hackathon 4: Private Hackathon (for testing registration access control)
+  const privateHackathon = await prisma.hackathon.create({
+    data: {
+      title: 'Private Web3 Builders Summit 2025',
+      slug: 'private-web3-builders-summit-2025',
+      organizationId: ethFoundation.id,
+      categoryId: categoryOpen.id,
+      banner: 'https://placehold.co/1200x400/1A1A1A/FFFFFF?text=Private+Web3+Builders+Summit',
+      tagline: 'Exclusive invite-only hackathon',
+      description: `# Private Web3 Builders Summit 2025
+
+An exclusive, invite-only hackathon for selected Web3 builders.
+
+## 🔒 Private Event
+This hackathon is by invitation only. You need a passcode to register.
+
+## 🎯 Focus Areas
+- Infrastructure & Tooling
+- DeFi Protocols
+- NFT & Gaming
+- DAO Tools
+
+## 💰 Prize Pool: $200,000
+
+Join us for an exclusive building experience!`,
+      type: 'ONLINE',
+      status: 'ACTIVE',
+      tags: ['Private', 'Invite Only', 'Web3', 'Exclusive'],
+      prizePool: 200000,
+      prizeToken: 'USDC',
+      eligibilityRequirements: 'Invitation only. Passcode required.',
+      submissionGuidelines: `## Submission Requirements
+1. Working prototype
+2. GitHub repository
+3. Video demo
+4. Project documentation`,
+      ressources: `## Resources
+- [Web3 Documentation](https://web3.dev)
+- [Developer Tools](https://tools.web3.dev)`,
+      registrationStart: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+      registrationEnd: new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000),
+      startDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+      endDate: new Date(now.getTime() + 32 * 24 * 60 * 60 * 1000),
+      judgingStart: new Date(now.getTime() + 32 * 24 * 60 * 60 * 1000),
+      judgingEnd: new Date(now.getTime() + 35 * 24 * 60 * 60 * 1000),
+      maxTeamSize: 4,
+      minTeamSize: 1,
+      requiresApproval: false,
+      isPrivate: true,
+      invitePasscode: await bcrypt.hash('PRIVATE2025', 10), // Passcode: PRIVATE2025
+      requiredSubmissionMaterials: ['VIDEO_DEMO', 'GITHUB_REPOSITORY'],
+      // Registration questions for testing
+      registrationQuestions: [
+        {
+          id: 'q1',
+          label: 'How did you receive your invitation?',
+          type: 'select',
+          required: true,
+          options: ['Email', 'Discord', 'Twitter', 'Friend referral', 'Other'],
+        },
+        {
+          id: 'q2',
+          label: 'What is your primary area of expertise?',
+          type: 'select',
+          required: true,
+          options: ['Smart Contracts', 'Frontend', 'Backend', 'Full Stack', 'Research'],
+        },
+        {
+          id: 'q3',
+          label: 'Why do you want to participate in this private hackathon?',
+          type: 'textarea',
+          required: false,
+          placeholder: 'Tell us your motivation...',
+        },
+      ],
+    },
+  });
+
+  console.log(`✅ Created 4 active hackathons (1 private)\n`);
 
   // ============================================
   // 5. CREATE HACKATHON CREATION REQUESTS
@@ -1017,13 +1095,12 @@ Best integrations win big!`,
   console.log('📝 Creating hackathon registrations...');
 
   // ETH Hackathon registrations with custom question answers
+  // Note: All registrations are auto-approved (current system behavior)
   const ethReg1 = await prisma.hackathonRegistration.create({
     data: {
       hackathonId: ethHackathon.id,
       userId: hacker1.id,
-      status: 'APPROVED',
-      reviewedAt: new Date(),
-      reviewedById: adminUser.id,
+      status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
         create: {
           answers: {
@@ -1042,9 +1119,7 @@ Best integrations win big!`,
     data: {
       hackathonId: ethHackathon.id,
       userId: hacker2.id,
-      status: 'APPROVED',
-      reviewedAt: new Date(),
-      reviewedById: adminUser.id,
+      status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
         create: {
           answers: {
@@ -1063,9 +1138,7 @@ Best integrations win big!`,
     data: {
       hackathonId: ethHackathon.id,
       userId: hacker3.id,
-      status: 'APPROVED',
-      reviewedAt: new Date(),
-      reviewedById: adminUser.id,
+      status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
         create: {
           answers: {
@@ -1080,12 +1153,11 @@ Best integrations win big!`,
     },
   });
 
-  // Pending registration (not yet reviewed)
   const ethReg4 = await prisma.hackathonRegistration.create({
     data: {
       hackathonId: ethHackathon.id,
       userId: hacker4.id,
-      status: 'PENDING',
+      status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
         create: {
           answers: {
@@ -1101,17 +1173,73 @@ Best integrations win big!`,
   });
 
   // Solana & ZK hackathons (no custom questions, simple registrations)
+  // All auto-approved (matches current system behavior)
   await prisma.hackathonRegistration.createMany({
     data: [
       { hackathonId: solanaHackathon.id, userId: hacker2.id, status: 'APPROVED' },
       { hackathonId: solanaHackathon.id, userId: hacker5.id, status: 'APPROVED' },
       { hackathonId: solanaHackathon.id, userId: hacker6.id, status: 'APPROVED' },
       { hackathonId: zkHackathon.id, userId: hacker3.id, status: 'APPROVED' },
-      { hackathonId: zkHackathon.id, userId: hacker1.id, status: 'PENDING' },
+      { hackathonId: zkHackathon.id, userId: hacker1.id, status: 'APPROVED' },
     ],
   });
 
-  console.log(`✅ Created 9 registrations (4 with custom answers)\n`);
+  // Private hackathon registrations (for testing TODO #2 - registered users can view registrations)
+  const privateReg1 = await prisma.hackathonRegistration.create({
+    data: {
+      hackathonId: privateHackathon.id,
+      userId: hacker1.id,
+      status: 'APPROVED', // Auto-approved (matches current system behavior)
+      answers: {
+        create: {
+          answers: {
+            q1: 'Email',
+            q2: 'Smart Contracts',
+            q3: 'I want to build innovative DeFi solutions with other talented builders.',
+          },
+        },
+      },
+    },
+  });
+
+  const privateReg2 = await prisma.hackathonRegistration.create({
+    data: {
+      hackathonId: privateHackathon.id,
+      userId: hacker2.id,
+      status: 'APPROVED', // Auto-approved (matches current system behavior)
+      answers: {
+        create: {
+          answers: {
+            q1: 'Discord',
+            q2: 'Full Stack',
+            q3: 'Looking forward to networking with top Web3 developers.',
+          },
+        },
+      },
+    },
+  });
+
+  const privateReg3 = await prisma.hackathonRegistration.create({
+    data: {
+      hackathonId: privateHackathon.id,
+      userId: hacker3.id,
+      status: 'APPROVED', // Auto-approved (matches current system behavior)
+      answers: {
+        create: {
+          answers: {
+            q1: 'Twitter',
+            q2: 'Research',
+            q3: 'Interested in exploring cutting-edge Web3 technologies.',
+          },
+        },
+      },
+    },
+  });
+
+  // hacker4 is NOT registered - use this to test that unregistered users cannot view
+  // hacker5 is NOT registered - use this to test that unregistered users cannot view
+
+  console.log(`✅ Created 12 registrations (7 with custom answers, 3 for private hackathon)\n`);
 
   // ============================================
   // 10. CREATE TEAMS
