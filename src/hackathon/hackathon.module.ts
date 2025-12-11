@@ -7,6 +7,7 @@ import { TeamsModule } from './teams/teams.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { PrizesModule } from './prizes/prizes.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
+import { JudgesModule } from './judges/judges.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
     SubmissionsModule,
     PrizesModule,
     AnnouncementsModule,
+    JudgesModule,
   ],
   providers: [HackathonService],
   controllers: [HackathonController],
