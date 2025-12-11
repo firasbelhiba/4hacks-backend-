@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -106,6 +107,163 @@ export class JudgesService {
     return {
       message: 'Judge invited successfully',
       data: judgeInvitation,
+    };
+  }
+
+  async acceptJudgeInvitation(inviteId: string, requesterUser: UserMin) {
+    const judgeInvitation = await this.prismaService.judgeInvitation.findUnique(
+      {
+        where: {
+          id: inviteId,
+        },
+      },
+    );
+
+    // Check if the invitation exists
+    if (!judgeInvitation) {
+      throw new NotFoundException('Judge invitation not found');
+    }
+
+    // Check if the invitation is pending
+    if (judgeInvitation.status !== JudgeInvitationStatus.PENDING) {
+      throw new BadRequestException('Judge invitation is not pending');
+    }
+
+    // Check if the requester is the invited user
+    if (judgeInvitation.invitedUserId !== requesterUser.id) {
+      throw new ForbiddenException('You are not the invited user');
+    }
+
+    // Accept teh invitation, create new judge, store the activity log and send the notification
+    const updatedJudgeInvitation = await this.prismaService.$transaction(
+      async (tx) => {
+        const updatedJudgeInvitation = await tx.judgeInvitation.update({
+          where: {
+            id: inviteId,
+          },
+          data: {
+            status: JudgeInvitationStatus.ACCEPTED,
+            respondedAt: new Date(),
+          },
+        });
+
+        await tx.hackathonJudge.create({
+          data: {
+            hackathonId: judgeInvitation.hackathonId,
+            userId: judgeInvitation.invitedUserId,
+          },
+        });
+
+        // Store activity log
+        await tx.userActivityLog.create({
+          data: {
+            userId: requesterUser.id,
+            action: 'JUDGE_ACCEPT_INVITATION',
+            description: `Accepted judge invitation ${inviteId}`,
+            metadata: {
+              hackathonId: judgeInvitation.hackathonId,
+              judgeId: judgeInvitation.invitedUserId,
+            },
+          },
+        });
+
+        // Add a notification to the judge
+        await tx.notification.create({
+          data: {
+            toUserId: judgeInvitation.invitedById,
+            fromUserId: requesterUser.id,
+            type: 'JUDGE_ACCEPT_INVITATION',
+            content: `${requesterUser.name} has accepted your judge invitation ${inviteId} into hackathon ${judgeInvitation.hackathonId}`,
+            payload: {
+              hackathonId: judgeInvitation.hackathonId,
+              judgeId: judgeInvitation.invitedUserId,
+              judgeInvitationId: inviteId,
+            },
+          },
+        });
+
+        return updatedJudgeInvitation;
+      },
+    );
+
+    return {
+      message: 'Judge invitation accepted successfully',
+      data: updatedJudgeInvitation,
+    };
+  }
+
+  async declineJudgeInvitation(inviteId: string, requesterUser: UserMin) {
+    const judgeInvitation = await this.prismaService.judgeInvitation.findUnique(
+      {
+        where: {
+          id: inviteId,
+        },
+      },
+    );
+
+    // Check if the invitation exists
+    if (!judgeInvitation) {
+      throw new NotFoundException('Judge invitation not found');
+    }
+
+    // Check if the invitation is pending
+    if (judgeInvitation.status !== JudgeInvitationStatus.PENDING) {
+      throw new BadRequestException('Judge invitation is not pending');
+    }
+
+    // Check if the requester is the invited user
+    if (judgeInvitation.invitedUserId !== requesterUser.id) {
+      throw new ForbiddenException('You are not the invited user');
+    }
+
+    // Accept teh invitation, create new judge, store the activity log and send the notification
+    const updatedJudgeInvitation = await this.prismaService.$transaction(
+      async (tx) => {
+        const updatedJudgeInvitation = await tx.judgeInvitation.update({
+          where: {
+            id: inviteId,
+          },
+          data: {
+            status: JudgeInvitationStatus.DECLINED,
+            respondedAt: new Date(),
+          },
+        });
+
+        // Store activity log
+        await tx.userActivityLog.create({
+          data: {
+            userId: requesterUser.id,
+            action: 'JUDGE_REJECT_INVITATION',
+            description: `Rejected judge invitation ${inviteId}`,
+            metadata: {
+              hackathonId: judgeInvitation.hackathonId,
+              judgeId: judgeInvitation.invitedUserId,
+            },
+          },
+        });
+
+        // Add a notification to the judge
+        await tx.notification.create({
+          data: {
+            toUserId: judgeInvitation.invitedById,
+            fromUserId: requesterUser.id,
+            type: 'JUDGE_REJECT_INVITATION',
+            content: `${requesterUser.name} has rejected your judge invitation ${inviteId} into hackathon ${judgeInvitation.hackathonId}`,
+            payload: {
+              hackathonId: judgeInvitation.hackathonId,
+              judgeId: judgeInvitation.invitedUserId,
+              judgeInvitationId: inviteId,
+            },
+          },
+        });
+
+        return updatedJudgeInvitation;
+      },
+    );
+
+    return {
+      message: 'Judge invitation declined successfully',
+      data: updatedJudgeInvitation,
     };
   }
 }

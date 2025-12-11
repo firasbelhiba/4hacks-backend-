@@ -1,4 +1,11 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiNotFoundResponse,
@@ -76,5 +83,112 @@ export class JudgesController {
       user,
       hackathon,
     );
+  }
+
+  @ApiOperation({
+    summary: 'Accept a judge invitation',
+    description: 'Accept a judge invitation to a hackathon.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Judge invitation accepted successfully.',
+    schema: {
+      example: {
+        message: 'Judge invitation accepted successfully',
+        data: {
+          id: 'cuid',
+          slug: 'hackathon-slug',
+          title: 'Hackathon Title',
+          organizationId: 'cuid',
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    schema: {
+      example: {
+        message:
+          'You are not authorized to accept a judge invitation to this hackathon',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+    schema: {
+      example: {
+        message: 'Hackathon not found',
+      },
+    },
+  })
+  @ApiParam({
+    name: 'inviteId',
+    description: 'ID of the judge invitation',
+    required: true,
+    type: String,
+    example: 'cuid',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch('judges/invitations/:inviteId/accept')
+  async acceptJudgeInvitation(
+    @CurrentUser() user: UserMin,
+    @Param('inviteId') inviteId: string,
+  ) {
+    return await this.judgesService.acceptJudgeInvitation(inviteId, user);
+  }
+
+
+  @ApiOperation({
+    summary: 'Decline a judge invitation',
+    description: 'Decline a judge invitation to a hackathon.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Judge invitation declined successfully.',
+    schema: {
+      example: {
+        message: 'Judge invitation declined successfully',
+        data: {
+          id: 'cuid',
+          slug: 'hackathon-slug',
+          title: 'Hackathon Title',
+          organizationId: 'cuid',
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    schema: {
+      example: {
+        message:
+          'You are not authorized to decline a judge invitation to this hackathon',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+    schema: {
+      example: {
+        message: 'Hackathon not found',
+      },
+    },
+  })
+  @ApiParam({
+    name: 'inviteId',
+    description: 'ID of the judge invitation',
+    required: true,
+    type: String,
+    example: 'cuid',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch('judges/invitations/:inviteId/decline')
+  async declineJudgeInvitation(
+    @CurrentUser() user: UserMin,
+    @Param('inviteId') inviteId: string,
+  ) {
+    return await this.judgesService.declineJudgeInvitation(inviteId, user);
   }
 }
