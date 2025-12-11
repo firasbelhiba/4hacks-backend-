@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +23,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { type UserMin } from 'src/common/types';
 import { UpdateSubmissionScoreDto } from './dto/update.dto';
+import { QuerySubmissionScoresDto } from './dto/query.dto';
 
 @ApiTags('Submission Scores')
 @Controller('submission-scores')
@@ -74,6 +76,89 @@ export class SubmissionScoresController {
     return await this.submissionScoresService.createSubmissionScore(
       createSubmissionScoreDto,
       judge,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Get all submission scores for a hackathon',
+    description:
+      'Returns paginated list of submissions with their scores. Available to organization owners and judges. Includes which judges have scored each submission and which are missing.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated submission scores retrieved successfully',
+    example: {
+      data: [
+        {
+          submission: {
+            id: 'cmj17s4ra002eo0fd744c2lsr',
+            title: 'Blockchain Voting System',
+            tagline: 'Secure voting for everyone',
+            status: 'SUBMITTED',
+            submittedAt: '2025-12-10T14:30:00.000Z',
+            team: { id: 'team123', name: 'Team Alpha', image: null },
+            track: { id: 'track123', name: 'DeFi' },
+            bounty: null,
+          },
+          scores: [
+            {
+              id: 'score123',
+              score: 8.5,
+              comment: 'Great implementation',
+              criteriaScores: { innovation: 9, feasibility: 8 },
+              createdAt: '2025-12-11T09:00:00.000Z',
+              judge: {
+                id: 'user123',
+                username: 'judge1',
+                name: 'John Doe',
+                image: null,
+              },
+            },
+          ],
+          missingJudges: [
+            {
+              id: 'hackathonJudge456',
+              username: 'judge2',
+              name: 'Jane Smith',
+              image: null,
+            },
+          ],
+          stats: {
+            averageScore: 8.5,
+            totalJudges: 2,
+            scoredCount: 1,
+            missingCount: 1,
+          },
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 10,
+        total: 25,
+        totalPages: 3,
+        hasNextPage: true,
+        hasPrevPage: false,
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiForbiddenResponse({
+    description:
+      'Forbidden - you must be the organization owner or a judge to view submission scores',
+  })
+  @ApiNotFoundResponse({ description: 'Hackathon not found' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('hackathon/:hackathonId')
+  async getHackathonSubmissionScores(
+    @Param('hackathonId') hackathonId: string,
+    @Query() queryDto: QuerySubmissionScoresDto,
+    @CurrentUser() user: UserMin,
+  ) {
+    return await this.submissionScoresService.getHackathonSubmissionScores(
+      hackathonId,
+      queryDto,
+      user,
     );
   }
 
