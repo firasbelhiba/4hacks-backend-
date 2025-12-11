@@ -187,6 +187,7 @@ enum ActivityTargetType {
   HACKATHON_REGISTRATION
   PRIZE
   COMMENT
+  JUDGE_SUBMISSION_SCORE
   OTHER
 }
 
@@ -1074,7 +1075,7 @@ model SubmissionScore {
   submissionId   String
   judgeId        String
   score          Float
-  comments       String? @db.Text
+  comment        String? @db.Text
   criteriaScores Json? // e.g., { "innovation": 8, "feasibility": 7, "presentation": 9 }
 
   submission Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
