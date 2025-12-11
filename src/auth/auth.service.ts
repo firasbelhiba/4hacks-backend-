@@ -643,7 +643,7 @@ export class AuthService {
 
   /// Google OAuth Methods ////
   async validateGoogleQauthUser(email: string, name: string, image: string) {
-    let user = await this.prisma.users.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { email },
       select: {
         id: true,
@@ -747,7 +747,7 @@ export class AuthService {
     name: string,
     image: string,
   ): Promise<UserMin> {
-    let user = await this.prisma.users.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { email },
       select: {
         id: true,
@@ -851,7 +851,7 @@ export class AuthService {
     name: string,
     image: string,
   ): Promise<UserMin> {
-    let user = await this.prisma.users.findUnique({
+    const user = await this.prisma.users.findUnique({
       where: { email },
       select: {
         id: true,

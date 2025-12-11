@@ -13,4 +13,3 @@ export class ManageUserBanDto {
   @MaxLength(500)
   reason?: string;
 }
-

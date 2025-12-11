@@ -9,7 +9,9 @@ describe('HackathonRegistrationController', () => {
       controllers: [HackathonRegistrationController],
     }).compile();
 
-    controller = module.get<HackathonRegistrationController>(HackathonRegistrationController);
+    controller = module.get<HackathonRegistrationController>(
+      HackathonRegistrationController,
+    );
   });
 
   it('should be defined', () => {

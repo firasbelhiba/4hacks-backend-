@@ -6,6 +6,6 @@ import { PrismaModule } from 'src/prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   providers: [SubmissionScoresService],
-  controllers: [SubmissionScoresController]
+  controllers: [SubmissionScoresController],
 })
 export class SubmissionScoresModule {}

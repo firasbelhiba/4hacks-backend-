@@ -81,6 +81,10 @@ export class BountiesPrizesController {
     @Body() managePrizesDto: ManageBountyPrizesDto,
     @CurrentUser() user: UserMin,
   ) {
-    return this.prizesService.manageBountyPrizes(bountyId, managePrizesDto, user);
+    return this.prizesService.manageBountyPrizes(
+      bountyId,
+      managePrizesDto,
+      user,
+    );
   }
 }

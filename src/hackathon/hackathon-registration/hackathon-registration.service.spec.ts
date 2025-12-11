@@ -9,7 +9,9 @@ describe('HackathonRegistrationService', () => {
       providers: [HackathonRegistrationService],
     }).compile();
 
-    service = module.get<HackathonRegistrationService>(HackathonRegistrationService);
+    service = module.get<HackathonRegistrationService>(
+      HackathonRegistrationService,
+    );
   });
 
   it('should be defined', () => {

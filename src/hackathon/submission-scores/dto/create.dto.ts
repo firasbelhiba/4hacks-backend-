@@ -47,4 +47,3 @@ export class CreateSubmissionScoreDto {
   @IsNotEmpty()
   criteriaScores?: Record<string, number>;
 }
-

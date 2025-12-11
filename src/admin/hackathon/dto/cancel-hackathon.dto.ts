@@ -14,4 +14,3 @@ export class CancelHackathonDto {
   })
   reason: string;
 }
-

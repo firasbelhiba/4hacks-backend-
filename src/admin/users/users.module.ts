@@ -10,4 +10,3 @@ import { EmailModule } from 'src/email/email.module';
   providers: [UsersService],
 })
 export class UsersModule {}
-
