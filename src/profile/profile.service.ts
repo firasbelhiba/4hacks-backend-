@@ -137,7 +137,7 @@ export class ProfileService {
     //   });
     // }
 
-    let user = await this.prisma.users.findFirst({
+    const user = await this.prisma.users.findFirst({
       where: { OR: [{ id: identifier }, { username: identifier }] },
       select: { id: true, username: true, email: true, role: true },
     });

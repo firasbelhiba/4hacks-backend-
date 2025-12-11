@@ -203,7 +203,7 @@ export class HackathonController {
   @Get(':identifier/tracks')
   async getTracks(
     @Param('identifier') hackathonIdentifier: string,
-    @CurrentUser() user?: UserMin | undefined,
+    @CurrentUser() user?: UserMin,
   ) {
     return await this.hackathonService.getTracks(hackathonIdentifier, user);
   }
@@ -309,7 +309,7 @@ export class HackathonController {
   @Get(':identifier/sponsors')
   async getSponsors(
     @Param('identifier') hackathonIdentifier: string,
-    @CurrentUser() user?: UserMin | undefined,
+    @CurrentUser() user?: UserMin,
   ) {
     return await this.hackathonService.getSponsors(hackathonIdentifier, user);
   }
@@ -502,7 +502,7 @@ Only the organization owner can archive their hackathons.
   @Get(':identifier')
   async getHackathonByIdentifier(
     @Param('identifier') identifier: string,
-    @CurrentUser() user?: UserMin | undefined,
+    @CurrentUser() user?: UserMin,
   ) {
     return await this.hackathonService.getHackathonByIdentifier(
       identifier,
@@ -630,7 +630,7 @@ Only the organization owner can archive their hackathons.
   @Get(':identifier/winners')
   async getHackathonWinners(
     @Param('identifier') identifier: string,
-    @CurrentUser() user?: UserMin | undefined,
+    @CurrentUser() user?: UserMin,
   ) {
     return await this.hackathonService.getHackathonWinners(identifier, user);
   }

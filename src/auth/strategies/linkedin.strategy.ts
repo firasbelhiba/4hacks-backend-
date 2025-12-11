@@ -5,7 +5,10 @@ import { linkedinOAuthConstants } from '../constants';
 import { AuthService } from '../auth.service';
 
 @Injectable()
-export class LinkedinStrategy extends PassportStrategy(OAuth2Strategy, 'linkedin') {
+export class LinkedinStrategy extends PassportStrategy(
+  OAuth2Strategy,
+  'linkedin',
+) {
   constructor(private readonly authService: AuthService) {
     super({
       authorizationURL: 'https://www.linkedin.com/oauth/v2/authorization',
@@ -27,18 +30,22 @@ export class LinkedinStrategy extends PassportStrategy(OAuth2Strategy, 'linkedin
       // Fetch user info from LinkedIn's OpenID Connect userinfo endpoint
       const response = await fetch('https://api.linkedin.com/v2/userinfo', {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch LinkedIn user info: ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch LinkedIn user info: ${response.statusText}`,
+        );
       }
 
       const userInfo = await response.json();
 
       const email = userInfo.email;
-      const name = userInfo.name || `${userInfo.given_name || ''} ${userInfo.family_name || ''}`.trim();
+      const name =
+        userInfo.name ||
+        `${userInfo.given_name || ''} ${userInfo.family_name || ''}`.trim();
       const image = userInfo.picture || '';
 
       const user = await this.authService.validateLinkedinOAuthUser(

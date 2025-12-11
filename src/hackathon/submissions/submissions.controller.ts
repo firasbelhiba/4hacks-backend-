@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -13,11 +13,56 @@ import { SubmissionsService } from './submissions.service';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 import { UserMin } from 'src/common/types';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import {
+  PaginatedSubmissionsDto,
+  QuerySubmissionsDto,
+} from './dto/query-submissions.dto';
 
 @ApiTags('Hackathon Submissions')
 @Controller('submissions')
 export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
+
+  @ApiOperation({
+    summary: 'Get all submissions with pagination, filtering, and sorting',
+    description:
+      '**Authorization Rules:**\n\n' +
+      '**1. No Access Token (Anonymous Users):**\n' +
+      '- Only returns submissions with status `SUBMITTED` (review accepted)\n' +
+      '- Only from public hackathons (`isPrivate = false`)\n\n' +
+      '**2. With Access Token (Authenticated Users):**\n' +
+      '- Returns submissions with status `SUBMITTED` from public hackathons\n' +
+      '- **Additionally** returns submissions from private hackathons if:\n' +
+      '  - User is registered to the private hackathon (status APPROVED), OR\n' +
+      '  - User is a judge of the private hackathon\n' +
+      '- **Additionally** returns ALL submissions (any status) if:\n' +
+      '  - User is an ADMIN, OR\n' +
+      '  - User is the organization owner of the hackathon, OR\n' +
+      '  - User is a team member of the submission\n\n' +
+      '**3. Filtering:**\n' +
+      '- Filter by hackathon ID, track ID, bounty ID\n' +
+      '- Filter by status (only effective for admins, org owners, and team members)\n' +
+      '- Search in title, tagline, or description\n\n' +
+      '**4. Sorting:**\n' +
+      '- Sort by: createdAt, submittedAt, title\n' +
+      '- Order: asc or desc\n\n' +
+      '**5. Pagination:**\n' +
+      '- Page number (1-indexed) and limit (max 100)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Submissions retrieved successfully',
+    type: PaginatedSubmissionsDto,
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get()
+  getAllSubmissions(
+    @Query() queryDto: QuerySubmissionsDto,
+    @CurrentUser() user: UserMin | null,
+  ) {
+    return this.submissionsService.getAllSubmissions(queryDto, user);
+  }
 
   @ApiOperation({
     summary: 'Get a submission by ID',

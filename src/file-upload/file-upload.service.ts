@@ -53,10 +53,7 @@ export class FileUploadService {
 
       return publicUrl;
     } catch (err) {
-      this.logger.error(
-        'R2 upload failed, error uploading profile image',
-        err as any,
-      );
+      this.logger.error('R2 upload failed, error uploading profile image', err);
 
       throw err;
     }
@@ -107,13 +104,12 @@ export class FileUploadService {
     } catch (err) {
       this.logger.error(
         'R2 upload failed, error uploading organization logo',
-        err as any,
+        err,
       );
 
       throw err;
     }
   }
-
 
   async uploadTeamImage(
     file: Express.Multer.File,
@@ -153,10 +149,7 @@ export class FileUploadService {
 
       return publicUrl;
     } catch (err) {
-      this.logger.error(
-        'R2 upload failed, error uploading team image',
-        err as any,
-      );
+      this.logger.error('R2 upload failed, error uploading team image', err);
 
       throw err;
     }

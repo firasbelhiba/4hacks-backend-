@@ -202,11 +202,15 @@ export const AccountBannedEmailTemplateHtml = (
             Your 4Hacks account has been banned by an administrator. You will no longer be able to log in or access your account.
           </p>
 
-          ${reason && reason !== 'No reason provided' ? `
+          ${
+            reason && reason !== 'No reason provided'
+              ? `
           <p style="margin: 0 0 16px 0; padding: 12px; background-color: #fff; border-radius: 4px; border-left: 4px solid #ef4444;">
             <strong>Reason for ban:</strong> ${reason}
           </p>
-          ` : ''}
+          `
+              : ''
+          }
 
           <p style="margin: 16px 0; font-size: 14px; color: #666;">
             For your security, all active sessions have been logged out. If you believe this ban was made in error, please contact our support team immediately.

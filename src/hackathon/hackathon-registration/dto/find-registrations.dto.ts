@@ -1,9 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsOptional,
-  IsString,
-  IsNumberString,
-} from 'class-validator';
+import { IsOptional, IsString, IsNumberString } from 'class-validator';
 
 export class FindHackathonRegistrationsDto {
   @ApiPropertyOptional({

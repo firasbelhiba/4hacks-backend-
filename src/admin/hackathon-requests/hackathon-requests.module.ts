@@ -7,6 +7,6 @@ import { EmailModule } from 'src/email/email.module';
 @Module({
   imports: [PrismaModule, EmailModule],
   controllers: [HackathonRequestsController],
-  providers: [HackathonRequestsService]
+  providers: [HackathonRequestsService],
 })
 export class HackathonRequestsModule {}

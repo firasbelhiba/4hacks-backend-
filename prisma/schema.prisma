@@ -114,6 +114,9 @@ model users {
   teamInvitationsSent               TeamInvitation[]           @relation("TeamInvitationsSent")
   reviewedSubmissions               Submission[]               @relation("SubmissionReviewedBy")
   announcements                     Announcement[]
+  judgeInvitationsReceived          JudgeInvitation[]          @relation("JudgeInvitationsReceived")
+  judgeInvitationsSent              JudgeInvitation[]          @relation("JudgeInvitationsSent")
+  hackathonJudges                   HackathonJudge[]
 
   @@index([email])
   @@index([username])
@@ -184,6 +187,7 @@ enum ActivityTargetType {
   HACKATHON_REGISTRATION
   PRIZE
   COMMENT
+  JUDGE_SUBMISSION_SCORE
   OTHER
 }
 
@@ -590,6 +594,8 @@ model Hackathon {
   hackathonRegistrations    HackathonRegistration[]
   teams                     Team[]
   announcements             Announcement[]
+  judgeInvitations          JudgeInvitation[]
+  hackathonJudges           HackathonJudge[]
 
   @@index([slug])
   @@index([organizationId])
@@ -907,12 +913,13 @@ model Submission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  hackathon    Hackathon     @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
-  team         Team?         @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  creator      users         @relation(fields: [creatorId], references: [id], onDelete: Restrict)
-  track        Track?        @relation(fields: [trackId], references: [id], onDelete: SetNull)
-  bounty       Bounty?       @relation(fields: [bountyId], references: [id], onDelete: SetNull)
-  prizeWinners PrizeWinner[]
+  hackathon        Hackathon         @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  team             Team?             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator          users             @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  track            Track?            @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  bounty           Bounty?           @relation(fields: [bountyId], references: [id], onDelete: SetNull)
+  prizeWinners     PrizeWinner[]
+  submissionScores SubmissionScore[]
 
   @@unique([teamId, hackathonId])
   @@index([hackathonId, status])
@@ -1014,4 +1021,71 @@ model Notification {
   @@index([toUserId, isRead])
   @@index([createdAt])
   @@map("notifications")
+}
+
+/// Judge System Models ///
+enum JudgeInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model JudgeInvitation {
+  id            String                @id @default(cuid())
+  hackathonId   String
+  invitedUserId String
+  invitedById   String // organizer sending the invite
+  status        JudgeInvitationStatus @default(PENDING)
+  respondedAt   DateTime?
+
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  invitedUser users     @relation("JudgeInvitationsReceived", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  invitedBy   users     @relation("JudgeInvitationsSent", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([hackathonId])
+  @@index([invitedUserId])
+  @@index([invitedById])
+  @@index([status])
+  @@map("judge_invitations")
+}
+
+model HackathonJudge {
+  id          String @id @default(cuid())
+  hackathonId String
+  userId      String
+
+  hackathon        Hackathon         @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  user             users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submissionScores SubmissionScore[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([hackathonId, userId])
+  @@index([hackathonId])
+  @@index([userId])
+  @@map("hackathon_judges")
+}
+
+model SubmissionScore {
+  id               String  @id @default(cuid())
+  submissionId     String
+  hackathonJudgeId String
+  score            Float
+  comment          String? @db.Text
+  criteriaScores   Json? // e.g., { "innovation": 8, "feasibility": 7, "presentation": 9 }
+
+  submission     Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  hackathonJudge HackathonJudge @relation(fields: [hackathonJudgeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([submissionId, hackathonJudgeId])
+  @@index([submissionId])
+  @@index([hackathonJudgeId])
+  @@map("submission_scores")
 }
