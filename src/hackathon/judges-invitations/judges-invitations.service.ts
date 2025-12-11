@@ -12,8 +12,8 @@ import { HackathonMin, UserMin } from 'src/common/types';
 import { JudgeInvitationStatus } from '@prisma/client';
 
 @Injectable()
-export class JudgesService {
-  private readonly logger = new Logger(JudgesService.name);
+export class JudgesInvitationsService {
+  private readonly logger = new Logger(JudgesInvitationsService.name);
 
   constructor(private readonly prismaService: PrismaService) {}
 

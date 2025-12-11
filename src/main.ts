@@ -61,8 +61,8 @@ async function bootstrap() {
       'Endpoints related to hackathon prizes management',
     )
     .addTag(
-      'Judges',
-      'Endpoints related to judges management of the hackathons',
+      'Hackathon Judges Invitations',
+      'Endpoints related to judges invitations management of the hackathons',
     )
     .addTag(
       'Hackathon Announcements',

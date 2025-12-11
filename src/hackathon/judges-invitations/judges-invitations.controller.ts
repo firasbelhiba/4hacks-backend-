@@ -15,18 +15,21 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JudgesService } from './judges.service';
+
 import { InviteJudgeDto } from './dto/invite.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { HackathonMin, UserMin } from 'src/common/types';
 import { Hackathon } from '../decorators/hackathon.decorator';
 import { HackathonContextGuard } from '../guards/hackathon.guard';
+import { JudgesInvitationsService } from './judges-invitations.service';
 
-@ApiTags('Judges')
+@ApiTags('Hackathon Judges Invitations')
 @Controller()
-export class JudgesController {
-  constructor(private readonly judgesService: JudgesService) {}
+export class JudgesInvitationsController {
+  constructor(
+    private readonly judgesInvitationsService: JudgesInvitationsService,
+  ) {}
 
   @ApiOperation({
     summary: 'Invite a judge',
@@ -72,13 +75,13 @@ export class JudgesController {
   })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, HackathonContextGuard)
-  @Post('hackathon/:hackathonId/judges/invite')
+  @Post('hackathon/:hackathonId/judges-invitations')
   async inviteJudge(
     @Body() inviteJudgeDto: InviteJudgeDto,
     @CurrentUser() user: UserMin,
     @Hackathon() hackathon: HackathonMin,
   ) {
-    return await this.judgesService.inviteJudge(
+    return await this.judgesInvitationsService.inviteJudge(
       inviteJudgeDto,
       user,
       hackathon,
@@ -130,14 +133,16 @@ export class JudgesController {
   })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Patch('judges/invitations/:inviteId/accept')
+  @Patch('judges-invitations/:inviteId/accept')
   async acceptJudgeInvitation(
     @CurrentUser() user: UserMin,
     @Param('inviteId') inviteId: string,
   ) {
-    return await this.judgesService.acceptJudgeInvitation(inviteId, user);
+    return await this.judgesInvitationsService.acceptJudgeInvitation(
+      inviteId,
+      user,
+    );
   }
-
 
   @ApiOperation({
     summary: 'Decline a judge invitation',
@@ -189,6 +194,9 @@ export class JudgesController {
     @CurrentUser() user: UserMin,
     @Param('inviteId') inviteId: string,
   ) {
-    return await this.judgesService.declineJudgeInvitation(inviteId, user);
+    return await this.judgesInvitationsService.declineJudgeInvitation(
+      inviteId,
+      user,
+    );
   }
 }
