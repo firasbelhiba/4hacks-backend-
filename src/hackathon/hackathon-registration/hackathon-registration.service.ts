@@ -196,14 +196,37 @@ export class HackathonRegistrationService {
 
     const isAdmin = user && user.role === UserRole.ADMIN;
     const isOwner = user && user.id === existingHackathon.organization.ownerId;
+    const hasSpecialAccess = isAdmin || isOwner;
 
-    if (existingHackathon.isPrivate && !isAdmin && !isOwner) {
-      throw new BadRequestException(
-        'You do not have permission to view registrations for this private hackathon',
-      );
+    // Check if user is registered for the hackathon (for private hackathons)
+    // Only APPROVED registrations grant access to view registrations
+    let isRegistered = false;
+    if (existingHackathon.isPrivate && user && !hasSpecialAccess) {
+      const userRegistration =
+        await this.prismaService.hackathonRegistration.findUnique({
+          where: {
+            hackathonId_userId: {
+              hackathonId,
+              userId: user.id,
+            },
+          },
+        });
+      // Only approved registrations allow viewing registrations
+      isRegistered =
+        !!userRegistration &&
+        userRegistration.status === HackathonRegistrationStatus.APPROVED;
     }
 
-    // TODO: check also if the user is registered to the hackathon to allow viewing registrations
+    // Access control for private hackathons:
+    // - Admins can always access
+    // - Organizers can always access
+    // - Registered users can access (but without answers)
+    // - Others cannot access
+    if (existingHackathon.isPrivate && !hasSpecialAccess && !isRegistered) {
+      throw new BadRequestException(
+        'You do not have permission to view registrations for this private hackathon. You must be registered and approved to view registrations.',
+      );
+    }
 
     // Build where clause for search
     const where: any = {
@@ -220,7 +243,7 @@ export class HackathonRegistrationService {
       };
     }
 
-    // Query paginated data
+    // Query paginated data with conditional include based on user role
     const registrations =
       await this.prismaService.hackathonRegistration.findMany({
         where,
@@ -237,6 +260,18 @@ export class HackathonRegistrationService {
               image: true,
             },
           },
+          // Include answers only for admins and organizers
+          ...(hasSpecialAccess
+            ? {
+                answers: {
+                  select: {
+                    id: true,
+                    answers: true,
+                    submittedAt: true,
+                  },
+                },
+              }
+            : {}),
         },
       });
 
@@ -251,8 +286,17 @@ export class HackathonRegistrationService {
       limit,
       data: registrations.map((r) => ({
         id: r.id,
+        status: r.status,
         user: r.user,
         registeredAt: r.registeredAt,
+        // Include answers and review info only for admins and organizers
+        ...(hasSpecialAccess
+          ? {
+              answers: r.answers,
+              reviewedAt: r.reviewedAt,
+              reviewedById: r.reviewedById,
+            }
+          : {}),
       })),
     };
   }
