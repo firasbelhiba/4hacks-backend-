@@ -1071,21 +1071,21 @@ model HackathonJudge {
 }
 
 model SubmissionScore {
-  id             String  @id @default(cuid())
-  submissionId   String
-  judgeId        String
-  score          Float
-  comment        String? @db.Text
-  criteriaScores Json? // e.g., { "innovation": 8, "feasibility": 7, "presentation": 9 }
+  id               String  @id @default(cuid())
+  submissionId     String
+  hackathonJudgeId String
+  score            Float
+  comment          String? @db.Text
+  criteriaScores   Json? // e.g., { "innovation": 8, "feasibility": 7, "presentation": 9 }
 
-  submission Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  judge      HackathonJudge @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  submission     Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  hackathonJudge HackathonJudge @relation(fields: [hackathonJudgeId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([submissionId, judgeId])
+  @@unique([submissionId, hackathonJudgeId])
   @@index([submissionId])
-  @@index([judgeId])
+  @@index([hackathonJudgeId])
   @@map("submission_scores")
 }

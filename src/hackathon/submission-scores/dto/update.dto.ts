@@ -10,24 +10,16 @@ import {
 } from 'class-validator';
 import { MAX_SCORE, MIN_SCORE } from '../const';
 
-export class CreateSubmissionScoreDto {
-  @ApiProperty({
-    description: 'The ID of the submission',
-    example: 'cuid',
-  })
-  @IsString()
-  @IsNotEmpty()
-  submissionId: string;
-
-  @ApiProperty({
+export class UpdateSubmissionScoreDto {
+  @ApiPropertyOptional({
     description: 'The score of the submission',
     example: 6,
   })
   @IsNumber()
   @Max(MAX_SCORE)
   @Min(MIN_SCORE)
-  @IsNotEmpty()
-  score: number;
+  @IsOptional()
+  score?: number;
 
   @ApiPropertyOptional({
     description: 'The comment of the submission',
@@ -47,4 +39,3 @@ export class CreateSubmissionScoreDto {
   @IsNotEmpty()
   criteriaScores?: Record<string, number>;
 }
-

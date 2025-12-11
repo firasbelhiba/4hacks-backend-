@@ -9,6 +9,7 @@ import { UserMin } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateSubmissionScoreDto } from './dto/create.dto';
 import { ActivityTargetType } from '@prisma/client';
+import { UpdateSubmissionScoreDto } from './dto/update.dto';
 
 @Injectable()
 export class SubmissionScoresService {
@@ -62,9 +63,9 @@ export class SubmissionScoresService {
     // Check if this judge already submitted a score for this submission
     const existingScore = await this.prismaService.submissionScore.findUnique({
       where: {
-        submissionId_judgeId: {
+        submissionId_hackathonJudgeId: {
           submissionId,
-          judgeId: hackathonJudge.id,
+          hackathonJudgeId: hackathonJudge.id,
         },
       },
     });
@@ -92,7 +93,7 @@ export class SubmissionScoresService {
         const submissionScore = await tx.submissionScore.create({
           data: {
             submissionId,
-            judgeId: hackathonJudge.id,
+            hackathonJudgeId: hackathonJudge.id,
             score,
             comment,
             criteriaScores,
@@ -109,7 +110,7 @@ export class SubmissionScoresService {
             targetId: submissionScore.id,
             metadata: {
               submissionId: submission.id,
-              judgeId: judge.id,
+              hackathonJudgeId: hackathonJudge.id,
               submissionScoreId: submissionScore.id,
             },
           },
@@ -132,6 +133,108 @@ export class SubmissionScoresService {
     return {
       message: 'Submission score created successfully',
       submissionScore,
+    };
+  }
+
+  async updateSubmissionScore(
+    submissionScoreId: string,
+    updateSubmissionScoreDto: UpdateSubmissionScoreDto,
+    judge: UserMin,
+  ) {
+    const { score, comment, criteriaScores } = updateSubmissionScoreDto;
+
+    const submissionScore = await this.prismaService.submissionScore.findUnique(
+      {
+        where: {
+          id: submissionScoreId,
+        },
+        include: {
+          hackathonJudge: {
+            include: {
+              hackathon: {
+                include: {
+                  organization: {
+                    select: {
+                      ownerId: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    );
+
+    if (!submissionScore) {
+      throw new NotFoundException('Submission score not found');
+    }
+
+    if (submissionScore.hackathonJudge.userId !== judge.id) {
+      throw new ForbiddenException(
+        'You are not the judge of this submission score',
+      );
+    }
+
+    // Check if hackathon judging has ended based on judgingEnd date
+    const now = new Date();
+    if (
+      submissionScore.hackathonJudge.hackathon.judgingEnd &&
+      submissionScore.hackathonJudge.hackathon.judgingEnd < now
+    ) {
+      throw new BadRequestException('The hackathon judging has ended');
+    }
+
+    //TODO: Check if the hackathon winners have been announced
+
+    // Update submission score, add activity log, add notification to the submission owner
+    const updatedSubmissionScore = await this.prismaService.$transaction(
+      async (tx) => {
+        const updatedSubmissionScore = await tx.submissionScore.update({
+          where: {
+            id: submissionScoreId,
+          },
+          data: {
+            score,
+            comment,
+            criteriaScores,
+          },
+        });
+
+        // Add activity log
+        await tx.userActivityLog.create({
+          data: {
+            userId: judge.id,
+            action: 'JUDGE_SUBMISSION_SCORE',
+            description: `Judge ${judge.id} updated a score for submission ${submissionScore.submissionId}`,
+            targetType: ActivityTargetType.JUDGE_SUBMISSION_SCORE,
+            targetId: submissionScore.id,
+            metadata: {
+              submissionId: submissionScore.submissionId,
+              hackathonJudgeId: submissionScore.hackathonJudgeId,
+              submissionScoreId: submissionScore.id,
+            },
+          },
+        });
+
+        // Add notification to the submission owner
+        await tx.notification.create({
+          data: {
+            toUserId:
+              submissionScore.hackathonJudge.hackathon.organization.ownerId,
+            type: 'JUDGE_SUBMISSION_SCORE',
+            content: `Judge ${judge.id} updated its score for submission ${submissionScore.submissionId}`,
+            isRead: false,
+          },
+        });
+
+        return updatedSubmissionScore;
+      },
+    );
+
+    return {
+      message: 'Submission score updated successfully',
+      submissionScore: updatedSubmissionScore,
     };
   }
 }
