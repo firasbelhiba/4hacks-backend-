@@ -36,16 +36,20 @@ export class JudgesInvitationsController {
     description: 'Invite a judge to a hackathon.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Judge invited successfully.',
     schema: {
       example: {
         message: 'Judge invited successfully',
         data: {
-          id: 'cuid',
-          slug: 'hackathon-slug',
-          title: 'Hackathon Title',
-          organizationId: 'cuid',
+          id: 'cmj17tgpl0001isfd8pvywf7z',
+          hackathonId: 'cmj17s4ns000jo0fdr8szah2z',
+          invitedUserId: 'cmj17s4ms0007o0fduw4mmbd5',
+          invitedById: 'cmj17s4ms0007o0fduw4mmbd5',
+          status: 'PENDING',
+          respondedAt: null,
+          createdAt: '2025-12-11T09:07:52.665Z',
+          updatedAt: '2025-12-11T09:07:52.665Z',
         },
       },
     },
@@ -99,10 +103,14 @@ export class JudgesInvitationsController {
       example: {
         message: 'Judge invitation accepted successfully',
         data: {
-          id: 'cuid',
-          slug: 'hackathon-slug',
-          title: 'Hackathon Title',
-          organizationId: 'cuid',
+          id: 'cmj17tgpl0001isfd8pvywf7z',
+          hackathonId: 'cmj17s4ns000jo0fdr8szah2z',
+          invitedUserId: 'cmj17s4ms0007o0fduw4mmbd5',
+          invitedById: 'cmj17s4ms0007o0fduw4mmbd5',
+          status: 'ACCEPTED',
+          respondedAt: '2025-12-11T09:09:04.603Z',
+          createdAt: '2025-12-11T09:07:52.665Z',
+          updatedAt: '2025-12-11T09:09:04.613Z',
         },
       },
     },
