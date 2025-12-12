@@ -1,27 +1,129 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 import { CreateTeamDto } from './dto/create.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { UserMin } from 'src/common/types';
 import { TeamMemberDto } from './dto/member.dto';
 import { TransferTeamLeadershipDto } from './dto/leadership.dto';
+import { FindHackathonTeamsDto } from './dto/find-teams.dto';
 
 @ApiTags('Hackathon Teams')
 @Controller('hackathon/:hackathonId/teams')
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
+
+  @ApiOperation({
+    summary: 'Get all teams for a hackathon',
+    description: `Returns a paginated list of teams for a given hackathon. Supports search by team name or tagline.
+
+**Access Control:**
+- **Public hackathons**: Anyone can view teams (no authentication required)
+- **Private hackathons**:
+  - Admins can always view
+  - Organizers can always view
+  - Registered users with APPROVED status can view
+  - Others cannot access
+
+**Response includes:**
+- Team details (id, name, tagline, image, createdAt)
+- Member count
+- Team members with their basic info (leader listed first)`,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search by team name or tagline',
+    example: 'awesome team',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (default: 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page (default: 10, max: 100)',
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of teams with members',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'clxx123...',
+            name: 'Awesome Team',
+            tagline: 'Building the future',
+            image: 'https://...',
+            createdAt: '2024-01-01T00:00:00.000Z',
+            memberCount: 3,
+            members: [
+              {
+                id: 'member123',
+                isLeader: true,
+                joinedAt: '2024-01-01T00:00:00.000Z',
+                user: {
+                  id: 'user123',
+                  username: 'johndoe',
+                  name: 'John Doe',
+                  image: 'https://...',
+                },
+              },
+            ],
+          },
+        ],
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 50,
+          totalPages: 5,
+          hasNextPage: true,
+          hasPrevPage: false,
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Hackathon not found' })
+  @ApiForbiddenResponse({
+    description:
+      'Access denied. For private hackathons, you must be registered and approved to view teams.',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('')
+  async getHackathonTeams(
+    @Param('hackathonId') hackathonId: string,
+    @Query() query: FindHackathonTeamsDto,
+    @CurrentUser() user?: UserMin,
+  ) {
+    return await this.teamsService.getHackathonTeams(hackathonId, query, user);
+  }
 
   @ApiOperation({
     summary: 'Get Team Details By ID',

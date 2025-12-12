@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -11,10 +12,13 @@ import { CreateTeamDto } from './dto/create.dto';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
 import {
   ActivityTargetType,
+  HackathonRegistrationStatus,
   HackathonStatus,
   InvitationStatus,
+  UserRole,
 } from '@prisma/client';
 import { TeamMemberDto } from './dto/member.dto';
+import { FindHackathonTeamsDto } from './dto/find-teams.dto';
 
 @Injectable()
 export class TeamsService {
@@ -868,5 +872,135 @@ export class TeamsService {
     }
 
     return team;
+  }
+
+  async getHackathonTeams(
+    hackathonId: string,
+    query: FindHackathonTeamsDto,
+    user?: UserMin,
+  ) {
+    const { search } = query;
+
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
+    const skip = (page - 1) * limit;
+
+    // Check if hackathon exists and get access control info
+    const hackathon = await this.prisma.hackathon.findUnique({
+      where: { id: hackathonId },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        status: true,
+        isPrivate: true,
+        organization: { select: { ownerId: true } },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Determine user access level
+    const isAdmin = user && user.role === UserRole.ADMIN;
+    const isOrganizer = user && user.id === hackathon.organization.ownerId;
+    const hasSpecialAccess = isAdmin || isOrganizer;
+
+    // For private hackathons, check if user is registered
+    let isRegistered = false;
+    if (hackathon.isPrivate && user && !hasSpecialAccess) {
+      const userRegistration =
+        await this.prisma.hackathonRegistration.findUnique({
+          where: {
+            hackathonId_userId: {
+              hackathonId,
+              userId: user.id,
+            },
+          },
+        });
+      isRegistered =
+        !!userRegistration &&
+        userRegistration.status === HackathonRegistrationStatus.APPROVED;
+    }
+
+    // Access control for private hackathons:
+    // - Admins can always access
+    // - Organizers can always access
+    // - Registered users with APPROVED status can access
+    // - Others cannot access
+    if (hackathon.isPrivate && !hasSpecialAccess && !isRegistered) {
+      throw new ForbiddenException(
+        'You do not have permission to view teams for this private hackathon. You must be registered and approved to view teams.',
+      );
+    }
+
+    // Build where clause for search
+    const where: any = {
+      hackathonId,
+    };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { tagline: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Query paginated data
+    const [teams, total] = await Promise.all([
+      this.prisma.team.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  name: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: [{ isLeader: 'desc' }, { joinedAt: 'asc' }],
+          },
+          _count: {
+            select: { members: true },
+          },
+        },
+      }),
+      this.prisma.team.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: teams.map((team) => ({
+        id: team.id,
+        name: team.name,
+        tagline: team.tagline,
+        image: team.image,
+        createdAt: team.createdAt,
+        memberCount: team._count.members,
+        members: team.members.map((member) => ({
+          id: member.id,
+          isLeader: member.isLeader,
+          joinedAt: member.joinedAt,
+          user: member.user,
+        })),
+      })),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
   }
 }
