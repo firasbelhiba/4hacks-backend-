@@ -64,18 +64,31 @@ export class HackathonRegistrationController {
 
   @ApiOperation({
     summary: 'Get all registered users for a specific hackathon',
-    description:
-      'Returns paginated list of users registered for a given hackathon. Supports search by user name or email.',
+    description: `Returns paginated list of users registered for a given hackathon. Supports search by user name or email.
+
+**Access Control:**
+- **Public hackathons**: Anyone can view registrations (unauthenticated users see basic info only)
+- **Private hackathons**: 
+  - Admins and organizers can always view (with full details including answers)
+  - Registered users with APPROVED status can view (without answers)
+  - Others cannot access
+
+**Response varies by user role:**
+- **Admins & Organizers**: See all fields including registration answers, reviewedAt, reviewedById
+- **Regular users**: See basic info only (id, status, user, registeredAt) - no answers
+- **Unauthenticated users**: Same as regular users (for public hackathons only)`,
   })
   @ApiResponse({
     status: 200,
-    description: 'Paginated list of registered users',
+    description:
+      'Paginated list of registered users. Response structure varies based on user role: admins/organizers see answers, regular users see basic info only.',
   })
   @ApiNotFoundResponse({
     description: 'Hackathon not found',
   })
   @ApiBadRequestResponse({
-    description: 'You do not have permission to view registrations',
+    description:
+      'Access denied. For private hackathons, you must be registered and approved to view registrations.',
   })
   @ApiBearerAuth()
   @UseGuards(OptionalJwtAuthGuard)
