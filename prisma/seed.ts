@@ -1442,7 +1442,7 @@ Built with Anchor and Unity.`,
   // ============================================
   console.log('❓ Creating FAQ threads and replies...');
 
-  // FAQ Thread 1: Technical question about ETH hackathon
+  // FAQ Thread 1: Technical question about ETH hackathon (with attachments)
   const faqThread1 = await prisma.hackathonQuestionThread.create({
     data: {
       hackathonId: ethHackathon.id,
@@ -1452,12 +1452,18 @@ Built with Anchor and Unity.`,
 
 Also, will there be any bonus points for multi-chain deployments?
 
+Here's a diagram of my proposed architecture:
+[Architecture diagram showing multi-chain deployment]
+
 Thanks!`,
+      attachments: [
+        'https://placehold.co/800x600/627EEA/FFFFFF?text=Multi-chain+Architecture',
+      ],
     },
   });
 
   // Reply from organizer
-  await prisma.hackathonQuestionReply.create({
+  const organizerReply1 = await prisma.hackathonQuestionReply.create({
     data: {
       threadId: faqThread1.id,
       userId: adminUser.id,
@@ -1482,13 +1488,23 @@ Multi-chain deployments are definitely a plus and will be considered during judg
     },
   });
 
-  // Nested reply
-  await prisma.hackathonQuestionReply.create({
+  // Nested reply (reply to reply)
+  const nestedReply1 = await prisma.hackathonQuestionReply.create({
     data: {
       threadId: faqThread1.id,
       userId: hacker4.id,
       parentId: faqReply1.id,
       content: `Thanks for the tip! I'll look into Base. Do you know if they provide any testnet faucets?`,
+    },
+  });
+
+  // Another nested reply (reply to nested reply)
+  await prisma.hackathonQuestionReply.create({
+    data: {
+      threadId: faqThread1.id,
+      userId: hacker1.id,
+      parentId: nestedReply1.id,
+      content: `Yes! Base has a testnet faucet at https://www.coinbase.com/faucets/base-ethereum-goerli-faucet. You can also use the Sepolia testnet faucet.`,
     },
   });
 
@@ -1521,8 +1537,81 @@ DM me on Discord: satoshi_dev#1234`,
     },
   });
 
-  // FAQ Thread 3: Solana hackathon question
+  // FAQ Thread 3: Question without title (testing optional title)
   const faqThread3 = await prisma.hackathonQuestionThread.create({
+    data: {
+      hackathonId: ethHackathon.id,
+      userId: hacker5.id,
+      title: null,
+      content: `Quick question - what's the deadline for submissions? I want to make sure I have enough time to polish my project.`,
+    },
+  });
+
+  await prisma.hackathonQuestionReply.create({
+    data: {
+      threadId: faqThread3.id,
+      userId: adminUser.id,
+      content: `Submissions are due on March 17, 2025 at 11:59 PM UTC. Make sure to submit before the deadline - late submissions won't be accepted!`,
+    },
+  });
+
+  // FAQ Thread 4: Question with multiple replies and attachments
+  const faqThread4 = await prisma.hackathonQuestionThread.create({
+    data: {
+      hackathonId: ethHackathon.id,
+      userId: hacker6.id,
+      title: 'What APIs and tools are available?',
+      content: `I'm building a DeFi project and need to know what APIs, SDKs, and developer tools are available during the hackathon.
+
+Specifically interested in:
+- Price oracles
+- Wallet integrations
+- Indexing services
+
+Thanks!`,
+    },
+  });
+
+  const replyWithAttachments = await prisma.hackathonQuestionReply.create({
+    data: {
+      threadId: faqThread4.id,
+      userId: adminUser.id,
+      content: `Great question! Here's a comprehensive list of available tools and APIs:
+
+**Oracles:**
+- Chainlink Price Feeds
+- Chainlink VRF
+- Chainlink Automation
+
+**Wallet SDKs:**
+- WalletConnect v2
+- Web3Modal
+- RainbowKit
+
+**Indexing:**
+- The Graph (subgraph hosting available)
+- Alchemy API
+- Infura API
+
+Check out our developer resources page for more details!`,
+      attachments: [
+        'https://placehold.co/600x400/627EEA/FFFFFF?text=Developer+Tools+Guide',
+      ],
+    },
+  });
+
+  // Reply to the organizer's reply
+  await prisma.hackathonQuestionReply.create({
+    data: {
+      threadId: faqThread4.id,
+      userId: hacker6.id,
+      parentId: replyWithAttachments.id,
+      content: `Perfect! Thanks for the info. Do we get free API credits for Alchemy/Infura?`,
+    },
+  });
+
+  // FAQ Thread for Solana hackathon
+  const solanaFaqThread = await prisma.hackathonQuestionThread.create({
     data: {
       hackathonId: solanaHackathon.id,
       userId: hacker5.id,
@@ -1535,7 +1624,7 @@ I'm more comfortable with Anchor but want to make sure it won't affect judging.`
 
   await prisma.hackathonQuestionReply.create({
     data: {
-      threadId: faqThread3.id,
+      threadId: solanaFaqThread.id,
       userId: orgOwner.id,
       content: `Both are perfectly fine! Use whatever you're most productive with. 
 
@@ -1545,8 +1634,8 @@ Ship fast! ⚡`,
     },
   });
 
-  // FAQ Thread 4: ZK hackathon question  
-  const faqThread4 = await prisma.hackathonQuestionThread.create({
+  // FAQ Thread for ZK hackathon
+  const zkFaqThread = await prisma.hackathonQuestionThread.create({
     data: {
       hackathonId: zkHackathon.id,
       userId: hacker1.id,
@@ -1559,7 +1648,7 @@ I have strong experience with Solidity but never worked with circuits before.`,
 
   await prisma.hackathonQuestionReply.create({
     data: {
-      threadId: faqThread4.id,
+      threadId: zkFaqThread.id,
       userId: adminUser.id,
       content: `Yes! We'll have a full learning track for beginners:
 
@@ -1575,7 +1664,50 @@ Don't worry about being a beginner - this hackathon is designed to be accessible
     },
   });
 
-  console.log(`✅ Created 4 FAQ threads with replies\n`);
+  // FAQ Threads for Private Hackathon (to test access control)
+  const privateFaqThread1 = await prisma.hackathonQuestionThread.create({
+    data: {
+      hackathonId: privateHackathon.id,
+      userId: hacker1.id, // hacker1 is registered and approved
+      title: 'What is the submission deadline?',
+      content: `I'm working on my project and want to make sure I have enough time. When exactly is the submission deadline?`,
+    },
+  });
+
+  await prisma.hackathonQuestionReply.create({
+    data: {
+      threadId: privateFaqThread1.id,
+      userId: adminUser.id, // Admin reply
+      content: `Submissions are due on the hackathon end date. Make sure to submit before the deadline - late submissions won't be accepted!`,
+    },
+  });
+
+  const privateFaqThread2 = await prisma.hackathonQuestionThread.create({
+    data: {
+      hackathonId: privateHackathon.id,
+      userId: hacker2.id, // hacker2 is registered and approved
+      title: 'Can we use external APIs?',
+      content: `Are we allowed to use external APIs and services in our projects? I'm planning to integrate with some third-party services.`,
+      attachments: ['https://placehold.co/600x400/1A1A1A/FFFFFF?text=API+Integration+Diagram'],
+    },
+  });
+
+  await prisma.hackathonQuestionReply.create({
+    data: {
+      threadId: privateFaqThread2.id,
+      userId: adminUser.id,
+      content: `Yes, external APIs are allowed! Just make sure to:
+- Document all external dependencies
+- Include API keys in your README (for judges to test)
+- Handle rate limits gracefully
+- Consider fallback options if APIs go down`,
+    },
+  });
+
+  // hacker3 is NOT registered for private hackathon - this thread shouldn't exist in seed
+  // but if hacker3 tries to create one, it should fail with 403
+
+  console.log(`✅ Created FAQ threads with replies for all hackathons (including private hackathon)\n`);
 
   // ============================================
   // 16. CREATE ANNOUNCEMENTS

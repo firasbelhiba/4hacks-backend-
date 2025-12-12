@@ -727,10 +727,11 @@ model HackathonQuestionReply {
   attachments String[] @default([]) // image URLs
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   thread   HackathonQuestionThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
   user     users                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent   HackathonQuestionReply?  @relation("ReplyToParent", fields: [parentId], references: [id])
+  parent   HackathonQuestionReply?  @relation("ReplyToParent", fields: [parentId], references: [id], onDelete: Cascade)
   children HackathonQuestionReply[] @relation("ReplyToParent")
 
   @@index([threadId])
