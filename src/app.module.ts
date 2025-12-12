@@ -19,6 +19,9 @@ import { HackathonRequestModule } from './hackathon-request/hackathon-request.mo
 import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CategoriesModule } from './categories/categories.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { CustomThrottlerGuard } from './common/guards/customThrottlerGuard.guard';
 
 @Module({
   imports: [
@@ -53,8 +56,23 @@ import { CategoriesModule } from './categories/categories.module';
     AdminModule,
     NotificationsModule,
     CategoriesModule,
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60_000,
+          limit: 10, // 10 requests per minute
+        },
+      ],
+    }),
   ],
   controllers: [AppController, R2Controller],
-  providers: [AppService, R2Service],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
+    AppService,
+    R2Service,
+  ],
 })
 export class AppModule {}

@@ -29,6 +29,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // fallback for unexpected errors
     return res
       .status(HttpStatus.INTERNAL_SERVER_ERROR)
-      .json({ message: 'Internal server error' });
+      .json({ message: 'Internal server error', error: exception });
   }
 }
