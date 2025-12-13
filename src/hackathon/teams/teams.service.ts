@@ -19,6 +19,8 @@ import {
 } from '@prisma/client';
 import { TeamMemberDto } from './dto/member.dto';
 import { FindHackathonTeamsDto } from './dto/find-teams.dto';
+import { EmailService } from 'src/email/email.service';
+import { TeamInvitationEmailTemplateHtml } from 'src/common/templates/emails/team.emails';
 
 @Injectable()
 export class TeamsService {
@@ -27,6 +29,7 @@ export class TeamsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileUploadService: FileUploadService,
+    private readonly emailService: EmailService,
   ) {}
 
   async createTeam(
@@ -333,6 +336,7 @@ export class TeamsService {
           payload: {
             teamId: team.id,
             hackathonId: hackathon.id,
+            teamInvitationId: teamInvitation.id,
           },
         },
       });
@@ -343,6 +347,25 @@ export class TeamsService {
     this.logger.log(
       `User ${userToAdd.username} invited to team ${team.name} successfully`,
     );
+
+    // Send email notification to the invited user (non-blocking)
+    try {
+      await this.emailService.sendEmail(
+        userToAdd.email,
+        `You've been invited to join team "${team.name}" for ${hackathon.slug}`,
+        TeamInvitationEmailTemplateHtml(
+          userToAdd.name || userToAdd.username || userToAdd.email,
+          requesterUser.name || requesterUser.username || requesterUser.email,
+          team.name,
+          hackathon.title,
+          hackathon.slug,
+        ),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send team invitation email to ${userToAdd.email}: ${error.message}`,
+      );
+    }
 
     return {
       message: 'Team member invitation sent successfully',
@@ -426,7 +449,7 @@ export class TeamsService {
       });
 
       // Add the user to the team members
-      await tx.teamMember.create({
+      const newTeamMmber = await tx.teamMember.create({
         data: {
           teamId: teamId,
           userId: user.id,
@@ -460,6 +483,8 @@ export class TeamsService {
             type: 'TEAM_INVITE_ACCEPTED',
             content: `Your invitation to ${user.username} to join team ${invitation.team.name} for hackathon ${hackathonId} has been accepted`,
             payload: {
+              memberId: newTeamMmber.id,
+              teamInvitationId: invitation.id,
               teamId: teamId,
               hackathonId: hackathonId,
             },
@@ -473,6 +498,8 @@ export class TeamsService {
     this.logger.log(
       `Team invitation ${invitationId} accepted successfully by user ${user.username}`,
     );
+
+    
 
     return {
       message: 'Team invitation accepted successfully',
