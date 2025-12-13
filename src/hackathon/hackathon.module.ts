@@ -9,6 +9,7 @@ import { PrizesModule } from './prizes/prizes.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { JudgesInvitationsModule } from './judges-invitations/judges-invitations.module';
 import { SubmissionScoresModule } from './submission-scores/submission-scores.module';
+import { HackathonFaqModule } from './hackathon-faq/hackathon-faq.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SubmissionScoresModule } from './submission-scores/submission-scores.mo
     AnnouncementsModule,
     JudgesInvitationsModule,
     SubmissionScoresModule,
+    HackathonFaqModule,
   ],
   providers: [HackathonService],
   controllers: [HackathonController],
