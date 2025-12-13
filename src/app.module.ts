@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -65,13 +63,12 @@ import { CustomThrottlerGuard } from './common/guards/customThrottlerGuard.guard
       ],
     }),
   ],
-  controllers: [AppController, R2Controller],
+  controllers: [R2Controller],
   providers: [
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,
     },
-    AppService,
     R2Service,
   ],
 })
