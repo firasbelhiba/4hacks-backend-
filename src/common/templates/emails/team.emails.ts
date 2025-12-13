@@ -3,9 +3,10 @@ export const TeamInvitationEmailTemplateHtml = (
   inviterName: string,
   teamName: string,
   hackathonTitle: string,
-  hackathonSlug: string,
+  hackathonId: string,
+  teamInvitationId: string,
 ) => {
-  const invitationLink = `${process.env.FRONTEND_URL || 'https://4hacks.io'}/hackathons/${hackathonSlug}`;
+  const invitationLink = `${process.env.FRONTEND_URL || 'https://4hacks.io'}/hackathons/${hackathonId}/teams/invitations/${teamInvitationId}`;
 
   return `
     <html>
@@ -99,6 +100,236 @@ export const TeamInvitationEmailTemplateHtml = (
               font-family: monospace;
             ">
               ${invitationLink}
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b;">
+              Need help? Contact us at <a href="mailto:support@4hacks.io" style="color: #667eea; text-decoration: none;">support@4hacks.io</a>
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #94a3b8;">
+              © 2025 4Hacks. All rights reserved.
+            </p>
+          </div>
+
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+export const TeamInvitationAcceptedEmailTemplateHtml = (
+  teamLeaderName: string,
+  acceptedUserName: string,
+  teamName: string,
+  hackathonTitle: string,
+  hackathonId: string,
+  teamId: string,
+) => {
+  const teamLink = `${process.env.FRONTEND_URL || 'https://4hacks.io'}/hackathons/${hackathonId}/teams/${teamId}`;
+
+  return `
+    <html>
+      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+              Invitation Accepted!
+            </h1>
+            <p style="color: #d1fae5; margin: 12px 0 0 0; font-size: 16px;">
+              Your team just got stronger
+            </p>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 40px 30px;">
+            <p style="margin: 0 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              Hello <strong>${teamLeaderName}</strong>,
+            </p>
+
+            <p style="margin: 0 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              Great news! <strong>${acceptedUserName}</strong> has accepted your invitation and joined your team.
+            </p>
+
+            <!-- Team Details Card -->
+            <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 24px; margin: 30px 0; border-radius: 8px;">
+              <h2 style="margin: 0 0 16px 0; font-size: 22px; color: #10b981; font-weight: 600;">
+                ${teamName}
+              </h2>
+
+              <div style="margin-bottom: 12px;">
+                <span style="display: inline-block; color: #64748b; font-size: 14px; font-weight: 600; width: 140px;">🏆 Hackathon:</span>
+                <span style="color: #1e293b; font-size: 14px; font-weight: 500;">${hackathonTitle}</span>
+              </div>
+
+              <div>
+                <span style="display: inline-block; color: #64748b; font-size: 14px; font-weight: 600; width: 140px;">✅ New Member:</span>
+                <span style="color: #10b981; font-size: 14px; font-weight: 700;">${acceptedUserName}</span>
+              </div>
+            </div>
+
+            <p style="margin: 30px 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              Click the button below to view your team and start collaborating:
+            </p>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${teamLink}"
+                 style="
+                   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                   color: #ffffff;
+                   padding: 16px 40px;
+                   text-decoration: none;
+                   border-radius: 8px;
+                   display: inline-block;
+                   font-weight: 600;
+                   font-size: 16px;
+                   box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+                   transition: all 0.3s ease;
+                 ">
+                View Team
+              </a>
+            </div>
+
+            <p style="margin: 30px 0 0 0; font-size: 14px; color: #64748b; line-height: 1.6;">
+              Or copy and paste this link into your browser:
+            </p>
+
+            <p style="
+              margin: 8px 0 0 0;
+              padding: 12px;
+              background-color: #f8fafc;
+              border-radius: 6px;
+              word-break: break-all;
+              font-size: 13px;
+              color: #10b981;
+              font-family: monospace;
+            ">
+              ${teamLink}
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b;">
+              Need help? Contact us at <a href="mailto:support@4hacks.io" style="color: #10b981; text-decoration: none;">support@4hacks.io</a>
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #94a3b8;">
+              © 2025 4Hacks. All rights reserved.
+            </p>
+          </div>
+
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+export const TeamInvitationDeclinedEmailTemplateHtml = (
+  teamLeaderName: string,
+  declinedUserName: string,
+  teamName: string,
+  hackathonTitle: string,
+  hackathonId: string,
+  teamId: string,
+) => {
+  const teamLink = `${process.env.FRONTEND_URL || 'https://4hacks.io'}/hackathons/${hackathonId}/teams/${teamId}`;
+
+  return `
+    <html>
+      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #64748b 0%, #475569 100%); padding: 40px 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+              Invitation Declined
+            </h1>
+            <p style="color: #e2e8f0; margin: 12px 0 0 0; font-size: 16px;">
+              Team invitation update
+            </p>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 40px 30px;">
+            <p style="margin: 0 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              Hello <strong>${teamLeaderName}</strong>,
+            </p>
+
+            <p style="margin: 0 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              <strong>${declinedUserName}</strong> has declined your invitation to join the team.
+            </p>
+
+            <!-- Team Details Card -->
+            <div style="background-color: #f8fafc; border-left: 4px solid #64748b; padding: 24px; margin: 30px 0; border-radius: 8px;">
+              <h2 style="margin: 0 0 16px 0; font-size: 22px; color: #64748b; font-weight: 600;">
+                ${teamName}
+              </h2>
+
+              <div style="margin-bottom: 12px;">
+                <span style="display: inline-block; color: #64748b; font-size: 14px; font-weight: 600; width: 140px;">🏆 Hackathon:</span>
+                <span style="color: #1e293b; font-size: 14px; font-weight: 500;">${hackathonTitle}</span>
+              </div>
+
+              <div>
+                <span style="display: inline-block; color: #64748b; font-size: 14px; font-weight: 600; width: 140px;">❌ Declined by:</span>
+                <span style="color: #64748b; font-size: 14px; font-weight: 500;">${declinedUserName}</span>
+              </div>
+            </div>
+
+            <!-- Next Steps -->
+            <div style="background-color: #fef3c7; border-radius: 8px; padding: 20px; margin: 30px 0;">
+              <h3 style="margin: 0 0 12px 0; font-size: 18px; color: #92400e; font-weight: 600;">
+                💡 What's Next?
+              </h3>
+              <ul style="margin: 0; padding-left: 20px; color: #78350f; line-height: 1.8;">
+                <li>You can invite other participants to join your team</li>
+                <li>Browse registered participants for the hackathon</li>
+                <li>Continue building with your current team members</li>
+              </ul>
+            </div>
+
+            <p style="margin: 30px 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              Click the button below to manage your team:
+            </p>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${teamLink}"
+                 style="
+                   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                   color: #ffffff;
+                   padding: 16px 40px;
+                   text-decoration: none;
+                   border-radius: 8px;
+                   display: inline-block;
+                   font-weight: 600;
+                   font-size: 16px;
+                   box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+                   transition: all 0.3s ease;
+                 ">
+                Manage Team
+              </a>
+            </div>
+
+            <p style="margin: 30px 0 0 0; font-size: 14px; color: #64748b; line-height: 1.6;">
+              Or copy and paste this link into your browser:
+            </p>
+
+            <p style="
+              margin: 8px 0 0 0;
+              padding: 12px;
+              background-color: #f8fafc;
+              border-radius: 6px;
+              word-break: break-all;
+              font-size: 13px;
+              color: #667eea;
+              font-family: monospace;
+            ">
+              ${teamLink}
             </p>
           </div>
 

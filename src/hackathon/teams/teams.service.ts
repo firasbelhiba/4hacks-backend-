@@ -20,7 +20,11 @@ import {
 import { TeamMemberDto } from './dto/member.dto';
 import { FindHackathonTeamsDto } from './dto/find-teams.dto';
 import { EmailService } from 'src/email/email.service';
-import { TeamInvitationEmailTemplateHtml } from 'src/common/templates/emails/team.emails';
+import {
+  TeamInvitationEmailTemplateHtml,
+  TeamInvitationAcceptedEmailTemplateHtml,
+  TeamInvitationDeclinedEmailTemplateHtml,
+} from 'src/common/templates/emails/team.emails';
 
 @Injectable()
 export class TeamsService {
@@ -358,7 +362,8 @@ export class TeamsService {
           requesterUser.name || requesterUser.username || requesterUser.email,
           team.name,
           hackathon.title,
-          hackathon.slug,
+          hackathon.id,
+          teamInvitation.id
         ),
       );
     } catch (error) {
@@ -383,11 +388,25 @@ export class TeamsService {
       `Accepting team invitation ${invitationId} for team ${teamId} and hackathon ${hackathonId} by user ${user.username}`,
     );
 
-    // Find the invitation
+    // Find the invitation with team, hackathon, and team leader info
     const invitation = await this.prisma.teamInvitation.findUnique({
       where: { id: invitationId },
       include: {
-        team: true,
+        team: {
+          include: {
+            hackathon: {
+              select: { title: true, slug: true },
+            },
+            members: {
+              where: { isLeader: true },
+              include: {
+                user: {
+                  select: { id: true, email: true, name: true, username: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -436,6 +455,9 @@ export class TeamsService {
         'You are already in a team for this hackathon',
       );
     }
+
+    // Get the team leader for email notification
+    const teamLeader = invitation.team.members[0]?.user;
 
     // Accept the invitation and add the user to the team member and sent notification to the team leader, and store user activity log
     const result = await this.prisma.$transaction(async (tx) => {
@@ -499,7 +521,27 @@ export class TeamsService {
       `Team invitation ${invitationId} accepted successfully by user ${user.username}`,
     );
 
-    
+    // Send email notification to the team leader (non-blocking)
+    if (teamLeader) {
+      try {
+        await this.emailService.sendEmail(
+          teamLeader.email,
+          `${user.name || user.username || user.email} has joined your team "${invitation.team.name}"`,
+          TeamInvitationAcceptedEmailTemplateHtml(
+            teamLeader.name || teamLeader.username || teamLeader.email,
+            user.name || user.username || user.email,
+            invitation.team.name,
+            invitation.team.hackathon.title,
+            invitation.team.hackathonId,
+            invitation.team.id,
+          ),
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to send team invitation accepted email to ${teamLeader.email}: ${error.message}`,
+        );
+      }
+    }
 
     return {
       message: 'Team invitation accepted successfully',
@@ -517,14 +559,22 @@ export class TeamsService {
       `Declining team invitation ${invitationId} for team ${teamId} and hackathon ${hackathonId} by user ${user.username}`,
     );
 
-    // Find the invitation
+    // Find the invitation with team, hackathon, and team leader info
     const invitation = await this.prisma.teamInvitation.findUnique({
       where: { id: invitationId },
       include: {
         team: {
           include: {
+            hackathon: {
+              select: { title: true, slug: true },
+            },
             members: {
-              select: { userId: true, isLeader: true },
+              where: { isLeader: true },
+              include: {
+                user: {
+                  select: { id: true, email: true, name: true, username: true },
+                },
+              },
             },
           },
         },
@@ -559,6 +609,9 @@ export class TeamsService {
       );
     }
 
+    // Get the team leader for email notification
+    const teamLeader = invitation.team.members[0]?.user;
+
     // Decline the invitation and sent notification to the team leader, and store user activity log
     const result = await this.prisma.$transaction(async (tx) => {
       // Update the invitation status to DECLINED
@@ -582,12 +635,10 @@ export class TeamsService {
       });
 
       // Send a notification to the team leader
-      const teamLeaderMember = invitation.team.members.find((m) => m.isLeader);
-
-      if (teamLeaderMember) {
+      if (teamLeader) {
         await tx.notification.create({
           data: {
-            toUserId: teamLeaderMember.userId,
+            toUserId: teamLeader.id,
             fromUserId: user.id,
             type: 'TEAM_INVITE_DECLINED',
             content: `Your invitation to ${user.username} to join team ${invitation.team.name} for hackathon ${hackathonId} has been declined`,
@@ -605,6 +656,28 @@ export class TeamsService {
     this.logger.log(
       `Team invitation ${invitationId} declined successfully by user ${user.username}`,
     );
+
+    // Send email notification to the team leader (non-blocking)
+    if (teamLeader) {
+      try {
+        await this.emailService.sendEmail(
+          teamLeader.email,
+          `${user.name || user.username || user.email} has declined your team invitation`,
+          TeamInvitationDeclinedEmailTemplateHtml(
+            teamLeader.name || teamLeader.username || teamLeader.email,
+            user.name || user.username || user.email,
+            invitation.team.name,
+            invitation.team.hackathon.title,
+            invitation.team.hackathonId,
+            invitation.team.id,
+          ),
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to send team invitation declined email to ${teamLeader.email}: ${error.message}`,
+        );
+      }
+    }
 
     return { message: 'Team invitation declined successfully', data: result };
   }
