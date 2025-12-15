@@ -31,6 +31,10 @@ import {
   QueryHackathonsDto,
   PaginatedHackathonsDto,
 } from './dto/query-hackathons.dto';
+import {
+  QueryTeamPositionsDto,
+  PaginatedTeamPositionsDto,
+} from './dto/query-team-positions.dto';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
 import type { UserMin } from 'src/common/types';
 
@@ -638,13 +642,20 @@ Only the organization owner can archive their hackathons.
   @ApiOperation({
     summary: 'Get all team positions for a hackathon',
     description:
-      'Retrieve all team positions for teams participating in a specific hackathon. ' +
+      'Retrieve all team positions for teams participating in a specific hackathon with pagination, filtering, and sorting. ' +
       'Hackathon can be identified by ID or slug. ' +
       '\\n\\n**Access Control:**\\n' +
       '- **Admin**: Can access all hackathons\\n' +
       '- **Organization Owner**: Can access their own hackathons\\n' +
       '- **Public Hackathons**: Anyone can access\\n' +
-      '- **Private Hackathons**: Only registered users can access (plus admin and owner)',
+      '- **Private Hackathons**: Only registered users can access (plus admin and owner)' +
+      '\\n\\n**Filtering:**\\n' +
+      '- Filter by team ID\\n' +
+      '- Filter by position status (OPEN/CLOSED)\\n' +
+      '- Search in title, description, or required skills' +
+      '\\n\\n**Sorting:**\\n' +
+      '- Sort by createdAt, title, or status\\n' +
+      '- Sort order: asc or desc',
   })
   @ApiParam({
     name: 'identifier',
@@ -656,6 +667,7 @@ Only the organization owner can archive their hackathons.
   @ApiResponse({
     status: 200,
     description: 'Team positions retrieved successfully',
+    type: PaginatedTeamPositionsDto,
     schema: {
       example: {
         data: [
@@ -708,7 +720,14 @@ Only the organization owner can archive their hackathons.
             },
           },
         ],
-        total: 2,
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 2,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
       },
     },
   })
@@ -720,8 +739,13 @@ Only the organization owner can archive their hackathons.
   @Get(':identifier/team-positions')
   async getTeamPositions(
     @Param('identifier') identifier: string,
+    @Query() query: QueryTeamPositionsDto,
     @CurrentUser() user?: UserMin,
   ) {
-    return await this.hackathonService.getTeamPositions(identifier, user);
+    return await this.hackathonService.getTeamPositions(
+      identifier,
+      query,
+      user,
+    );
   }
 }

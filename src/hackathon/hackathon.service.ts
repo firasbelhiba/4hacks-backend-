@@ -17,6 +17,7 @@ import {
 import { HackathonStatus, UserRole, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { UserMin } from 'src/common/types';
+import { QueryTeamPositionsDto } from './dto/query-team-positions.dto';
 
 @Injectable()
 export class HackathonService {
@@ -1151,7 +1152,11 @@ export class HackathonService {
     };
   }
 
-  async getTeamPositions(hackathonIdentifier: string, user?: UserMin) {
+  async getTeamPositions(
+    hackathonIdentifier: string,
+    query: QueryTeamPositionsDto,
+    user?: UserMin,
+  ) {
     const userId = user?.id;
     const isAdmin = user?.role === UserRole.ADMIN;
 
@@ -1205,42 +1210,114 @@ export class HackathonService {
       }
     }
 
-    // Fetch all team positions for teams in this hackathon
-    const teamPositions = await this.prisma.teamPosition.findMany({
-      where: {
-        team: {
-          hackathonId: hackathon.id,
-        },
+    // Extract query parameters
+    const {
+      page = 1,
+      limit = 10,
+      teamId,
+      status,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = query;
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: Prisma.TeamPositionWhereInput = {
+      team: {
+        hackathonId: hackathon.id,
       },
-      include: {
-        team: {
-          select: {
-            id: true,
-            name: true,
-            tagline: true,
-            image: true,
-            hackathonId: true,
-          },
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            image: true,
-          },
-        },
-      },
-      orderBy: [
+    };
+
+    // Apply filters
+    if (teamId) {
+      where.teamId = teamId;
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    // Apply search
+    if (search) {
+      where.OR = [
         {
-          createdAt: 'desc',
+          title: {
+            contains: search,
+            mode: 'insensitive',
+          },
         },
-      ],
-    });
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          requiredSkills: {
+            hasSome: [search],
+          },
+        },
+      ];
+    }
+
+    // Build orderBy clause
+    const orderBy: Prisma.TeamPositionOrderByWithRelationInput = {};
+    if (sortBy === 'title') {
+      orderBy.title = sortOrder;
+    } else if (sortBy === 'status') {
+      orderBy.status = sortOrder;
+    } else {
+      orderBy.createdAt = sortOrder;
+    }
+
+    // Execute queries in parallel
+    const [teamPositions, total] = await Promise.all([
+      this.prisma.teamPosition.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true,
+              tagline: true,
+              image: true,
+              hackathonId: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              image: true,
+            },
+          },
+        },
+      }),
+      this.prisma.teamPosition.count({ where }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
 
     return {
       data: teamPositions,
-      total: teamPositions.length,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+      },
     };
   }
 }
