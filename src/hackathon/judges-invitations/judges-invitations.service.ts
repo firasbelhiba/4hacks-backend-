@@ -9,13 +9,22 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { InviteJudgeDto } from './dto/invite.dto';
 import { HackathonMin, UserMin } from 'src/common/types';
-import { JudgeInvitationStatus } from '@prisma/client';
+import { ActivityTargetType, JudgeInvitationStatus } from '@prisma/client';
+import { EmailService } from 'src/email/email.service';
+import {
+  JudgeInvitationEmailTemplateHtml,
+  JudgeInvitationAcceptedEmailTemplateHtml,
+  JudgeInvitationDeclinedEmailTemplateHtml,
+} from 'src/common/templates/emails/judges.emails';
 
 @Injectable()
 export class JudgesInvitationsService {
   private readonly logger = new Logger(JudgesInvitationsService.name);
 
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async inviteJudge(
     inviteJudgeDto: InviteJudgeDto,
@@ -38,6 +47,7 @@ export class JudgesInvitationsService {
         id: true,
         username: true,
         name: true,
+        email: true,
       },
     });
 
@@ -78,10 +88,14 @@ export class JudgesInvitationsService {
           data: {
             userId: requesterUser.id,
             action: 'JUDGE_INVITE',
+            targetId: judgeInvitation.id,
+            targetType: ActivityTargetType.JUDGE_INVITATION,
             description: `Invited judge ${judgeId} to hackathon ${hackathon.id}`,
+            isPublic: false,
             metadata: {
               hackathonId: hackathon.id,
               judgeId,
+              judgeInvitationId: judgeInvitation.id,
             },
           },
         });
@@ -96,6 +110,7 @@ export class JudgesInvitationsService {
             payload: {
               hackathonId: hackathon.id,
               judgeId,
+              judgeInvitationId: judgeInvitation.id,
             },
           },
         });
@@ -103,6 +118,26 @@ export class JudgesInvitationsService {
         return judgeInvitation;
       },
     );
+
+    // Send an email to the judge
+    try {
+      const emailHtml = JudgeInvitationEmailTemplateHtml(
+        judge.name || judge.username || 'Judge',
+        requesterUser.name || requesterUser.username || 'Organizer',
+        hackathon.title,
+        hackathon.id,
+        judgeInvitation.id,
+      );
+
+      await this.emailService.sendEmail(
+        judge.email,
+        `You're Invited to Judge ${hackathon.title}`,
+        emailHtml,
+      );
+    } catch (error) {
+      // Log the error
+      this.logger.error('Failed to send invitation email to judge', error);
+    }
 
     return {
       message: 'Judge invited successfully',
@@ -115,6 +150,22 @@ export class JudgesInvitationsService {
       {
         where: {
           id: inviteId,
+        },
+        include: {
+          invitedBy: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              email: true,
+            },
+          },
+          hackathon: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
         },
       },
     );
@@ -186,6 +237,29 @@ export class JudgesInvitationsService {
       },
     );
 
+    // Send an email to the organizer who invited the judge
+    try {
+      const emailHtml = JudgeInvitationAcceptedEmailTemplateHtml(
+        judgeInvitation.invitedBy.name ||
+          judgeInvitation.invitedBy.username ||
+          'Organizer',
+        requesterUser.name || requesterUser.username || 'Judge',
+        judgeInvitation.hackathon.title,
+        judgeInvitation.hackathon.id,
+      );
+
+      await this.emailService.sendEmail(
+        judgeInvitation.invitedBy.email,
+        `${requesterUser.name || requesterUser.username || 'A user'} Accepted Your Judge Invitation`,
+        emailHtml,
+      );
+    } catch (error) {
+      this.logger.error(
+        'Failed to send judge invitation accepted email',
+        error,
+      );
+    }
+
     return {
       message: 'Judge invitation accepted successfully',
       data: updatedJudgeInvitation,
@@ -197,6 +271,22 @@ export class JudgesInvitationsService {
       {
         where: {
           id: inviteId,
+        },
+        include: {
+          invitedBy: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              email: true,
+            },
+          },
+          hackathon: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
         },
       },
     );
@@ -260,6 +350,29 @@ export class JudgesInvitationsService {
         return updatedJudgeInvitation;
       },
     );
+
+    // Send an email to the organizer who invited the judge
+    try {
+      const emailHtml = JudgeInvitationDeclinedEmailTemplateHtml(
+        judgeInvitation.invitedBy.name ||
+          judgeInvitation.invitedBy.username ||
+          'Organizer',
+        requesterUser.name || requesterUser.username || 'Judge',
+        judgeInvitation.hackathon.title,
+        judgeInvitation.hackathon.id,
+      );
+
+      await this.emailService.sendEmail(
+        judgeInvitation.invitedBy.email,
+        `${requesterUser.name || requesterUser.username || 'A user'} Declined Your Judge Invitation`,
+        emailHtml,
+      );
+    } catch (error) {
+      this.logger.error(
+        'Failed to send judge invitation declined email',
+        error,
+      );
+    }
 
     return {
       message: 'Judge invitation declined successfully',

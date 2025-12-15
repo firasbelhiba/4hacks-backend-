@@ -26,7 +26,7 @@ export type UserFromJWT = {
 
 export type UserMin = {
   id: string;
-  username?: string;
+  username: string;
   name?: string;
   email: string;
   role: UserRole;
