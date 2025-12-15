@@ -11,6 +11,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
 
+  // Enable trust proxy for accurate IP detection behind reverse proxies (nginx, load balancers)
+  // This allows req.ip to correctly return the client's IP from X-Forwarded-For header
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', true);
+
   // Enable CORS for frontend application
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',

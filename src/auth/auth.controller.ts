@@ -127,9 +127,10 @@ export class AuthController {
   @Post('login')
   async login(
     @Body() loginDto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.login(loginDto);
+    const result = await this.authService.login(loginDto, req);
 
     if (result.requiresTwoFactor) {
       return {
@@ -182,9 +183,10 @@ export class AuthController {
   @Post('2fa/verify-login')
   async verifyTwoFactorLogin(
     @Body() dto: VerifyTwoFactorLoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.verifyLoginTwoFactor(dto);
+    const result = await this.authService.verifyLoginTwoFactor(dto, req);
 
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
       httpOnly: true,
@@ -554,11 +556,12 @@ export class AuthController {
   @Get('google/callback')
   async googleCallback(
     @CurrentUser('id') userId: string,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     console.log('Google OAuth callback reached for userId:', userId);
 
-    const result = await this.authService.handleGoogleOAuthCallback(userId);
+    const result = await this.authService.handleGoogleOAuthCallback(userId, req);
 
     // Set refresh token as HttpOnly cookie
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
@@ -592,11 +595,12 @@ export class AuthController {
   @Get('github/callback')
   async githubCallback(
     @CurrentUser('id') userId: string,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     console.log('GitHub OAuth callback reached');
 
-    const result = await this.authService.handleGithubOAuthCallback(userId);
+    const result = await this.authService.handleGithubOAuthCallback(userId, req);
 
     // Set refresh token as HttpOnly cookie
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {
@@ -630,11 +634,12 @@ export class AuthController {
   @Get('linkedin/callback')
   async linkedinCallback(
     @CurrentUser('id') userId: string,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     console.log('LinkedIn OAuth callback reached');
 
-    const result = await this.authService.handleLinkedinOAuthCallback(userId);
+    const result = await this.authService.handleLinkedinOAuthCallback(userId, req);
 
     // Set refresh token as HttpOnly cookie
     res.cookie(authCookiesNames.refreshToken, result.refreshToken, {

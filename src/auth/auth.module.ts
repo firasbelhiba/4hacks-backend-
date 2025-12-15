@@ -11,6 +11,7 @@ import { EmailModule } from 'src/email/email.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GithubStrategy } from './strategies/github.strategy';
 import { LinkedinStrategy } from './strategies/linkedin.strategy';
+import { RequestMetadataService } from './services/request-metadata.service';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { LinkedinStrategy } from './strategies/linkedin.strategy';
     GoogleStrategy,
     GithubStrategy,
     LinkedinStrategy,
+    RequestMetadataService,
   ],
 })
 export class AuthModule {}
