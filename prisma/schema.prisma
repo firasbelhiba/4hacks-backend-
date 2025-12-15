@@ -172,7 +172,7 @@ model UserActivityLog {
   targetType  ActivityTargetType? // Optional: e.g., PROJECT, HACKATHON, TRACK
   description String // A short description of the action
   targetId    String? // Optional: ID of the object acted on
-  isPublic    Boolean             @default(true) // If true, visible to other users; else private
+  isPublic    Boolean             @default(false) // If true, visible to other users; else private
   metadata    Json? // Optional extra info (e.g., payload, screenshot links)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
@@ -196,6 +196,7 @@ enum ActivityTargetType {
   PRIZE
   COMMENT
   JUDGE_SUBMISSION_SCORE
+  CATEGORY
   OTHER
 }
 

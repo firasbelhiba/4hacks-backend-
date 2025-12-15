@@ -25,6 +25,8 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { Roles } from 'src/admin/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { UpdateCategoryDto } from './dto/update.dto';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import type { UserMin } from 'src/common/types';
 
 @ApiTags('Categories')
 @Controller('categories')
@@ -91,8 +93,11 @@ export class CategoriesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post()
-  async create(@Body() createCategoryDto: CreateCategoryDto) {
-    return await this.categoriesService.create(createCategoryDto);
+  async create(
+    @Body() createCategoryDto: CreateCategoryDto,
+    @CurrentUser() user: UserMin,
+  ) {
+    return await this.categoriesService.create(createCategoryDto, user);
   }
 
   @ApiOperation({
@@ -126,8 +131,9 @@ export class CategoriesController {
   async update(
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
+    @CurrentUser() user: UserMin,
   ) {
-    return await this.categoriesService.update(id, updateCategoryDto);
+    return await this.categoriesService.update(id, updateCategoryDto, user);
   }
 
   @ApiOperation({

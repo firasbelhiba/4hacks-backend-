@@ -8,6 +8,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create.dto';
 import type { UserMin } from 'src/common/types';
 import { UpdateCategoryDto } from './dto/update.dto';
+import { ActivityTargetType } from '@prisma/client';
 
 @Injectable()
 export class CategoriesService {
@@ -19,7 +20,7 @@ export class CategoriesService {
     return await this.prismaService.hackathonCategory.findMany();
   }
 
-  async create(createCategoryDto: CreateCategoryDto) {
+  async create(createCategoryDto: CreateCategoryDto, requesterUser: UserMin) {
     const { name, description } = createCategoryDto;
 
     // Find if category already exists
@@ -33,11 +34,27 @@ export class CategoriesService {
       throw new ConflictException('Category already exists');
     }
 
-    const newCategory = await this.prismaService.hackathonCategory.create({
-      data: {
-        name: name.toUpperCase(),
-        description,
-      },
+    const newCategory = await this.prismaService.$transaction(async (tx) => {
+      const category = await tx.hackathonCategory.create({
+        data: {
+          name: name.toUpperCase(),
+          description,
+        },
+      });
+
+      // Store user activity log
+      await tx.userActivityLog.create({
+        data: {
+          userId: requesterUser.id,
+          action: 'CREATE_CATEGORY',
+          description: `${requesterUser.name || requesterUser.username} created category ${name}`,
+          isPublic: false,
+          targetId: category.id,
+          targetType: ActivityTargetType.CATEGORY,
+        },
+      });
+
+      return category;
     });
 
     return {
@@ -46,7 +63,11 @@ export class CategoriesService {
     };
   }
 
-  async update(id: string, updateCategoryDto: UpdateCategoryDto) {
+  async update(
+    id: string,
+    updateCategoryDto: UpdateCategoryDto,
+    requesterUser: UserMin,
+  ) {
     const { name, description } = updateCategoryDto;
 
     // Find if category already exists
@@ -83,15 +104,33 @@ export class CategoriesService {
       category.description = description;
     }
 
-    const updatedCategory = await this.prismaService.hackathonCategory.update({
-      where: {
-        id,
+    const updatedCategory = await this.prismaService.$transaction(
+      async (tx) => {
+        const updatedCategory = await tx.hackathonCategory.update({
+          where: {
+            id,
+          },
+          data: {
+            name: category.name,
+            description: category.description,
+          },
+        });
+
+        // Store user activity log
+        await tx.userActivityLog.create({
+          data: {
+            userId: requesterUser.id,
+            action: 'UPDATE_CATEGORY',
+            description: `${requesterUser.name || requesterUser.username} updated category ${updatedCategory.name}`,
+            isPublic: false,
+            targetId: updatedCategory.id,
+            targetType: ActivityTargetType.CATEGORY,
+          },
+        });
+
+        return updatedCategory;
       },
-      data: {
-        name: category.name,
-        description: category.description,
-      },
-    });
+    );
 
     return {
       message: 'Category updated successfully',
