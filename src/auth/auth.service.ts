@@ -144,39 +144,23 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const { identifier, password } = loginDto;
 
-    const isEmail = identifier.includes('@');
-
-    const user = isEmail
-      ? await this.prisma.users.findUnique({
-          where: { email: identifier },
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            email: true,
-            password: true,
-            role: true,
-            createdAt: true,
-            providers: true,
-            twoFactorEnabled: true,
-            isBanned: true,
-          },
-        })
-      : await this.prisma.users.findUnique({
-          where: { username: identifier },
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            email: true,
-            password: true,
-            role: true,
-            createdAt: true,
-            providers: true,
-            twoFactorEnabled: true,
-            isBanned: true,
-          },
-        });
+    const user = await this.prisma.users.findFirst({
+      where: {
+        OR: [{ email: identifier }, { username: identifier }],
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        password: true,
+        role: true,
+        createdAt: true,
+        providers: true,
+        twoFactorEnabled: true,
+        isBanned: true,
+      },
+    });
 
     if (!user) {
       await this.prisma.failedLogin.create({
