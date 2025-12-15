@@ -58,7 +58,6 @@ async function bootstrap() {
       'Categories',
       'Endpoints related to categories management of the hackathons',
     )
-
     .addTag('Hackathon Requests', 'Endpoints related to hackathon requests')
     .addTag('Hackathons', 'Endpoints related to hackathon management')
     .addTag(
@@ -79,6 +78,10 @@ async function bootstrap() {
     .addTag(
       'Hackathon Team Positions',
       'Endpoints related to hackathon team positions',
+    )
+    .addTag(
+      'Hackathon Team Members',
+      'Endpoints related to hackathon team members',
     )
     .addTag('Hackathon Submissions', 'Endpoints for hackathon submissions')
     .addTag('Submission Scores', 'Endpoints for submission scores')
