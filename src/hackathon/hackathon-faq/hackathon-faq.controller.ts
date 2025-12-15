@@ -25,6 +25,7 @@ import { CreateReplyDto } from './dto/create-reply.dto';
 import { UpdateThreadDto } from './dto/update-thread.dto';
 import { UpdateReplyDto } from './dto/update-reply.dto';
 import { QueryThreadsDto } from './dto/query-threads.dto';
+import { QueryThreadDto } from './dto/query-thread.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { HackathonMin, UserMin } from 'src/common/types';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
@@ -153,9 +154,9 @@ export class HackathonFaqController {
   }
 
   @ApiOperation({
-    summary: 'Get a specific question thread with all replies',
+    summary: 'Get a specific question thread with paginated replies',
     description:
-      'Get a specific question thread by ID with all its replies in a nested tree structure. For public hackathons, anyone can view. For private hackathons, only registered (approved) users, organizer, or admin can view.',
+      'Get a specific question thread by ID with its replies as a flat list. Replies include `parentId` field for building tree structure on the frontend. Replies are paginated for performance. Use `repliesLimit` (default: 50, max: 500) and `repliesOffset` (default: 0) for pagination. For "load more" functionality: 1) Frontend maintains a local flat list of all fetched replies, 2) On "load more", fetch next batch with incremented offset, 3) Append to local list, 4) Rebuild tree from complete local list. For public hackathons, anyone can view. For private hackathons, only registered (approved) users, organizer, or admin can view.',
   })
   @ApiParam({
     name: 'threadId',
@@ -183,7 +184,7 @@ export class HackathonFaqController {
       },
       replies: [
         {
-          id: 'cuid',
+          id: 'reply-1',
           threadId: 'cuid',
           userId: 'cuid',
           parentId: null,
@@ -197,28 +198,49 @@ export class HackathonFaqController {
             username: 'organizer',
             image: 'https://example.com/organizer.png',
           },
-          children: [
-            {
-              id: 'cuid',
-              threadId: 'cuid',
-              userId: 'cuid',
-              parentId: 'cuid',
-              content: 'Thanks for the info!',
-              attachments: [],
-              createdAt: '2024-01-01T13:00:00.000Z',
-              updatedAt: '2024-01-01T13:00:00.000Z',
-              user: {
-                id: 'cuid',
-                name: 'John Doe',
-                username: 'johndoe',
-                image: 'https://example.com/image.png',
-              },
-              children: [],
-            },
-          ],
+        },
+        {
+          id: 'reply-2',
+          threadId: 'cuid',
+          userId: 'cuid',
+          parentId: 'reply-1',
+          content: 'Thanks for the info!',
+          attachments: [],
+          createdAt: '2024-01-01T13:00:00.000Z',
+          updatedAt: '2024-01-01T13:00:00.000Z',
+          user: {
+            id: 'cuid',
+            name: 'John Doe',
+            username: 'johndoe',
+            image: 'https://example.com/image.png',
+          },
+        },
+        {
+          id: 'reply-3',
+          threadId: 'cuid',
+          userId: 'cuid',
+          parentId: 'reply-2',
+          content: 'You are welcome!',
+          attachments: [],
+          createdAt: '2024-01-01T14:00:00.000Z',
+          updatedAt: '2024-01-01T14:00:00.000Z',
+          user: {
+            id: 'cuid',
+            name: 'Organizer',
+            username: 'organizer',
+            image: 'https://example.com/organizer.png',
+          },
         },
       ],
-      repliesCount: 2,
+      repliesCount: 3,
+      totalReplies: 3,
+      hasMoreReplies: false,
+      repliesPagination: {
+        limit: 50,
+        offset: 0,
+        total: 3,
+        hasMore: false,
+      },
     },
   })
   @ApiForbiddenResponse({
@@ -233,12 +255,14 @@ export class HackathonFaqController {
   @Get(':threadId')
   async getThreadById(
     @Param('threadId') threadId: string,
+    @Query() query: QueryThreadDto,
     @Hackathon() hackathon: HackathonMin,
     @CurrentUser() user?: UserMin,
   ) {
     return await this.hackathonFaqService.getThreadById(
       hackathon,
       threadId,
+      query,
       user,
     );
   }

@@ -10,6 +10,7 @@ import { CreateReplyDto } from './dto/create-reply.dto';
 import { UpdateThreadDto } from './dto/update-thread.dto';
 import { UpdateReplyDto } from './dto/update-reply.dto';
 import { QueryThreadsDto } from './dto/query-threads.dto';
+import { QueryThreadDto } from './dto/query-thread.dto';
 import { HackathonMin, UserMin } from 'src/common/types';
 import {
   HackathonRegistrationStatus,
@@ -228,49 +229,41 @@ export class HackathonFaqService {
   async getThreadById(
     hackathon: HackathonMin,
     threadId: string,
+    query: QueryThreadDto,
     user?: UserMin,
   ) {
     // Check access
     await this.checkHackathonAccess(hackathon, user, false);
 
+    const repliesLimit = query.repliesLimit || 50;
+    const repliesOffset = query.repliesOffset || 0;
+
+    // Get total replies count first
+    const totalReplies = await this.prismaService.hackathonQuestionReply.count({
+      where: {
+        threadId,
+      },
+    });
+
     const thread = await this.prismaService.hackathonQuestionThread.findUnique({
       where: {
         id: threadId,
       },
-      include: {
+      select: {
+        id: true,
+        hackathonId: true,
+        userId: true,
+        title: true,
+        content: true,
+        attachments: true,
+        createdAt: true,
+        updatedAt: true,
         user: {
           select: {
             id: true,
             name: true,
             username: true,
             image: true,
-          },
-        },
-        replies: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                image: true,
-              },
-            },
-            parent: {
-              select: {
-                id: true,
-                userId: true,
-                content: true,
-              },
-            },
-            children: {
-              select: {
-                id: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'asc',
           },
         },
       },
@@ -286,42 +279,44 @@ export class HackathonFaqService {
       );
     }
 
-    // Build nested reply structure
-    const buildReplyTree = (replies: any[]) => {
-      const replyMap = new Map();
-      const rootReplies: any[] = [];
+    // Fetch replies with pagination (limit + offset)
+    // Returns flat list - frontend builds tree structure for proper "load more" support
+    const replies = await this.prismaService.hackathonQuestionReply.findMany({
+      where: {
+        threadId,
+      },
+      skip: repliesOffset,
+      take: repliesLimit,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            image: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
 
-      // First pass: create map of all replies
-      replies.forEach((reply) => {
-        replyMap.set(reply.id, {
-          ...reply,
-          children: [],
-        });
-      });
-
-      // Second pass: build tree structure
-      replies.forEach((reply) => {
-        const replyNode = replyMap.get(reply.id);
-        if (reply.parentId) {
-          const parent = replyMap.get(reply.parentId);
-          if (parent) {
-            parent.children.push(replyNode);
-          } else {
-            // Parent not found, treat as root (shouldn't happen, but handle gracefully)
-            rootReplies.push(replyNode);
-          }
-        } else {
-          rootReplies.push(replyNode);
-        }
-      });
-
-      return rootReplies;
-    };
+    const hasMoreReplies = repliesOffset + replies.length < totalReplies;
 
     return {
       ...thread,
-      replies: buildReplyTree(thread.replies),
-      repliesCount: thread.replies.length,
+      // Flat list of replies with parentId - frontend builds tree structure
+      replies,
+      repliesCount: replies.length,
+      totalReplies,
+      hasMoreReplies,
+      repliesPagination: {
+        limit: repliesLimit,
+        offset: repliesOffset,
+        total: totalReplies,
+        hasMore: hasMoreReplies,
+      },
     };
   }
 
