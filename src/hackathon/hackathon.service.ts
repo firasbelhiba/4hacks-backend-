@@ -17,6 +17,7 @@ import {
 import { HackathonStatus, UserRole, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { UserMin } from 'src/common/types';
+import { QueryTeamPositionsDto } from './dto/query-team-positions.dto';
 
 @Injectable()
 export class HackathonService {
@@ -1148,6 +1149,175 @@ export class HackathonService {
       },
       winners: prizeWinners,
       totalWinners: prizeWinners.length,
+    };
+  }
+
+  async getTeamPositions(
+    hackathonIdentifier: string,
+    query: QueryTeamPositionsDto,
+    user?: UserMin,
+  ) {
+    const userId = user?.id;
+    const isAdmin = user?.role === UserRole.ADMIN;
+
+    // Find hackathon by id or slug
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
+      },
+      select: {
+        id: true,
+        isPrivate: true,
+        organization: {
+          select: {
+            ownerId: true,
+          },
+        },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check authorization
+    const isOwner = userId && hackathon.organization.ownerId === userId;
+
+    // For private hackathons, check if user is registered
+    let isRegistered = false;
+    if (hackathon.isPrivate && userId) {
+      const registration = await this.prisma.hackathonRegistration.findUnique({
+        where: {
+          hackathonId_userId: {
+            hackathonId: hackathon.id,
+            userId,
+          },
+        },
+      });
+      isRegistered = !!registration;
+    }
+
+    // Access control:
+    // - Admin can access all
+    // - Owner can access all
+    // - For private hackathons: only registered users can access
+    // - For public hackathons: anyone can access
+    if (!isAdmin && !isOwner) {
+      if (hackathon.isPrivate && !isRegistered) {
+        throw new NotFoundException(
+          'You are not registered for this private hackathon',
+        );
+      }
+    }
+
+    // Extract query parameters
+    const {
+      page = 1,
+      limit = 10,
+      teamId,
+      status,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = query;
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: Prisma.TeamPositionWhereInput = {
+      team: {
+        hackathonId: hackathon.id,
+      },
+    };
+
+    // Apply filters
+    if (teamId) {
+      where.teamId = teamId;
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    // Apply search
+    if (search) {
+      where.OR = [
+        {
+          title: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          requiredSkills: {
+            hasSome: [search],
+          },
+        },
+      ];
+    }
+
+    // Build orderBy clause
+    const orderBy: Prisma.TeamPositionOrderByWithRelationInput = {};
+    if (sortBy === 'title') {
+      orderBy.title = sortOrder;
+    } else if (sortBy === 'status') {
+      orderBy.status = sortOrder;
+    } else {
+      orderBy.createdAt = sortOrder;
+    }
+
+    // Execute queries in parallel
+    const [teamPositions, total] = await Promise.all([
+      this.prisma.teamPosition.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true,
+              tagline: true,
+              image: true,
+              hackathonId: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              image: true,
+            },
+          },
+        },
+      }),
+      this.prisma.teamPosition.count({ where }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      data: teamPositions,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+      },
     };
   }
 }

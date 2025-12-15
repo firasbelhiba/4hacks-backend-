@@ -8,7 +8,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create.dto';
 import type { UserMin } from 'src/common/types';
 import { UpdateCategoryDto } from './dto/update.dto';
-import { ActivityTargetType } from '@prisma/client';
+import { ActivityTargetType } from 'src/common/types';
 
 @Injectable()
 export class CategoriesService {
@@ -50,7 +50,7 @@ export class CategoriesService {
           description: `${requesterUser.name || requesterUser.username} created category ${name}`,
           isPublic: false,
           targetId: category.id,
-          targetType: ActivityTargetType.CATEGORY,
+          targetType: ActivityTargetType.CATEGORY.toString(),
         },
       });
 
@@ -124,7 +124,7 @@ export class CategoriesService {
             description: `${requesterUser.name || requesterUser.username} updated category ${updatedCategory.name}`,
             isPublic: false,
             targetId: updatedCategory.id,
-            targetType: ActivityTargetType.CATEGORY,
+            targetType: ActivityTargetType.CATEGORY.toString(),
           },
         });
 

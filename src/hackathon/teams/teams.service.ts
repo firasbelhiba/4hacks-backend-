@@ -6,12 +6,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { UserMin } from 'src/common/types';
+import { UserMin, ActivityTargetType } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTeamDto } from './dto/create.dto';
 import { FileUploadService } from 'src/file-upload/file-upload.service';
 import {
-  ActivityTargetType,
   HackathonRegistrationStatus,
   HackathonStatus,
   InvitationStatus,
@@ -140,7 +139,7 @@ export class TeamsService {
         data: {
           userId: requesterUser.id,
           action: 'CREATE_TEAM',
-          targetType: ActivityTargetType.HACKATHON,
+          targetType: ActivityTargetType.HACKATHON.toString(),
           targetId: hackathonId,
           description: `created team ${newTeam.name} for hackathon ${hackathon.slug}`,
         },
@@ -363,7 +362,7 @@ export class TeamsService {
           team.name,
           hackathon.title,
           hackathon.id,
-          teamInvitation.id
+          teamInvitation.id,
         ),
       );
     } catch (error) {
@@ -483,7 +482,7 @@ export class TeamsService {
         data: {
           userId: user.id,
           action: 'ACCEPT_TEAM_INVITATION',
-          targetType: ActivityTargetType.HACKATHON,
+          targetType: ActivityTargetType.HACKATHON.toString(),
           targetId: hackathonId,
           description: `accepted team invitation for team ${invitation.team.name} for hackathon ${hackathonId}`,
         },
@@ -628,7 +627,7 @@ export class TeamsService {
         data: {
           userId: user.id,
           action: 'DECLINE_TEAM_INVITATION',
-          targetType: ActivityTargetType.HACKATHON,
+          targetType: ActivityTargetType.HACKATHON.toString(),
           targetId: teamId,
           description: `declined team invitation for team ${invitation.team.name} for hackathon ${hackathonId}`,
         },
@@ -764,7 +763,7 @@ export class TeamsService {
         data: {
           userId: requesterUser.id,
           action: 'REMOVE_TEAM_MEMBER',
-          targetType: ActivityTargetType.HACKATHON,
+          targetType: ActivityTargetType.HACKATHON.toString(),
           targetId: hackathonId,
           isPublic: false,
           description: `removed user ${memberToRemove.user.username} from team ${team.name} for hackathon ${hackathonId}`,
@@ -882,7 +881,7 @@ export class TeamsService {
         data: {
           userId: requesterUser.id,
           action: 'TRANSFER_TEAM_LEADERSHIP',
-          // targetType: ActivityTargetType.HACKATHON,
+          targetType: ActivityTargetType.TEAM.toString(),
           targetId: teamId,
           description: `transferred leadership of team ${team.name} for hackathon ${hackathonId} to user ${newLeader.user.username}`,
         },

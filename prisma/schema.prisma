@@ -117,6 +117,9 @@ model users {
   judgeInvitationsReceived          JudgeInvitation[]          @relation("JudgeInvitationsReceived")
   judgeInvitationsSent              JudgeInvitation[]          @relation("JudgeInvitationsSent")
   hackathonJudges                   HackathonJudge[]
+  teamPositions                     TeamPosition[]
+  teamApplications                  TeamApplication[]          @relation("TeamApplications")
+  decidedTeamApplications           TeamApplication[]          @relation("TeamApplicationsDecidedBy")
 
   @@index([email])
   @@index([username])
@@ -166,16 +169,16 @@ model FailedLogin {
 }
 
 model UserActivityLog {
-  id          String              @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String
   action      String // e.g., "REGISTERED_PROJECT", "SUBMITTED_HACKATHON", "ASKED_QUESTION"
-  targetType  ActivityTargetType? // Optional: e.g., PROJECT, HACKATHON, TRACK
+  targetType  String? // Optional: e.g., PROJECT, HACKATHON, TRACK
   description String // A short description of the action
   targetId    String? // Optional: ID of the object acted on
-  isPublic    Boolean             @default(false) // If true, visible to other users; else private
+  isPublic    Boolean  @default(false) // If true, visible to other users; else private
   metadata    Json? // Optional extra info (e.g., payload, screenshot links)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -183,22 +186,6 @@ model UserActivityLog {
   @@index([targetType, targetId])
   @@index([createdAt])
   @@map("user_activity_logs")
-}
-
-enum ActivityTargetType {
-  PROJECT
-  HACKATHON
-  TRACK
-  BOUNTY
-  TEAM
-  SUBMISSION
-  HACKATHON_REGISTRATION
-  PRIZE
-  COMMENT
-  JUDGE_SUBMISSION_SCORE
-  CATEGORY
-  JUDGE_INVITATION
-  OTHER
 }
 
 /**
@@ -958,6 +945,7 @@ model Team {
   submissions     Submission[]
   hackathon       Hackathon        @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   teamInvitations TeamInvitation[]
+  teamPositions   TeamPosition[]
 
   @@unique([hackathonId, name])
   @@index([hackathonId, id])
@@ -1010,6 +998,65 @@ model TeamInvitation {
   @@index([inviterUserId])
   @@index([status])
   @@map("team_invitations")
+}
+
+enum TeamPositionStatus {
+  OPEN
+  CLOSED
+}
+
+enum TeamApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+model TeamPosition {
+  id          String @id @default(cuid())
+  teamId      String
+  createdById String // must be a leader
+
+  title          String
+  description    String   @db.Text
+  requiredSkills String[] @default([])
+
+  status TeamPositionStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team         Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy    users             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  applications TeamApplication[]
+
+  @@index([teamId])
+  @@index([status])
+  @@map("team_positions")
+}
+
+model TeamApplication {
+  id         String @id @default(cuid())
+  positionId String
+  userId     String
+
+  message String                @db.Text
+  status  TeamApplicationStatus @default(PENDING)
+
+  decidedAt   DateTime?
+  decidedById String? // leader who accepted/rejected
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  position  TeamPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  user      users        @relation("TeamApplications", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy users?       @relation("TeamApplicationsDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@unique([positionId, userId]) // user can apply once
+  @@index([userId])
+  @@index([positionId, status])
+  @@map("team_applications")
 }
 
 model Notification {

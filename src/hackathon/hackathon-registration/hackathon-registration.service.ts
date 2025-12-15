@@ -5,14 +5,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { UserMin } from 'src/common/types';
+import { ActivityTargetType, type UserMin } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterForHackathonDto } from './dto/register.dto';
 import { FindHackathonRegistrationsDto } from './dto/find-registrations.dto';
 import * as bcrypt from 'bcrypt';
 import { RegistrationQuestionDto } from '../dto/update.dto';
 import {
-  ActivityTargetType,
   HackathonRegistrationStatus,
   HackathonStatus,
   UserRole,
@@ -151,7 +150,7 @@ export class HackathonRegistrationService {
         data: {
           userId: user.id,
           action: 'REGISTER_TO_HACKATHON',
-          targetType: ActivityTargetType.HACKATHON,
+          targetType: ActivityTargetType.HACKATHON.toString(),
           targetId: hackathonId,
           description: `registered for hackathon ${hackathon.slug}`,
         },
