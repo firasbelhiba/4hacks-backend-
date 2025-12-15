@@ -1150,4 +1150,97 @@ export class HackathonService {
       totalWinners: prizeWinners.length,
     };
   }
+
+  async getTeamPositions(hackathonIdentifier: string, user?: UserMin) {
+    const userId = user?.id;
+    const isAdmin = user?.role === UserRole.ADMIN;
+
+    // Find hackathon by id or slug
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
+      },
+      select: {
+        id: true,
+        isPrivate: true,
+        organization: {
+          select: {
+            ownerId: true,
+          },
+        },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check authorization
+    const isOwner = userId && hackathon.organization.ownerId === userId;
+
+    // For private hackathons, check if user is registered
+    let isRegistered = false;
+    if (hackathon.isPrivate && userId) {
+      const registration = await this.prisma.hackathonRegistration.findUnique({
+        where: {
+          hackathonId_userId: {
+            hackathonId: hackathon.id,
+            userId,
+          },
+        },
+      });
+      isRegistered = !!registration;
+    }
+
+    // Access control:
+    // - Admin can access all
+    // - Owner can access all
+    // - For private hackathons: only registered users can access
+    // - For public hackathons: anyone can access
+    if (!isAdmin && !isOwner) {
+      if (hackathon.isPrivate && !isRegistered) {
+        throw new NotFoundException(
+          'You are not registered for this private hackathon',
+        );
+      }
+    }
+
+    // Fetch all team positions for teams in this hackathon
+    const teamPositions = await this.prisma.teamPosition.findMany({
+      where: {
+        team: {
+          hackathonId: hackathon.id,
+        },
+      },
+      include: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+            tagline: true,
+            image: true,
+            hackathonId: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            image: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          createdAt: 'desc',
+        },
+      ],
+    });
+
+    return {
+      data: teamPositions,
+      total: teamPositions.length,
+    };
+  }
 }

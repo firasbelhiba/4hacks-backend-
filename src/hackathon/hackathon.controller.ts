@@ -634,4 +634,94 @@ Only the organization owner can archive their hackathons.
   ) {
     return await this.hackathonService.getHackathonWinners(identifier, user);
   }
+
+  @ApiOperation({
+    summary: 'Get all team positions for a hackathon',
+    description:
+      'Retrieve all team positions for teams participating in a specific hackathon. ' +
+      'Hackathon can be identified by ID or slug. ' +
+      '\\n\\n**Access Control:**\\n' +
+      '- **Admin**: Can access all hackathons\\n' +
+      '- **Organization Owner**: Can access their own hackathons\\n' +
+      '- **Public Hackathons**: Anyone can access\\n' +
+      '- **Private Hackathons**: Only registered users can access (plus admin and owner)',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team positions retrieved successfully',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'cmj70dgvx000054fdhc2w7t7x',
+            teamId: 'cmj45ptq703fcwofd82wy9k09',
+            createdById: 'cmj45pq1i00bcwofdnljyob3o',
+            title: 'Backend Developer',
+            description: 'Looking for an experienced backend developer',
+            requiredSkills: ['Node.js', 'TypeScript', 'PostgreSQL'],
+            status: 'OPEN',
+            createdAt: '2025-12-15T10:26:06.141Z',
+            updatedAt: '2025-12-15T10:26:06.141Z',
+            team: {
+              id: 'cmj45ptq703fcwofd82wy9k09',
+              name: 'Team Awesome',
+              tagline: 'Building the future',
+              image: 'https://example.com/team.png',
+              hackathonId: 'cmj1234567890',
+            },
+            createdBy: {
+              id: 'cmj45pq1i00bcwofdnljyob3o',
+              name: 'John Doe',
+              username: 'johndoe',
+              image: 'https://example.com/john.png',
+            },
+          },
+          {
+            id: 'cmj70dgvx000054fdhc2w7t8y',
+            teamId: 'cmj45ptq703fcwofd82wy9k10',
+            createdById: 'cmj45pq1i00bcwofdnljyob4p',
+            title: 'Frontend Developer',
+            description: 'Seeking a skilled frontend developer',
+            requiredSkills: ['React', 'TypeScript', 'TailwindCSS'],
+            status: 'OPEN',
+            createdAt: '2025-12-15T11:00:00.000Z',
+            updatedAt: '2025-12-15T11:00:00.000Z',
+            team: {
+              id: 'cmj45ptq703fcwofd82wy9k10',
+              name: 'Tech Innovators',
+              tagline: 'Innovation at its best',
+              image: 'https://example.com/team2.png',
+              hackathonId: 'cmj1234567890',
+            },
+            createdBy: {
+              id: 'cmj45pq1i00bcwofdnljyob4p',
+              name: 'Jane Smith',
+              username: 'janesmith',
+              image: 'https://example.com/jane.png',
+            },
+          },
+        ],
+        total: 2,
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found or not registered for private hackathon',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':identifier/team-positions')
+  async getTeamPositions(
+    @Param('identifier') identifier: string,
+    @CurrentUser() user?: UserMin,
+  ) {
+    return await this.hackathonService.getTeamPositions(identifier, user);
+  }
 }
