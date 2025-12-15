@@ -348,3 +348,141 @@ export const TeamInvitationDeclinedEmailTemplateHtml = (
     </html>
   `;
 };
+
+export const TeamPositionApplicationEmailTemplateHtml = (
+  teamLeaderName: string,
+  applicantName: string,
+  positionTitle: string,
+  teamName: string,
+  hackathonTitle: string,
+  hackathonId: string,
+  teamId: string,
+  applicationMessage: string,
+) => {
+  const teamLink = `${process.env.FRONTEND_URL || 'https://4hacks.io'}/hackathons/${hackathonId}/teams/${teamId}`;
+
+  return `
+    <html>
+      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+              New Position Application!
+            </h1>
+            <p style="color: #dbeafe; margin: 12px 0 0 0; font-size: 16px;">
+              Someone wants to join your team
+            </p>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 40px 30px;">
+            <p style="margin: 0 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              Hello <strong>${teamLeaderName}</strong>,
+            </p>
+
+            <p style="margin: 0 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              Great news! <strong>${applicantName}</strong> has applied to join your team for the <strong>${positionTitle}</strong> position.
+            </p>
+
+            <!-- Application Details Card -->
+            <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 24px; margin: 30px 0; border-radius: 8px;">
+              <h2 style="margin: 0 0 16px 0; font-size: 22px; color: #3b82f6; font-weight: 600;">
+                ${positionTitle}
+              </h2>
+
+              <div style="margin-bottom: 12px;">
+                <span style="display: inline-block; color: #64748b; font-size: 14px; font-weight: 600; width: 140px;">👥 Team:</span>
+                <span style="color: #1e293b; font-size: 14px; font-weight: 500;">${teamName}</span>
+              </div>
+
+              <div style="margin-bottom: 12px;">
+                <span style="display: inline-block; color: #64748b; font-size: 14px; font-weight: 600; width: 140px;">🏆 Hackathon:</span>
+                <span style="color: #1e293b; font-size: 14px; font-weight: 500;">${hackathonTitle}</span>
+              </div>
+
+              <div>
+                <span style="display: inline-block; color: #64748b; font-size: 14px; font-weight: 600; width: 140px;">👤 Applicant:</span>
+                <span style="color: #3b82f6; font-size: 14px; font-weight: 700;">${applicantName}</span>
+              </div>
+            </div>
+
+            <!-- Application Message -->
+            <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px; margin: 30px 0;">
+              <h3 style="margin: 0 0 12px 0; font-size: 18px; color: #1e293b; font-weight: 600;">
+                📝 Application Message
+              </h3>
+              <p style="margin: 0; color: #475569; line-height: 1.8; font-size: 15px; white-space: pre-wrap;">
+                ${applicationMessage}
+              </p>
+            </div>
+
+            <!-- Action Required -->
+            <div style="background-color: #fef3c7; border-radius: 8px; padding: 20px; margin: 30px 0;">
+              <h3 style="margin: 0 0 12px 0; font-size: 18px; color: #92400e; font-weight: 600;">
+                📋 Action Required
+              </h3>
+              <ul style="margin: 0; padding-left: 20px; color: #78350f; line-height: 1.8;">
+                <li>Review the applicant's message and profile</li>
+                <li>Accept or decline the application</li>
+                <li>Communicate with the applicant if needed</li>
+              </ul>
+            </div>
+
+            <p style="margin: 30px 0 20px 0; font-size: 16px; color: #333; line-height: 1.6;">
+              Click the button below to review the application and manage your team:
+            </p>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${teamLink}"
+                 style="
+                   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                   color: #ffffff;
+                   padding: 16px 40px;
+                   text-decoration: none;
+                   border-radius: 8px;
+                   display: inline-block;
+                   font-weight: 600;
+                   font-size: 16px;
+                   box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+                   transition: all 0.3s ease;
+                 ">
+                Review Application
+              </a>
+            </div>
+
+            <p style="margin: 30px 0 0 0; font-size: 14px; color: #64748b; line-height: 1.6;">
+              Or copy and paste this link into your browser:
+            </p>
+
+            <p style="
+              margin: 8px 0 0 0;
+              padding: 12px;
+              background-color: #f8fafc;
+              border-radius: 6px;
+              word-break: break-all;
+              font-size: 13px;
+              color: #3b82f6;
+              font-family: monospace;
+            ">
+              ${teamLink}
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b;">
+              Need help? Contact us at <a href="mailto:support@4hacks.io" style="color: #3b82f6; text-decoration: none;">support@4hacks.io</a>
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #94a3b8;">
+              © 2025 4Hacks. All rights reserved.
+            </p>
+          </div>
+
+        </div>
+      </body>
+    </html>
+  `;
+};

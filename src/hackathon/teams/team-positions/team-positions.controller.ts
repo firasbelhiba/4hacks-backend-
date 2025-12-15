@@ -9,6 +9,7 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOperation,
@@ -21,6 +22,7 @@ import { UpdateTeamPositionDto } from './dto/update.dto';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { UserMin } from 'src/common/types';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
+import { ApplyToTeamPositionDto } from './dto/apply.dto';
 
 @ApiTags('Hackathon Team Positions')
 @Controller('hackathon/:hackathonId/teams/:teamId/positions')
@@ -123,6 +125,65 @@ export class TeamPositionsController {
       teamId,
       positionId,
       updateTeamPositionDto,
+      user,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Apply to a team position',
+    description: 'Apply to a team position',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Team position applied successfully',
+    example: {
+      message: 'Team position applied successfully',
+      data: {
+        id: 'cmj70dgvx000054fdhc2w7t7x',
+        teamId: 'cmj45ptq703fcwofd82wy9k09',
+        createdById: 'cmj45pq1i00bcwofdnljyob3o',
+        title: 'Senior Backend Developer',
+        description: 'Looking for an experienced backend developer',
+        requiredSkills: ['Node.js', 'TypeScript', 'PostgreSQL'],
+        status: 'OPEN',
+        createdAt: '2025-12-15T10:26:06.141Z',
+        updatedAt: '2025-12-15T11:30:00.000Z',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Bad request - Team position does not belong to this team or team is not associated to the hackathon',
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - You are not the leader of this team',
+  })
+  @ApiNotFoundResponse({
+    description: 'Not found - Team position not found',
+  })
+  @ApiConflictResponse({
+    description: 'Conflict',
+    example: {
+      message: 'You have already applied to this position',
+      error: 'Conflict',
+      statusCode: 409,
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':positionId/apply')
+  async applyToPosition(
+    @Param('hackathonId') hackathonId: string,
+    @Param('teamId') teamId: string,
+    @Param('positionId') positionId: string,
+    @Body() applyToTeamPositionDto: ApplyToTeamPositionDto,
+    @CurrentUser() user: UserMin,
+  ) {
+    return await this.teamPositionsService.applyToPosition(
+      hackathonId,
+      teamId,
+      positionId,
+      applyToTeamPositionDto,
       user,
     );
   }

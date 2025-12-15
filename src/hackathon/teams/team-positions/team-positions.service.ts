@@ -3,16 +3,26 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ActivityTargetType, UserMin } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTeamPositionDto } from './dto/create.dto';
 import { UpdateTeamPositionDto } from './dto/update.dto';
+import { TeamPositionStatus } from '@prisma/client';
+import { ApplyToTeamPositionDto } from './dto/apply.dto';
+import { EmailService } from 'src/email/email.service';
+import { TeamPositionApplicationEmailTemplateHtml } from 'src/common/templates/emails/team.emails';
 
 @Injectable()
 export class TeamPositionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(TeamPositionsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async create(
     hackathonId: string,
@@ -198,6 +208,192 @@ export class TeamPositionsService {
     return {
       message: 'Team position updated successfully',
       data: updatedTeamPosition,
+    };
+  }
+
+  async applyToPosition(
+    hackathonId: string,
+    teamId: string,
+    positionId: string,
+    applyToTeamPositionDto: ApplyToTeamPositionDto,
+    requesterUser: UserMin,
+  ) {
+    const { message } = applyToTeamPositionDto;
+
+    // Find the team position with team details
+    const teamPosition = await this.prisma.teamPosition.findUnique({
+      where: {
+        id: positionId,
+      },
+      include: {
+        team: {
+          include: {
+            hackathon: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+            members: {
+              select: {
+                id: true,
+                userId: true,
+                isLeader: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!teamPosition) {
+      throw new NotFoundException('Team position not found');
+    }
+
+    // Check if the position is open
+    if (teamPosition.status !== TeamPositionStatus.OPEN) {
+      throw new BadRequestException('Team position is not open anymore.');
+    }
+
+    // Verify the position belongs to the specified team
+    if (teamPosition.teamId !== teamId) {
+      throw new BadRequestException(
+        'Team position does not belong to this team',
+      );
+    }
+
+    // Verify the team belongs to the specified hackathon
+    if (teamPosition.team.hackathonId !== hackathonId) {
+      throw new BadRequestException('Team is not associated to the hackathon');
+    }
+
+    // Check if the user is registered for the hackathon
+    const registration = await this.prisma.hackathonRegistration.findUnique({
+      where: {
+        hackathonId_userId: { hackathonId, userId: requesterUser.id },
+      },
+    });
+
+    if (!registration) {
+      throw new BadRequestException(
+        'You are not registered for this hackathon',
+      );
+    }
+
+    // Check if the user is already in a team for this hackathon
+    const existingTeamMember = await this.prisma.teamMember.findFirst({
+      where: {
+        userId: requesterUser.id,
+        team: {
+          hackathonId: hackathonId,
+        },
+      },
+    });
+
+    if (existingTeamMember) {
+      throw new ConflictException(
+        'You are already in a team for this hackathon',
+      );
+    }
+
+    // Check if the user has already applied to this position
+    const existingApplication = await this.prisma.teamApplication.findFirst({
+      where: {
+        userId: requesterUser.id,
+        positionId,
+      },
+    });
+
+    if (existingApplication) {
+      throw new ConflictException('You have already applied to this position');
+    }
+
+    const teamLeader = teamPosition.team.members.find(
+      (member) => member.isLeader,
+    );
+
+    // apply to the position
+    const application = await this.prisma.$transaction(async (tx) => {
+      const application = await tx.teamApplication.create({
+        data: {
+          userId: requesterUser.id,
+          positionId,
+          message,
+        },
+      });
+
+      // Store the activity log
+      await tx.userActivityLog.create({
+        data: {
+          userId: requesterUser.id,
+          action: 'APPLY_TO_TEAM_POSITION',
+          isPublic: false,
+          description: `Applied to team position ${teamPosition.title} for team ${teamPosition.team.name}`,
+          targetType: ActivityTargetType.TEAM_POSITION,
+          targetId: teamPosition.id,
+        },
+      });
+
+      if (teamLeader) {
+        // create new notification for the team leader
+        await tx.notification.create({
+          data: {
+            toUserId: teamLeader.id,
+            type: 'TEAM_POSITION_APPLICATION',
+            content: `New application for team position ${teamPosition.title} for team ${teamPosition.team.name}`,
+            payload: {
+              hackathonId,
+              teamId,
+              positionId,
+              teamApplicationId: application.id,
+            },
+          },
+        });
+      }
+
+      return application;
+    });
+
+    // Send email to the team leader notifying them of the new application
+
+    if (teamLeader) {
+      const emailHtml = TeamPositionApplicationEmailTemplateHtml(
+        teamLeader.user.name,
+        requesterUser.name || requesterUser.username,
+        teamPosition.title,
+        teamPosition.team.name,
+        teamPosition.team.hackathon.title,
+        hackathonId,
+        teamId,
+        message,
+      );
+
+      try {
+        // Send email
+        await this.emailService.sendEmail(
+          teamLeader.user.email,
+          `New Application for ${teamPosition.title} - ${teamPosition.team.name}`,
+          emailHtml,
+        );
+      } catch (error) {
+        // Log error but don't fail the application
+        this.logger.error(
+          'Failed to send team position application email:',
+          error,
+        );
+      }
+    }
+
+    return {
+      message: 'Application submitted successfully',
+      data: application,
     };
   }
 }
