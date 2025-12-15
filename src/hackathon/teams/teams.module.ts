@@ -9,8 +9,14 @@ import { TeamApplicationsController } from './team-applications/team-application
 import { TeamApplicationsModule } from './team-applications/team-applications.module';
 
 @Module({
-  imports: [PrismaModule, FileUploadModule, EmailModule, TeamPositionsModule, TeamApplicationsModule],
-  controllers: [TeamsController, TeamApplicationsController],
+  imports: [
+    PrismaModule,
+    FileUploadModule,
+    EmailModule,
+    TeamPositionsModule,
+    TeamApplicationsModule,
+  ],
+  controllers: [TeamsController],
   providers: [TeamsService],
 })
 export class TeamsModule {}
