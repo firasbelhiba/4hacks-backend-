@@ -1052,7 +1052,6 @@ model TeamApplication {
   position  TeamPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
   user      users        @relation("TeamApplications", fields: [userId], references: [id], onDelete: Cascade)
   decidedBy users?       @relation("TeamApplicationsDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
-  usersId   String?
 
   @@unique([positionId, userId]) // user can apply once
   @@index([userId])
