@@ -7,7 +7,6 @@ import {
   ParseFilePipe,
   Patch,
   Post,
-  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -16,7 +15,6 @@ import {
 import {
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiResponse,
   ApiTags,
   ApiBearerAuth,
