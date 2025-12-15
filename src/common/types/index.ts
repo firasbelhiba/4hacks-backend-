@@ -57,3 +57,19 @@ export type HackathonMin = {
     ownerId: string;
   };
 };
+
+export enum ActivityTargetType {
+  ORGANIZATION,
+  HACKATHON,
+  TRACK,
+  BOUNTY,
+  TEAM,
+  SUBMISSION,
+  HACKATHON_REGISTRATION,
+  PRIZE,
+  COMMENT,
+  JUDGE_SUBMISSION_SCORE,
+  CATEGORY,
+  JUDGE_INVITATION,
+  TEAM_POSITION,
+}

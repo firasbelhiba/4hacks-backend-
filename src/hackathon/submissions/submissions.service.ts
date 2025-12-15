@@ -6,12 +6,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { HackathonMin, UserMin } from 'src/common/types';
+import { HackathonMin, UserMin, ActivityTargetType } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateSubmissionDto } from './dto/create.dto';
 import { UpdateSubmissionDto } from './dto/update.dto';
 import {
-  ActivityTargetType,
   HackathonRegistrationStatus,
   HackathonRequiredMaterials,
   HackathonStatus,
@@ -219,7 +218,7 @@ export class SubmissionsService {
         data: {
           userId: requesterUser.id,
           action: 'SUBMIT_HACKATHON',
-          targetType: ActivityTargetType.HACKATHON,
+          targetType: ActivityTargetType.HACKATHON.toString(),
           targetId: hackathon.id,
           description: `submitted project ${newSubmission.title} to hackathon ${hackathon.slug}`,
         },
@@ -342,7 +341,7 @@ export class SubmissionsService {
           data: {
             userId: submission.creatorId,
             action: 'REVIEW_HACKATHON_SUBMISSION',
-            targetType: ActivityTargetType.SUBMISSION,
+            targetType: ActivityTargetType.SUBMISSION.toString(),
             targetId: submission.id,
             description: `reviewed submission ${submission.title} for hackathon ${hackathon.slug} for ${reviewData.action === SubmissionReviewAction.ACCEPT ? 'acceptance' : 'rejection'}`,
           },
@@ -599,7 +598,7 @@ export class SubmissionsService {
           data: {
             userId: requesterUser.id,
             action: 'UPDATE_HACKATHON_SUBMISSION',
-            targetType: ActivityTargetType.SUBMISSION,
+            targetType: ActivityTargetType.SUBMISSION.toString(),
             targetId: submission.id,
             description: `updated submission ${submission.title} for hackathon ${hackathon.slug}`,
           },

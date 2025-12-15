@@ -5,10 +5,10 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { UserMin } from 'src/common/types';
+import { UserMin, ActivityTargetType } from 'src/common/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateSubmissionScoreDto } from './dto/create.dto';
-import { ActivityTargetType, SubmissionStatus } from '@prisma/client';
+import { SubmissionStatus } from '@prisma/client';
 import { UpdateSubmissionScoreDto } from './dto/update.dto';
 import {
   QuerySubmissionScoresDto,
@@ -115,7 +115,7 @@ export class SubmissionScoresService {
             userId: judge.id,
             action: 'JUDGE_SUBMISSION_SCORE',
             description: `Judge ${judge.id} submitted a score for submission ${submission.id}`,
-            targetType: ActivityTargetType.JUDGE_SUBMISSION_SCORE,
+            targetType: ActivityTargetType.JUDGE_SUBMISSION_SCORE.toString(),
             targetId: submissionScore.id,
             metadata: {
               submissionId: submission.id,
@@ -216,7 +216,7 @@ export class SubmissionScoresService {
             userId: judge.id,
             action: 'JUDGE_SUBMISSION_SCORE',
             description: `Judge ${judge.id} updated a score for submission ${submissionScore.submissionId}`,
-            targetType: ActivityTargetType.JUDGE_SUBMISSION_SCORE,
+            targetType: ActivityTargetType.JUDGE_SUBMISSION_SCORE.toString(),
             targetId: submissionScore.id,
             metadata: {
               submissionId: submissionScore.submissionId,

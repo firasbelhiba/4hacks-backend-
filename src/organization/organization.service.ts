@@ -10,7 +10,6 @@ import { CreateOrganizationDto } from './dto/create.dto';
 import { UpdateOrganizationDto } from './dto/update.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-  ActivityTargetType,
   HackathonStatus,
   Prisma,
   RequestStatus,
@@ -21,7 +20,7 @@ import {
   QueryOrganizationsDto,
   PaginatedOrganizationsDto,
 } from './dto/query-organizations.dto';
-import type { UserMin } from 'src/common/types';
+import { ActivityTargetType, type UserMin } from 'src/common/types';
 
 @Injectable()
 export class OrganizationService {
@@ -114,7 +113,7 @@ export class OrganizationService {
         data: {
           userId: userId,
           action: 'CREATE_ORGANIZATION',
-          // targetType: ActivityTargetType.ORGANIZATION,
+          targetType: ActivityTargetType.ORGANIZATION.toString(),
           targetId: organization.id,
           description: `${organization.owner.name} Created organization ${organization.name}`,
         },

@@ -8,8 +8,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { InviteJudgeDto } from './dto/invite.dto';
-import { HackathonMin, UserMin } from 'src/common/types';
-import { ActivityTargetType, JudgeInvitationStatus } from '@prisma/client';
+import { HackathonMin, UserMin, ActivityTargetType } from 'src/common/types';
+import { JudgeInvitationStatus } from '@prisma/client';
 import { EmailService } from 'src/email/email.service';
 import {
   JudgeInvitationEmailTemplateHtml,
@@ -89,7 +89,7 @@ export class JudgesInvitationsService {
             userId: requesterUser.id,
             action: 'JUDGE_INVITE',
             targetId: judgeInvitation.id,
-            targetType: ActivityTargetType.JUDGE_INVITATION,
+            targetType: ActivityTargetType.JUDGE_INVITATION.toString(),
             description: `Invited judge ${judgeId} to hackathon ${hackathon.id}`,
             isPublic: false,
             metadata: {
