@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Patch,
   Post,
@@ -184,6 +185,92 @@ export class TeamPositionsController {
       teamId,
       positionId,
       applyToTeamPositionDto,
+      user,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Get all applications for a team position',
+    description:
+      'Retrieve all applications for a specific team position. Only team members can view applications. ' +
+      'Applications are ordered by status (PENDING first) and then by creation date.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Applications retrieved successfully',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'cmj70dgvx000054fdhc2w7t7x',
+            positionId: 'cmj45ptq703fcwofd82wy9k09',
+            userId: 'cmj45pq1i00bcwofdnljyob3o',
+            message: 'I am a great developer and I want to join the team',
+            status: 'PENDING',
+            decidedAt: null,
+            decidedById: null,
+            createdAt: '2025-12-15T10:26:06.141Z',
+            updatedAt: '2025-12-15T10:26:06.141Z',
+            user: {
+              id: 'cmj45pq1i00bcwofdnljyob3o',
+              name: 'John Doe',
+              username: 'johndoe',
+              email: 'john@example.com',
+              image: 'https://example.com/john.png',
+            },
+            decidedBy: null,
+          },
+          {
+            id: 'cmj70dgvx000054fdhc2w7t8y',
+            positionId: 'cmj45ptq703fcwofd82wy9k09',
+            userId: 'cmj45pq1i00bcwofdnljyob4p',
+            message: 'I have 5 years of experience in backend development',
+            status: 'ACCEPTED',
+            decidedAt: '2025-12-15T12:00:00.000Z',
+            decidedById: 'cmj45pq1i00bcwofdnljyob5q',
+            createdAt: '2025-12-15T09:00:00.000Z',
+            updatedAt: '2025-12-15T12:00:00.000Z',
+            user: {
+              id: 'cmj45pq1i00bcwofdnljyob4p',
+              name: 'Jane Smith',
+              username: 'janesmith',
+              email: 'jane@example.com',
+              image: 'https://example.com/jane.png',
+            },
+            decidedBy: {
+              id: 'cmj45pq1i00bcwofdnljyob5q',
+              name: 'Team Leader',
+              username: 'teamleader',
+            },
+          },
+        ],
+        total: 2,
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Bad request - Team position does not belong to this team or team is not associated to the hackathon',
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - You are not a member of this team',
+  })
+  @ApiNotFoundResponse({
+    description: 'Not found - Team position not found',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get(':positionId/applications')
+  async getPositionApplications(
+    @Param('hackathonId') hackathonId: string,
+    @Param('teamId') teamId: string,
+    @Param('positionId') positionId: string,
+    @CurrentUser() user: UserMin,
+  ) {
+    return await this.teamPositionsService.getPositionApplications(
+      hackathonId,
+      teamId,
+      positionId,
       user,
     );
   }

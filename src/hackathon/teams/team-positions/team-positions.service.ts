@@ -396,4 +396,97 @@ export class TeamPositionsService {
       data: application,
     };
   }
+
+  async getPositionApplications(
+    hackathonId: string,
+    teamId: string,
+    positionId: string,
+    requesterUser: UserMin,
+  ) {
+    // Find the team position with team details
+    const teamPosition = await this.prisma.teamPosition.findUnique({
+      where: { id: positionId },
+      include: {
+        team: {
+          include: {
+            hackathon: {
+              select: {
+                id: true,
+              },
+            },
+            members: {
+              select: {
+                id: true,
+                userId: true,
+                isLeader: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!teamPosition) {
+      throw new NotFoundException('Team position not found');
+    }
+
+    // Verify the position belongs to the specified team
+    if (teamPosition.teamId !== teamId) {
+      throw new BadRequestException(
+        'Team position does not belong to this team',
+      );
+    }
+
+    // Verify the team belongs to the specified hackathon
+    if (teamPosition.team.hackathonId !== hackathonId) {
+      throw new BadRequestException('Team is not associated to the hackathon');
+    }
+
+    // Check if the requester is a team member
+    const isTeamMember = teamPosition.team.members.some(
+      (member) => member.userId === requesterUser.id,
+    );
+
+    if (!isTeamMember) {
+      throw new ForbiddenException('You are not a member of this team');
+    }
+
+    // Fetch all applications for this position
+    const applications = await this.prisma.teamApplication.findMany({
+      where: {
+        positionId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            email: true,
+            image: true,
+          },
+        },
+        decidedBy: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          status: 'asc', // PENDING first, then ACCEPTED, then REJECTED
+        },
+        {
+          createdAt: 'desc',
+        },
+      ],
+    });
+
+    return {
+      data: applications,
+      total: applications.length,
+    };
+  }
 }
