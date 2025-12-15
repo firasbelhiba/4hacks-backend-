@@ -1,11 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import {
-  SearchUsersQueryDto,
-  PaginatedPublicUsersDto,
-  PublicUserDto,
-} from './dto/search-users.dto';
+import { SearchUsersQueryDto, PublicUserDto } from './dto/search-users.dto';
+import { SEARCH_USERS_LIMIT } from './constants';
 
 @Injectable()
 export class UsersService {
@@ -15,13 +12,12 @@ export class UsersService {
    * Search users by username, email, or name (public endpoint).
    * Returns only public user information: id, name, email, username, image.
    * Excludes banned users.
-   * @param query - Query parameters for search and pagination.
-   * @returns Paginated list of public user information.
+   * Returns the first 10 results.
+   * @param query - Query parameters for search.
+   * @returns List of public user information (max 10 results).
    */
-  async searchUsers(
-    query: SearchUsersQueryDto,
-  ): Promise<PaginatedPublicUsersDto> {
-    const { search, page = 1, limit = 10 } = query;
+  async searchUsers(query: SearchUsersQueryDto): Promise<PublicUserDto[]> {
+    const { search } = query;
 
     // Build where clause - exclude banned users and add search if provided
     const where: Prisma.usersWhereInput = {
@@ -36,42 +32,20 @@ export class UsersService {
       ];
     }
 
-    // Calculate pagination
-    const skip = (page - 1) * limit;
-
-    // Execute queries in parallel
-    const [data, total] = await Promise.all([
-      this.prisma.users.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          username: true,
-          image: true,
-        },
-      }),
-      this.prisma.users.count({ where }),
-    ]);
-
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(total / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
-
-    return {
-      data: data as PublicUserDto[],
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNextPage,
-        hasPrevPage,
+    // Execute query with limit from constants
+    const data = await this.prisma.users.findMany({
+      where,
+      take: SEARCH_USERS_LIMIT,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        username: true,
+        image: true,
       },
-    };
+    });
+
+    return data as PublicUserDto[];
   }
 }
