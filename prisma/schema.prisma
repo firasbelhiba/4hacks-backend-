@@ -135,10 +135,18 @@ model Session {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  // Session metadata
+  ipAddress  String? // Client IP address (IPv4 or IPv6)
+  userAgent  String? // Full User-Agent header
+  deviceType String? // "desktop", "mobile", "tablet", "unknown"
+  browser    String? // "Chrome", "Firefox", "Safari", etc.
+  os         String? // "Windows", "macOS", "Linux", "iOS", "Android"
+
   user      users  @relation(fields: [userId], references: [id], onDelete: Cascade)
   revokedBy users? @relation("RevokedSessions", fields: [revokedById], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([ipAddress])
   @@map("sessions")
 }
 

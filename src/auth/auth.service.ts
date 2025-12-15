@@ -42,6 +42,11 @@ import {
   VerificationEmailTemplateHtml,
 } from 'src/common/templates/emails/user.emails';
 import { UserMin } from 'src/common/types';
+import {
+  RequestMetadataService,
+  SessionMetadata,
+} from './services/request-metadata.service';
+import { Request } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -57,6 +62,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private readonly emailService: EmailService,
+    private readonly requestMetadataService: RequestMetadataService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -141,7 +147,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, req: Request) {
     const { identifier, password } = loginDto;
 
     const user = await this.prisma.users.findFirst({
@@ -210,9 +216,12 @@ export class AuthService {
       };
     }
 
+    // Extract session metadata from request
+    const metadata = this.requestMetadataService.extractMetadata(req);
+
     // Generate Access and Refresh Tokens for the user
     const { accessToken, refreshToken } =
-      await this.generateAccessAndRefreshTokens(user);
+      await this.generateAccessAndRefreshTokens(user, Provider.CREDENTIAL, metadata);
 
     this.logger.log(`User logged in: ${user.email}`);
 
@@ -231,7 +240,7 @@ export class AuthService {
     };
   }
 
-  async verifyLoginTwoFactor(dto: VerifyTwoFactorLoginDto) {
+  async verifyLoginTwoFactor(dto: VerifyTwoFactorLoginDto, req: Request) {
     const cacheKey = this.getTwoFactorLoginRedisKey(dto.challengeId);
     const challenge = await this.cacheManager.get<{
       userId: string;
@@ -267,8 +276,11 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    // Extract session metadata from request
+    const metadata = this.requestMetadataService.extractMetadata(req);
+
     const { accessToken, refreshToken } =
-      await this.generateAccessAndRefreshTokens(user);
+      await this.generateAccessAndRefreshTokens(user, Provider.CREDENTIAL, metadata);
 
     this.logger.log(`User completed 2FA login: ${user.email}`);
 
@@ -313,6 +325,7 @@ export class AuthService {
   private async generateAccessAndRefreshTokens(
     user: UserMin,
     provider: Provider = Provider.CREDENTIAL,
+    metadata?: SessionMetadata,
   ): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -342,6 +355,12 @@ export class AuthService {
         refreshToken: hashedRefreshToken,
         expiresAt: refreshTokenExpiration,
         provider,
+        // Session metadata
+        ipAddress: metadata?.ipAddress || null,
+        userAgent: metadata?.userAgent || null,
+        deviceType: metadata?.deviceType || null,
+        browser: metadata?.browser || null,
+        os: metadata?.os || null,
       },
       select: { id: true },
     });
@@ -686,7 +705,7 @@ export class AuthService {
     return result.data;
   }
 
-  async handleGoogleOAuthCallback(userId: string) {
+  async handleGoogleOAuthCallback(userId: string, req: Request) {
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
       select: {
@@ -704,9 +723,12 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    // Extract session metadata from request
+    const metadata = this.requestMetadataService.extractMetadata(req);
+
     // Generate Access and Refresh Tokens for the user
     const { accessToken, refreshToken } =
-      await this.generateAccessAndRefreshTokens(user, Provider.GOOGLE);
+      await this.generateAccessAndRefreshTokens(user, Provider.GOOGLE, metadata);
 
     this.logger.log(`User logged in via Google OAuth: ${user.email}`);
 
@@ -790,7 +812,7 @@ export class AuthService {
     return result.data;
   }
 
-  async handleGithubOAuthCallback(userId: string) {
+  async handleGithubOAuthCallback(userId: string, req: Request) {
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
       select: {
@@ -808,9 +830,12 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    // Extract session metadata from request
+    const metadata = this.requestMetadataService.extractMetadata(req);
+
     // Generate Access and Refresh Tokens for the user
     const { accessToken, refreshToken } =
-      await this.generateAccessAndRefreshTokens(user, Provider.GITHUB);
+      await this.generateAccessAndRefreshTokens(user, Provider.GITHUB, metadata);
 
     this.logger.log(`User logged in via Github OAuth: ${user.email}`);
 
@@ -894,7 +919,7 @@ export class AuthService {
     return result.data;
   }
 
-  async handleLinkedinOAuthCallback(userId: string) {
+  async handleLinkedinOAuthCallback(userId: string, req: Request) {
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
       select: {
@@ -912,9 +937,12 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    // Extract session metadata from request
+    const metadata = this.requestMetadataService.extractMetadata(req);
+
     // Generate Access and Refresh Tokens for the user
     const { accessToken, refreshToken } =
-      await this.generateAccessAndRefreshTokens(user, Provider.LINKEDIN);
+      await this.generateAccessAndRefreshTokens(user, Provider.LINKEDIN, metadata);
 
     this.logger.log(`User logged in via LinkedIn OAuth: ${user.email}`);
 
