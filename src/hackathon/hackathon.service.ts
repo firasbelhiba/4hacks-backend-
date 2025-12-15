@@ -535,7 +535,20 @@ export class HackathonService {
       throw new NotFoundException('Hackathon not found or access denied');
     }
 
-    return hackathon;
+    const returnedHackathon = { ...hackathon } as typeof hackathon & {
+      isRegistered?: boolean;
+    };
+
+    // If hackathon is active, return if the user is registered on it
+    if (hackathon.status === HackathonStatus.ACTIVE && userId) {
+      const isRegistered = await this.prisma.hackathonRegistration.findFirst({
+        where: { hackathonId: hackathon.id, userId },
+        select: { id: true },
+      });
+      returnedHackathon.isRegistered = !!isRegistered;
+    }
+
+    return returnedHackathon;
   }
 
   async manageSponsors(
