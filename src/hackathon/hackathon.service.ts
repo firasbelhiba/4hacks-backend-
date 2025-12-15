@@ -283,9 +283,10 @@ export class HackathonService {
       );
     }
 
-    // Prepare update data
+    // Prepare update data (exclude registrationQuestions as it's handled separately)
+    const { registrationQuestions, ...restDto } = updateHackathonDto;
     const updateData: any = {
-      ...updateHackathonDto,
+      ...restDto,
       categoryId: undefined,
       category: undefined,
     };
@@ -320,15 +321,121 @@ export class HackathonService {
 
     // TODO: Validate dates logic(same can be taken from hackathon-request create and publish hackathon)
 
-    // Update hackathon
-    const updatedHackathon = await this.prisma.hackathon.update({
-      where: {
-        id: hackathon.id,
-      },
-      data: updateData,
-      include: {
-        category: true,
-      },
+    // Handle registration questions if provided
+    if (registrationQuestions && registrationQuestions.length > 0) {
+      // Check if there are any registrations - if so, questions are locked
+      const registrationCount = await this.prisma.hackathonRegistration.count({
+        where: { hackathonId: hackathon.id },
+      });
+
+      if (registrationCount > 0) {
+        throw new BadRequestException(
+          'Cannot modify registration questions after users have registered. Use the dedicated question endpoints for limited updates.',
+        );
+      }
+
+      // Validate question types and options
+      for (const q of registrationQuestions) {
+        const type = q.type || 'TEXT';
+        if (
+          (type === 'SELECT' || type === 'MULTISELECT') &&
+          (!q.options || q.options.length < 2)
+        ) {
+          throw new BadRequestException(
+            `${type} questions require at least 2 options`,
+          );
+        }
+      }
+    }
+
+    // Update hackathon and questions in a transaction
+    const updatedHackathon = await this.prisma.$transaction(async (tx) => {
+      // Update hackathon basic fields
+      const updated = await tx.hackathon.update({
+        where: { id: hackathon.id },
+        data: updateData,
+        include: {
+          category: true,
+          registrationQuestions: { orderBy: { order: 'asc' } },
+        },
+      });
+
+      // Handle registration questions if provided
+      if (registrationQuestions && registrationQuestions.length > 0) {
+        // Get existing question IDs
+        const existingQuestions =
+          await tx.hackathonRegistrationQuestion.findMany({
+            where: { hackathonId: hackathon.id },
+            select: { id: true },
+          });
+        const existingIds = existingQuestions.map((q) => q.id);
+
+        // Identify questions to update, create, or delete
+        const incomingIds = registrationQuestions
+          .filter((q) => q.id)
+          .map((q) => q.id as string);
+        const toDelete = existingIds.filter((id) => !incomingIds.includes(id));
+        const toUpdate = registrationQuestions.filter(
+          (q) => q.id && existingIds.includes(q.id),
+        );
+        const toCreate = registrationQuestions.filter((q) => !q.id);
+
+        // Delete removed questions
+        if (toDelete.length > 0) {
+          await tx.hackathonRegistrationQuestion.deleteMany({
+            where: { id: { in: toDelete }, hackathonId: hackathon.id },
+          });
+        }
+
+        // Update existing questions
+        for (const q of toUpdate) {
+          await tx.hackathonRegistrationQuestion.update({
+            where: { id: q.id },
+            data: {
+              label: q.label,
+              description: q.description,
+              type: q.type as any,
+              required: q.required,
+              placeholder: q.placeholder,
+              options: q.options,
+              order: q.order,
+            },
+          });
+        }
+
+        // Create new questions
+        if (toCreate.length > 0) {
+          const maxOrder =
+            Math.max(
+              ...registrationQuestions.map((q) => q.order ?? 0),
+              ...existingQuestions.map(() => -1),
+            ) + 1;
+
+          await tx.hackathonRegistrationQuestion.createMany({
+            data: toCreate.map((q, index) => ({
+              hackathonId: hackathon.id,
+              label: q.label,
+              description: q.description,
+              type: (q.type as any) || 'TEXT',
+              required: q.required ?? false,
+              placeholder: q.placeholder,
+              options: q.options ?? [],
+              order: q.order ?? maxOrder + index,
+            })),
+          });
+        }
+
+        // Fetch updated hackathon with questions
+        return await tx.hackathon.findUnique({
+          where: { id: hackathon.id },
+          include: {
+            category: true,
+            registrationQuestions: { orderBy: { order: 'asc' } },
+          },
+        });
+      }
+
+      return updated;
     });
 
     return {

@@ -33,8 +33,13 @@ export class HackathonRegistrationController {
 
   @ApiOperation({
     summary: 'Register for a hackathon',
-    description:
-      'Register for a hackathon. If the hackathon requires questions, they must be answered before registration is complete.',
+    description: `Register for a hackathon. If the hackathon has registration questions, you must provide answers.
+
+**Answer Format:**
+- Each answer requires a \`questionId\` (from the question's auto-generated ID)
+- \`value\` is always an array: \`["single answer"]\` for TEXT/SELECT, \`["a", "b"]\` for MULTISELECT
+- Required questions must be answered
+- SELECT answers must match one of the question's options`,
   })
   @ApiResponse({
     status: 201,
@@ -44,7 +49,8 @@ export class HackathonRegistrationController {
     description: 'Hackathon not found',
   })
   @ApiBadRequestResponse({
-    description: 'Hackathon registration is not open',
+    description:
+      'Registration failed. Possible reasons: registration period closed, missing required answers, invalid SELECT options, multiple values for single-select questions, invalid passcode (for private hackathons), or already registered.',
   })
   @ApiBody({ type: RegisterForHackathonDto })
   @ApiBearerAuth()

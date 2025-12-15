@@ -585,10 +585,8 @@ model Hackathon {
   location       Json? // JSON object with country, city, state, zipCode, address
   otherLocations Json[] @default([]) // [{ "country": "...", "city": "...", "state": "...", "zipCode": "...", "address": "..." }]
 
-  // Dynamic registration questions stored as JSON objects
-  // Example: 
-  // [{ "id": "q1", "label": "...", "type": "text", "required": true }]
-  registrationQuestions Json[] @default([])
+  // Registration questions (stored in separate table)
+  registrationQuestions HackathonRegistrationQuestion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -674,17 +672,52 @@ model HackathonCategory {
   hackathons                Hackathon[]
 }
 
+// Registration Question Types
+enum RegistrationQuestionType {
+  TEXT
+  TEXTAREA
+  SELECT
+  MULTISELECT
+  CHECKBOX
+}
+
+// Registration Questions (stored per hackathon)
+model HackathonRegistrationQuestion {
+  id          String                   @id @default(cuid())
+  hackathonId String
+  label       String                   // "What is your experience level?"
+  description String?                  // Optional additional context for the question
+  type        RegistrationQuestionType @default(TEXT)
+  required    Boolean                  @default(false)
+  placeholder String?                  // For TEXT/TEXTAREA
+  options     String[]                 @default([]) // For SELECT/MULTISELECT: ["Beginner", "Advanced"]
+  order       Int                      @default(0)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  hackathon Hackathon                   @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  answers   HackathonRegistrationAnswer[]
+
+  @@index([hackathonId])
+  @@index([hackathonId, order])
+  @@map("hackathon_registration_questions")
+}
+
+// Individual answer (one per question per registration)
 model HackathonRegistrationAnswer {
   id             String   @id @default(cuid())
-  registrationId String   @unique
-  answers        Json // JSON object with question IDs as keys and answers as values
-  submittedAt    DateTime @default(now())
+  registrationId String
+  questionId     String
+  value          String[] // Array to support multiselect. Single answers: ["value"], Multi: ["a", "b"]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  registration HackathonRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  registration HackathonRegistration          @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  question     HackathonRegistrationQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
+  @@unique([registrationId, questionId])
   @@index([registrationId])
+  @@index([questionId])
   @@map("hackathon_registration_answers")
 }
 
@@ -868,11 +901,11 @@ enum HackathonRegistrationStatus {
 }
 
 model HackathonRegistration {
-  id          String                       @id @default(cuid())
+  id          String                      @id @default(cuid())
   hackathonId String
   userId      String
-  status      HackathonRegistrationStatus  @default(PENDING)
-  answers     HackathonRegistrationAnswer? // Answers provided during registration (if any)
+  status      HackathonRegistrationStatus @default(PENDING)
+  answers     HackathonRegistrationAnswer[] // Answers provided during registration (one per question)
 
   registeredAt DateTime  @default(now())
   reviewedAt   DateTime?

@@ -399,44 +399,58 @@ BUIDL the future with us! 🚀`,
       requiresApproval: true, // Requires approval to test registration flow
       isPrivate: false,
       requiredSubmissionMaterials: ['VIDEO_DEMO', 'GITHUB_REPOSITORY', 'PITCH_DECK'],
-      // Custom registration questions for testing
-      registrationQuestions: [
-        {
-          id: 'q1',
-          label: 'What is your experience level with Ethereum development?',
-          type: 'select',
-          required: true,
-          options: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
-        },
-        {
-          id: 'q2',
-          label: 'Which track are you most interested in?',
-          type: 'select',
-          required: true,
-          options: ['DeFi Innovation', 'Public Goods', 'Account Abstraction', 'L2 & Scaling'],
-        },
-        {
-          id: 'q3',
-          label: 'Do you have a team already?',
-          type: 'select',
-          required: true,
-          options: ['Yes, complete team', 'Yes, looking for more members', 'No, looking for a team', 'Solo participant'],
-        },
-        {
-          id: 'q4',
-          label: 'Tell us about a project you are proud of',
-          type: 'textarea',
-          required: false,
-          placeholder: 'Describe a past project...',
-        },
-        {
-          id: 'q5',
-          label: 'How did you hear about this hackathon?',
-          type: 'select',
-          required: false,
-          options: ['Twitter/X', 'Discord', 'Friend referral', 'Newsletter', 'Other'],
-        },
-      ],
+    },
+  });
+
+  // Create registration questions for ETH hackathon (separate table)
+  const ethQ1 = await prisma.hackathonRegistrationQuestion.create({
+    data: {
+      hackathonId: ethHackathon.id,
+      label: 'What is your experience level with Ethereum development?',
+      type: 'SELECT',
+      required: true,
+      options: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      order: 0,
+    },
+  });
+  const ethQ2 = await prisma.hackathonRegistrationQuestion.create({
+    data: {
+      hackathonId: ethHackathon.id,
+      label: 'Which track are you most interested in?',
+      type: 'SELECT',
+      required: true,
+      options: ['DeFi Innovation', 'Public Goods', 'Account Abstraction', 'L2 & Scaling'],
+      order: 1,
+    },
+  });
+  const ethQ3 = await prisma.hackathonRegistrationQuestion.create({
+    data: {
+      hackathonId: ethHackathon.id,
+      label: 'Do you have a team already?',
+      type: 'SELECT',
+      required: true,
+      options: ['Yes, complete team', 'Yes, looking for more members', 'No, looking for a team', 'Solo participant'],
+      order: 2,
+    },
+  });
+  const ethQ4 = await prisma.hackathonRegistrationQuestion.create({
+    data: {
+      hackathonId: ethHackathon.id,
+      label: 'Tell us about a project you are proud of',
+      type: 'TEXTAREA',
+      required: false,
+      placeholder: 'Describe a past project...',
+      order: 3,
+    },
+  });
+  const ethQ5 = await prisma.hackathonRegistrationQuestion.create({
+    data: {
+      hackathonId: ethHackathon.id,
+      label: 'How did you hear about this hackathon?',
+      type: 'SELECT',
+      required: false,
+      options: ['Twitter/X', 'Discord', 'Friend referral', 'Newsletter', 'Other'],
+      order: 4,
     },
   });
 
@@ -601,34 +615,42 @@ Join us for an exclusive building experience!`,
       isPrivate: true,
       invitePasscode: await bcrypt.hash('PRIVATE2025', 10), // Passcode: PRIVATE2025
       requiredSubmissionMaterials: ['VIDEO_DEMO', 'GITHUB_REPOSITORY'],
-      // Registration questions for testing
-      registrationQuestions: [
-        {
-          id: 'q1',
-          label: 'How did you receive your invitation?',
-          type: 'select',
-          required: true,
-          options: ['Email', 'Discord', 'Twitter', 'Friend referral', 'Other'],
-        },
-        {
-          id: 'q2',
-          label: 'What is your primary area of expertise?',
-          type: 'select',
-          required: true,
-          options: ['Smart Contracts', 'Frontend', 'Backend', 'Full Stack', 'Research'],
-        },
-        {
-          id: 'q3',
-          label: 'Why do you want to participate in this private hackathon?',
-          type: 'textarea',
-          required: false,
-          placeholder: 'Tell us your motivation...',
-        },
-      ],
     },
   });
 
-  console.log(`✅ Created 4 active hackathons (1 private)\n`);
+  // Create registration questions for private hackathon (separate table)
+  const privateQ1 = await prisma.hackathonRegistrationQuestion.create({
+    data: {
+      hackathonId: privateHackathon.id,
+      label: 'How did you receive your invitation?',
+      type: 'SELECT',
+      required: true,
+      options: ['Email', 'Discord', 'Twitter', 'Friend referral', 'Other'],
+      order: 0,
+    },
+  });
+  const privateQ2 = await prisma.hackathonRegistrationQuestion.create({
+    data: {
+      hackathonId: privateHackathon.id,
+      label: 'What is your primary area of expertise?',
+      type: 'SELECT',
+      required: true,
+      options: ['Smart Contracts', 'Frontend', 'Backend', 'Full Stack', 'Research'],
+      order: 1,
+    },
+  });
+  const privateQ3 = await prisma.hackathonRegistrationQuestion.create({
+    data: {
+      hackathonId: privateHackathon.id,
+      label: 'Why do you want to participate in this private hackathon?',
+      type: 'TEXTAREA',
+      required: false,
+      placeholder: 'Tell us your motivation...',
+      order: 2,
+    },
+  });
+
+  console.log(`✅ Created 4 active hackathons (1 private) with registration questions\n`);
 
   // ============================================
   // 5. CREATE HACKATHON CREATION REQUESTS
@@ -1094,7 +1116,7 @@ Best integrations win big!`,
   // ============================================
   console.log('📝 Creating hackathon registrations...');
 
-  // ETH Hackathon registrations with custom question answers
+  // ETH Hackathon registrations with custom question answers (new table structure)
   // Note: All registrations are auto-approved (current system behavior)
   const ethReg1 = await prisma.hackathonRegistration.create({
     data: {
@@ -1102,15 +1124,13 @@ Best integrations win big!`,
       userId: hacker1.id,
       status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
-        create: {
-          answers: {
-            q1: 'Expert',
-            q2: 'DeFi Innovation',
-            q3: 'Yes, looking for more members',
-            q4: 'Built a DEX aggregator that saved users 15% on gas fees.',
-            q5: 'Twitter/X',
-          },
-        },
+        create: [
+          { questionId: ethQ1.id, value: ['Expert'] },
+          { questionId: ethQ2.id, value: ['DeFi Innovation'] },
+          { questionId: ethQ3.id, value: ['Yes, looking for more members'] },
+          { questionId: ethQ4.id, value: ['Built a DEX aggregator that saved users 15% on gas fees.'] },
+          { questionId: ethQ5.id, value: ['Twitter/X'] },
+        ],
       },
     },
   });
@@ -1121,15 +1141,13 @@ Best integrations win big!`,
       userId: hacker2.id,
       status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
-        create: {
-          answers: {
-            q1: 'Advanced',
-            q2: 'Public Goods',
-            q3: 'No, looking for a team',
-            q4: 'Contributed to multiple open-source Solana projects.',
-            q5: 'Discord',
-          },
-        },
+        create: [
+          { questionId: ethQ1.id, value: ['Advanced'] },
+          { questionId: ethQ2.id, value: ['Public Goods'] },
+          { questionId: ethQ3.id, value: ['No, looking for a team'] },
+          { questionId: ethQ4.id, value: ['Contributed to multiple open-source Solana projects.'] },
+          { questionId: ethQ5.id, value: ['Discord'] },
+        ],
       },
     },
   });
@@ -1140,15 +1158,13 @@ Best integrations win big!`,
       userId: hacker3.id,
       status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
-        create: {
-          answers: {
-            q1: 'Expert',
-            q2: 'Account Abstraction',
-            q3: 'Solo participant',
-            q4: 'Published research on ZK-SNARKs optimization.',
-            q5: 'Newsletter',
-          },
-        },
+        create: [
+          { questionId: ethQ1.id, value: ['Expert'] },
+          { questionId: ethQ2.id, value: ['Account Abstraction'] },
+          { questionId: ethQ3.id, value: ['Solo participant'] },
+          { questionId: ethQ4.id, value: ['Published research on ZK-SNARKs optimization.'] },
+          { questionId: ethQ5.id, value: ['Newsletter'] },
+        ],
       },
     },
   });
@@ -1159,15 +1175,13 @@ Best integrations win big!`,
       userId: hacker4.id,
       status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
-        create: {
-          answers: {
-            q1: 'Intermediate',
-            q2: 'DeFi Innovation',
-            q3: 'Yes, complete team',
-            q4: 'Working on a yield aggregator for my portfolio.',
-            q5: 'Friend referral',
-          },
-        },
+        create: [
+          { questionId: ethQ1.id, value: ['Intermediate'] },
+          { questionId: ethQ2.id, value: ['DeFi Innovation'] },
+          { questionId: ethQ3.id, value: ['Yes, complete team'] },
+          { questionId: ethQ4.id, value: ['Working on a yield aggregator for my portfolio.'] },
+          { questionId: ethQ5.id, value: ['Friend referral'] },
+        ],
       },
     },
   });
@@ -1191,13 +1205,11 @@ Best integrations win big!`,
       userId: hacker1.id,
       status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
-        create: {
-          answers: {
-            q1: 'Email',
-            q2: 'Smart Contracts',
-            q3: 'I want to build innovative DeFi solutions with other talented builders.',
-          },
-        },
+        create: [
+          { questionId: privateQ1.id, value: ['Email'] },
+          { questionId: privateQ2.id, value: ['Smart Contracts'] },
+          { questionId: privateQ3.id, value: ['I want to build innovative DeFi solutions with other talented builders.'] },
+        ],
       },
     },
   });
@@ -1208,13 +1220,11 @@ Best integrations win big!`,
       userId: hacker2.id,
       status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
-        create: {
-          answers: {
-            q1: 'Discord',
-            q2: 'Full Stack',
-            q3: 'Looking forward to networking with top Web3 developers.',
-          },
-        },
+        create: [
+          { questionId: privateQ1.id, value: ['Discord'] },
+          { questionId: privateQ2.id, value: ['Full Stack'] },
+          { questionId: privateQ3.id, value: ['Looking forward to networking with top Web3 developers.'] },
+        ],
       },
     },
   });
@@ -1225,13 +1235,11 @@ Best integrations win big!`,
       userId: hacker3.id,
       status: 'APPROVED', // Auto-approved (matches current system behavior)
       answers: {
-        create: {
-          answers: {
-            q1: 'Twitter',
-            q2: 'Research',
-            q3: 'Interested in exploring cutting-edge Web3 technologies.',
-          },
-        },
+        create: [
+          { questionId: privateQ1.id, value: ['Twitter'] },
+          { questionId: privateQ2.id, value: ['Research'] },
+          { questionId: privateQ3.id, value: ['Interested in exploring cutting-edge Web3 technologies.'] },
+        ],
       },
     },
   });

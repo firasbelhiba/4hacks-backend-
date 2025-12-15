@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class RegisterForHackathonDto {
   @ApiPropertyOptional({
@@ -14,29 +21,39 @@ export class RegisterForHackathonDto {
     description: 'Answers to the hackathon registration questions',
     example: [
       {
-        questionId: 'q1',
-        answer: 'My answer to question 1',
+        questionId: 'clx1abc123',
+        value: ['Advanced'],
+      },
+      {
+        questionId: 'clx2def456',
+        value: ['DeFi', 'Gaming'],
       },
     ],
+    type: () => [RegistrationAnswerDto],
   })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RegistrationAnswerDto)
   @IsOptional()
-  registrationAnswers?: RegistrationAnswerDto[];
+  answers?: RegistrationAnswerDto[];
 }
 
 export class RegistrationAnswerDto {
   @ApiProperty({
-    description: 'The ID of the question being answered',
-    example: 'q1',
+    description: 'The ID of the question being answered (cuid)',
+    example: 'clx1abc123',
   })
   @IsString()
   @IsNotEmpty()
   questionId: string;
 
   @ApiProperty({
-    description: 'The answer to the question',
-    example: 'My answer to question 1',
+    description:
+      'The answer value(s). Use array for multiselect, single-element array for other types.',
+    example: ['Advanced'],
+    type: [String],
   })
-  @IsString()
-  @IsNotEmpty()
-  answer: string;
+  @IsArray()
+  @IsString({ each: true })
+  value: string[];
 }
