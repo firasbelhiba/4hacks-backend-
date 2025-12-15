@@ -62,8 +62,8 @@ export class HackathonService {
     let visibilityWhere: Prisma.HackathonWhereInput;
 
     if (isAdmin) {
-      // Admin sees everything - apply status filter if provided
-      visibilityWhere = status ? { status } : {};
+      // Admin sees everything
+      visibilityWhere = {};
     } else if (userId) {
       // Authenticated user: ACTIVE + own non-public hackathons
       visibilityWhere = {
@@ -88,6 +88,10 @@ export class HackathonService {
 
     // Build additional filters
     const filterWhere: Prisma.HackathonWhereInput = {};
+
+    if (status) {
+      filterWhere.status = status;
+    }
 
     if (type) {
       filterWhere.type = type;
