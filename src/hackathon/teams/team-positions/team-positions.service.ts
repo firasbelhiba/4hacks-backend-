@@ -89,9 +89,14 @@ export class TeamPositionsService {
         },
       });
 
+      // TODO: notif all team members
+
       return teamPosition;
     });
 
-    return teamPosition;
+    return {
+      message: 'Team position created successfully',
+      data: teamPosition,
+    };
   }
 }
