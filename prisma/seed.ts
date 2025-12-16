@@ -9,8 +9,99 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
+// Helper function to generate random data
+const randomChoice = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+const randomInt = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min;
+const randomDate = (start: Date, end: Date): Date => {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+};
+
+// Data pools for generation
+const hackathonTitles = [
+  'Web3 Builders Summit',
+  'DeFi Innovation Challenge',
+  'NFT Creator Fest',
+  'Blockchain Developer Bootcamp',
+  'Crypto Hackathon',
+  'Smart Contract Showdown',
+  'Decentralized Future',
+  'Chain Builders',
+  'Protocol Pioneers',
+  'DApp Developers',
+  'Tokenomics Tournament',
+  'Cross-Chain Challenge',
+  'Layer 2 Launchpad',
+  'DAO Democracy',
+  'Privacy Protocol',
+  'Gaming Guild',
+  'Metaverse Masters',
+  'Infrastructure Innovators',
+  'Security Summit',
+  'Scalability Sprint',
+];
+
+const cities = [
+  'San Francisco', 'New York', 'London', 'Singapore', 'Tokyo', 'Berlin', 'Paris',
+  'Toronto', 'Sydney', 'Dubai', 'Amsterdam', 'Zurich', 'Seoul', 'Mumbai',
+  'São Paulo', 'Barcelona', 'Vancouver', 'Austin', 'Boston', 'Chicago',
+];
+
+const countries = [
+  'United States', 'United Kingdom', 'Canada', 'Germany', 'France', 'Japan',
+  'Singapore', 'Australia', 'Netherlands', 'Switzerland', 'South Korea',
+  'India', 'Brazil', 'Spain', 'United Arab Emirates',
+];
+
+const teamNames = [
+  'Code Warriors', 'Blockchain Bandits', 'Crypto Crusaders', 'DeFi Developers',
+  'Smart Squad', 'Chain Champions', 'Protocol Pioneers', 'Token Titans',
+  'DApp Dreamers', 'Web3 Wizards', 'NFT Ninjas', 'DAO Defenders',
+  'Layer 2 Legends', 'Privacy Protectors', 'Security Savants', 'Scalability Stars',
+  'Innovation Inc', 'Builders Brigade', 'Hack Heroes', 'Tech Titans',
+];
+
+const projectTitles = [
+  'DeFi Aggregator', 'NFT Marketplace', 'DAO Tool', 'Cross-Chain Bridge',
+  'Gaming Platform', 'Identity Solution', 'Payment Protocol', 'Oracle Service',
+  'Staking Platform', 'Lending Protocol', 'DEX', 'Yield Optimizer',
+  'Portfolio Tracker', 'Wallet App', 'Analytics Dashboard', 'Governance Tool',
+];
+
+const technologies = [
+  'Solidity', 'Rust', 'TypeScript', 'JavaScript', 'React', 'Next.js',
+  'Vue.js', 'Node.js', 'Python', 'Go', 'Anchor', 'Hardhat', 'Foundry',
+  'Ethers.js', 'Web3.js', 'Wagmi', 'The Graph', 'IPFS', 'Arweave',
+];
+
+const skills = [
+  'Solidity', 'Rust', 'TypeScript', 'JavaScript', 'React', 'Smart Contracts',
+  'DeFi', 'NFT', 'Web3', 'Blockchain', 'Cryptography', 'Security',
+  'Frontend', 'Backend', 'Full Stack', 'DevOps', 'UI/UX', 'Product',
+];
+
+// Nice, eye-friendly color palette (inspired by seed.ts)
+const niceColors = [
+  '627EEA', // Ethereum purple-blue
+  '14F195', // Solana green
+  '8247E5', // Polygon purple
+  '375BD2', // Chainlink blue
+  '6F4CFF', // The Graph purple
+  'B6509E', // Aave pink
+  '8B5CF6', // Jupiter purple
+  '4A90E2', // Sky blue
+  '00D4AA', // Teal
+  'FF6B6B', // Coral red
+  '4ECDC4', // Turquoise
+  '95E1D3', // Mint green
+  'F38181', // Soft pink
+  'AA96DA', // Lavender
+  'FCBAD3', // Light pink
+  'A8E6CF', // Light green
+];
+
 async function main() {
-  console.log('🌱 Starting database seed...\n');
+  console.log('🌱 Starting MAX database seed...\n');
+  console.log('⚠️  This will generate a large amount of data (50 hackathons, 200 teams, 600+ users)\n');
 
   // Clean existing data (in reverse order of dependencies)
   console.log('🧹 Cleaning existing data...');
@@ -18,6 +109,7 @@ async function main() {
   await prisma.hackathonQuestionReply.deleteMany();
   await prisma.hackathonQuestionThread.deleteMany();
   await prisma.hackathonRegistrationAnswer.deleteMany();
+  await prisma.hackathonRegistrationQuestion.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.teamInvitation.deleteMany();
   await prisma.teamMember.deleteMany();
@@ -45,10 +137,11 @@ async function main() {
   const now = new Date();
 
   // ============================================
-  // 1. CREATE USERS
+  // 1. CREATE USERS (600-700 users)
   // ============================================
-  console.log('👤 Creating users...');
+  console.log('👤 Creating users (600-700)...');
 
+  // Admin user (exactly like seed.ts)
   const adminUser = await prisma.users.create({
     data: {
       email: 'admin@4hacks.io',
@@ -64,1781 +157,917 @@ async function main() {
     },
   });
 
-  // Web3 Developers
-  const hacker1 = await prisma.users.create({
-    data: {
-      email: 'vitalik@example.com',
-      username: 'vitalik_eth',
-      password: hashedPassword,
-      name: 'Vitalik B.',
-      role: 'USER',
-      isEmailVerified: true,
-      providers: ['CREDENTIAL'],
-      profession: 'Smart Contract Developer',
-      bio: 'Building the decentralized future. Solidity enthusiast.',
-      location: 'Singapore',
-      skills: ['Solidity', 'Ethereum', 'EVM', 'Foundry', 'Hardhat'],
-      github: 'https://github.com/vitalikb',
-      twitter: 'https://twitter.com/vitalikb',
-      walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f8c4A1',
-    },
-  });
+  const users = [adminUser];
 
-  const hacker2 = await prisma.users.create({
-    data: {
-      email: 'satoshi@example.com',
-      username: 'satoshi_dev',
-      password: hashedPassword,
-      name: 'Satoshi N.',
-      role: 'USER',
-      isEmailVerified: true,
-      providers: ['CREDENTIAL'],
-      profession: 'Blockchain Engineer',
-      bio: 'Full stack Web3 developer. Building DeFi protocols.',
-      location: 'Tokyo, Japan',
-      skills: ['Rust', 'Solana', 'Anchor', 'TypeScript', 'React'],
-      github: 'https://github.com/satoshin',
-      linkedin: 'https://linkedin.com/in/satoshin',
-      walletAddress: '0x8ba1f109551bD432803012645Ac136ddd64DBa72',
-    },
-  });
+  // Create users individually (like seed.ts) but scaled up
+  // We'll create 700 total: 1 admin + 12 org owners + 687 regular users
+  const totalRegularUsers = 687; // Regular users (excluding admin and org owners)
+  
+  for (let i = 1; i <= totalRegularUsers; i++) {
+    const userNum = i;
+    const email = `user${userNum}@example.com`;
+    const username = `user${userNum}`;
+    
+    const user = await prisma.users.create({
+      data: {
+        email,
+        username,
+        password: hashedPassword,
+        name: `User${userNum} Dev${userNum}`,
+        role: 'USER',
+        isEmailVerified: true,
+        providers: ['CREDENTIAL'],
+        profession: randomChoice(['Smart Contract Developer', 'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'Blockchain Engineer', 'DeFi Developer', 'NFT Developer']),
+        bio: `Web3 developer passionate about ${randomChoice(['DeFi', 'NFTs', 'DAOs', 'Infrastructure', 'Privacy', 'Gaming'])}`,
+        location: `${randomChoice(cities)}, ${randomChoice(countries)}`,
+        skills: Array.from({ length: randomInt(2, 5) }, () => randomChoice(skills)),
+        github: `https://github.com/${username}`,
+        walletAddress: `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+      },
+    });
+    
+    users.push(user);
+    
+    // Log progress every 100 users
+    if (i % 100 === 0) {
+      console.log(`   Created ${i}/${totalRegularUsers} regular users`);
+    }
+  }
 
-  const hacker3 = await prisma.users.create({
-    data: {
-      email: 'ada@example.com',
-      username: 'ada_zk',
-      password: hashedPassword,
-      name: 'Ada L.',
-      role: 'USER',
-      isEmailVerified: true,
-      providers: ['CREDENTIAL'],
-      profession: 'ZK Researcher',
-      bio: 'Zero-knowledge proof researcher. Privacy advocate.',
-      location: 'Berlin, Germany',
-      skills: ['Circom', 'ZK-SNARKs', 'Noir', 'Rust', 'Cryptography'],
-      github: 'https://github.com/adazk',
-      twitter: 'https://twitter.com/adazk',
-    },
-  });
-
-  const hacker4 = await prisma.users.create({
-    data: {
-      email: 'charlie@example.com',
-      username: 'charlie_defi',
-      password: hashedPassword,
-      name: 'Charlie W.',
-      role: 'USER',
-      isEmailVerified: true,
-      providers: ['CREDENTIAL'],
-      profession: 'DeFi Developer',
-      bio: 'Building the future of finance. AMM and lending protocol specialist.',
-      location: 'New York, NY',
-      skills: ['Solidity', 'Vyper', 'DeFi', 'MEV', 'Flash Loans'],
-      github: 'https://github.com/charliedefi',
-      telegram: 'https://t.me/charliedefi',
-      walletAddress: '0x1234567890123456789012345678901234567890',
-    },
-  });
-
-  const hacker5 = await prisma.users.create({
-    data: {
-      email: 'diana@example.com',
-      username: 'diana_nft',
-      password: hashedPassword,
-      name: 'Diana P.',
-      role: 'USER',
-      isEmailVerified: true,
-      providers: ['CREDENTIAL'],
-      profession: 'NFT/Gaming Developer',
-      bio: 'Creating digital experiences on-chain. Game dev turned Web3.',
-      location: 'Los Angeles, CA',
-      skills: ['Unity', 'Solidity', 'ERC721', 'ERC1155', 'IPFS'],
-      github: 'https://github.com/diananft',
-      twitter: 'https://twitter.com/diananft',
-    },
-  });
-
-  const hacker6 = await prisma.users.create({
-    data: {
-      email: 'ethan@example.com',
-      username: 'ethan_infra',
-      password: hashedPassword,
-      name: 'Ethan R.',
-      role: 'USER',
-      isEmailVerified: true,
-      providers: ['CREDENTIAL'],
-      profession: 'Infrastructure Engineer',
-      bio: 'Building scalable blockchain infrastructure. Node operator.',
-      location: 'Austin, TX',
-      skills: ['Go', 'Kubernetes', 'AWS', 'Tendermint', 'Cosmos SDK'],
-      github: 'https://github.com/ethaninfra',
-      linkedin: 'https://linkedin.com/in/ethaninfra',
-    },
-  });
-
-  // Organization owner (non-admin user who can create hackathons)
-  const orgOwner = await prisma.users.create({
-    data: {
-      email: 'founder@solanalabs.io',
-      username: 'solana_founder',
-      password: hashedPassword,
-      name: 'Raj G.',
-      role: 'USER',
-      isEmailVerified: true,
-      providers: ['CREDENTIAL'],
-      profession: 'Protocol Founder',
-      bio: 'Building high-performance blockchains.',
-      location: 'San Francisco, CA',
-      skills: ['Rust', 'Systems Programming', 'Distributed Systems'],
-      github: 'https://github.com/rajg',
-      twitter: 'https://twitter.com/rajg',
-    },
-  });
-
-  console.log(`✅ Created 8 users\n`);
+  console.log(`✅ Created ${users.length} users\n`);
 
   // ============================================
   // 2. CREATE HACKATHON CATEGORIES
   // ============================================
   console.log('📁 Creating hackathon categories...');
-
-  const categoryDeFi = await prisma.hackathonCategory.create({
-    data: {
-      name: 'DEFI',
-      description: 'Decentralized Finance - DEXs, lending, derivatives, and financial primitives',
-    },
+  await prisma.hackathonCategory.createMany({
+    data: [
+      { name: 'DEFI', description: 'Decentralized Finance' },
+      { name: 'NFT & GAMING', description: 'NFTs and Gaming' },
+      { name: 'INFRASTRUCTURE', description: 'Infrastructure and Tools' },
+      { name: 'ZK & PRIVACY', description: 'Zero-Knowledge and Privacy' },
+      { name: 'DAO & GOVERNANCE', description: 'DAOs and Governance' },
+      { name: 'AI X WEB3', description: 'AI and Web3' },
+      { name: 'OPEN TRACK', description: 'Open Track' },
+    ],
   });
-
-  const categoryNFT = await prisma.hackathonCategory.create({
-    data: {
-      name: 'NFT & GAMING',
-      description: 'Non-Fungible Tokens, GameFi, metaverse, and digital collectibles',
-    },
-  });
-
-  const categoryInfra = await prisma.hackathonCategory.create({
-    data: {
-      name: 'INFRASTRUCTURE',
-      description: 'Developer tools, SDKs, oracles, bridges, and blockchain infrastructure',
-    },
-  });
-
-  const categoryZK = await prisma.hackathonCategory.create({
-    data: {
-      name: 'ZK & PRIVACY',
-      description: 'Zero-knowledge proofs, privacy-preserving applications, and cryptography',
-    },
-  });
-
-  const categoryDAO = await prisma.hackathonCategory.create({
-    data: {
-      name: 'DAO & GOVERNANCE',
-      description: 'Decentralized autonomous organizations, voting, and governance tools',
-    },
-  });
-
-  const categoryAI = await prisma.hackathonCategory.create({
-    data: {
-      name: 'AI X WEB3',
-      description: 'Intersection of AI and blockchain - on-chain AI, decentralized ML',
-    },
-  });
-
-  const categoryOpen = await prisma.hackathonCategory.create({
-    data: {
-      name: 'OPEN TRACK',
-      description: 'Open-ended hackathons for any Web3 innovation',
-    },
-  });
-
-  console.log(`✅ Created 7 categories\n`);
+  const categoryRecords = await prisma.hackathonCategory.findMany();
+  console.log(`✅ Created ${categoryRecords.length} categories\n`);
 
   // ============================================
-  // 3. CREATE ORGANIZATIONS
+  // 3. CREATE ORGANIZATION OWNERS & ORGANIZATIONS
   // ============================================
-  console.log('🏢 Creating organizations...');
-
-  const ethFoundation = await prisma.organization.create({
+  console.log('🏢 Creating organization owners and organizations...');
+  const orgNames = [
+    'Ethereum Foundation', 'Solana Labs', 'Polygon DAO', 'Avalanche Foundation',
+    'Chainlink Labs', 'The Graph Foundation', 'Uniswap Labs', 'Aave Protocol',
+    'Arbitrum Foundation', 'Optimism Foundation', 'Base', 'zkSync',
+  ];
+  
+  // Create organization owners with clear naming
+  const orgOwners: Array<{ userId: string; orgName: string }> = [];
+  for (let i = 0; i < orgNames.length; i++) {
+    const orgNameShort = orgNames[i].toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    const orgOwner = await prisma.users.create({
+      data: {
+        email: `org_owner_${orgNameShort}@4hacks.io`,
+        username: `org_owner_${orgNameShort}`,
+        password: hashedPassword,
+        name: `${orgNames[i]} Owner`,
+        role: 'USER',
+        isEmailVerified: true,
+        providers: ['CREDENTIAL'],
+        profession: 'Organization Founder',
+        bio: `Founder and owner of ${orgNames[i]}`,
+        skills: ['Organization Management', 'Web3', 'Blockchain'],
+      },
+    });
+    users.push(orgOwner);
+    orgOwners.push({ userId: orgOwner.id, orgName: orgNames[i] });
+  }
+  console.log(`   Created ${orgOwners.length} organization owners\n`);
+  
+  // Create organizations with their owners
+  const orgToOwnerMap = new Map<string, string>(); // orgId -> ownerId
+  const hackathonToOrgOwnerMap = new Map<string, string>(); // hackathonId -> ownerId
+  
+  // Create first organization to initialize array type
+  const firstOrgSlug = orgNames[0].toLowerCase().replace(/\s+/g, '-');
+  const firstOrgOwner = orgOwners[0];
+  const firstOrg = await prisma.organization.create({
     data: {
-      name: 'Ethereum Foundation',
-      slug: 'ethereum-foundation',
-      displayName: 'ETH Foundation',
-      logo: 'https://placehold.co/200x200/627EEA/FFFFFF?text=ETH',
-      tagline: 'Building the decentralized future',
-      description: 'The Ethereum Foundation is a non-profit organization dedicated to supporting Ethereum and related technologies.',
-      type: 'BLOCKCHAIN_FOUNDATION',
-      establishedYear: 2014,
-      size: 'FIFTY_ONE_TO_TWO_HUNDRED',
-      operatingRegions: ['GLOBAL'],
-      email: 'hackathons@ethereum.org',
+      name: orgNames[0],
+      slug: firstOrgSlug,
+      displayName: orgNames[0],
+      logo: `https://placehold.co/200x200/${niceColors[0]}/FFFFFF?text=${orgNames[0].substring(0, 3)}`,
+      tagline: `Building the future of ${randomChoice(['blockchain', 'DeFi', 'Web3', 'crypto'])}`,
+      description: `Organization focused on ${orgNames[0]}`,
+      type: randomChoice(['BLOCKCHAIN_FOUNDATION', 'STARTUP', 'DAO', 'ENTERPRISE']),
+      establishedYear: randomInt(2015, 2022),
+      size: randomChoice(['FIFTY_ONE_TO_TWO_HUNDRED', 'TWO_HUNDRED_ONE_TO_FIVE_HUNDRED', 'COMMUNITY_DRIVEN']),
+      operatingRegions: [randomChoice(['GLOBAL', 'NORTH_AMERICA', 'EUROPE', 'ASIA'])],
+      email: `contact@${firstOrgSlug.replace(/-/g, '')}.io`,
       phone: '+1-555-0001',
-      country: 'Switzerland',
-      city: 'Zug',
-      website: 'https://ethereum.org',
-      linkedin: 'https://linkedin.com/company/ethereum-foundation',
-      github: 'https://github.com/ethereum',
-      twitter: 'https://twitter.com/ethereum',
-      discord: 'https://discord.gg/ethereum',
-      ownerId: adminUser.id,
+      country: randomChoice(countries),
+      city: randomChoice(cities),
+      website: `https://${firstOrgSlug.replace(/-/g, '')}.io`,
+      linkedin: `https://linkedin.com/company/${firstOrgSlug}`,
+      github: `https://github.com/${firstOrgSlug.replace(/-/g, '')}`,
+      twitter: `https://twitter.com/${firstOrgSlug.replace(/-/g, '')}`,
+      ownerId: firstOrgOwner.userId,
     },
   });
-
-  const solanaLabs = await prisma.organization.create({
-    data: {
-      name: 'Solana Labs',
-      slug: 'solana-labs',
-      displayName: 'Solana',
-      logo: 'https://placehold.co/200x200/14F195/000000?text=SOL',
-      tagline: 'Build for scale. Build for speed.',
-      description: 'Solana is a high-performance blockchain supporting builders around the world creating crypto apps.',
-      type: 'STARTUP',
-      establishedYear: 2017,
-      size: 'TWO_HUNDRED_ONE_TO_FIVE_HUNDRED',
-      operatingRegions: ['NORTH_AMERICA', 'EUROPE', 'ASIA', 'GLOBAL'],
-      email: 'hackathons@solana.com',
-      phone: '+1-555-0002',
-      country: 'United States',
-      city: 'San Francisco',
-      state: 'California',
-      website: 'https://solana.com',
-      linkedin: 'https://linkedin.com/company/solana-labs',
-      github: 'https://github.com/solana-labs',
-      twitter: 'https://twitter.com/solana',
-      discord: 'https://discord.gg/solana',
-      ownerId: orgOwner.id,
-    },
-  });
-
-  const polygonDAO = await prisma.organization.create({
-    data: {
-      name: 'Polygon DAO',
-      slug: 'polygon-dao',
-      displayName: 'Polygon',
-      logo: 'https://placehold.co/200x200/8247E5/FFFFFF?text=POLY',
-      tagline: "Ethereum's Internet of Blockchains",
-      description: 'Polygon is a decentralized Ethereum scaling platform enabling developers to build scalable dApps.',
-      type: 'DAO',
-      establishedYear: 2017,
-      size: 'COMMUNITY_DRIVEN',
-      operatingRegions: ['GLOBAL'],
-      email: 'builders@polygon.technology',
-      phone: '+1-555-0003',
-      country: 'Global',
-      city: 'Decentralized',
-      website: 'https://polygon.technology',
-      linkedin: 'https://linkedin.com/company/polygon-technology',
-      github: 'https://github.com/maticnetwork',
-      twitter: 'https://twitter.com/0xPolygon',
-      ownerId: adminUser.id,
-    },
-  });
-
-  console.log(`✅ Created 3 organizations\n`);
+  const organizations = [firstOrg];
+  orgToOwnerMap.set(firstOrg.id, firstOrgOwner.userId);
+  
+  for (let i = 1; i < orgNames.length; i++) {
+    const orgSlug = orgNames[i].toLowerCase().replace(/\s+/g, '-');
+    const orgOwner = orgOwners[i];
+    const org = await prisma.organization.create({
+      data: {
+        name: orgNames[i],
+        slug: orgSlug,
+        displayName: orgNames[i],
+        logo: `https://placehold.co/200x200/${niceColors[i % niceColors.length]}/FFFFFF?text=${orgNames[i].substring(0, 3)}`,
+        tagline: `Building the future of ${randomChoice(['blockchain', 'DeFi', 'Web3', 'crypto'])}`,
+        description: `Organization focused on ${orgNames[i]}`,
+        type: randomChoice(['BLOCKCHAIN_FOUNDATION', 'STARTUP', 'DAO', 'ENTERPRISE']),
+        establishedYear: randomInt(2015, 2022),
+        size: randomChoice(['FIFTY_ONE_TO_TWO_HUNDRED', 'TWO_HUNDRED_ONE_TO_FIVE_HUNDRED', 'COMMUNITY_DRIVEN']),
+        operatingRegions: [randomChoice(['GLOBAL', 'NORTH_AMERICA', 'EUROPE', 'ASIA'])],
+        email: `contact@${orgSlug.replace(/-/g, '')}.io`,
+        phone: `+1-555-${String(i + 1).padStart(4, '0')}`,
+        country: randomChoice(countries),
+        city: randomChoice(cities),
+        website: `https://${orgSlug.replace(/-/g, '')}.io`,
+        linkedin: `https://linkedin.com/company/${orgSlug}`,
+        github: `https://github.com/${orgSlug.replace(/-/g, '')}`,
+        twitter: `https://twitter.com/${orgSlug.replace(/-/g, '')}`,
+        ownerId: orgOwner.userId,
+      },
+    });
+    organizations.push(org);
+    orgToOwnerMap.set(org.id, orgOwner.userId);
+  }
+  console.log(`✅ Created ${organizations.length} organizations\n`);
 
   // ============================================
-  // 4. CREATE HACKATHONS (ACTIVE)
+  // 4. CREATE HACKATHONS (50 hackathons)
   // ============================================
-  console.log('🏆 Creating hackathons...');
-
-  // Hackathon 1: ETH Global Style (ACTIVE)
-  const ethHackathon = await prisma.hackathon.create({
+  console.log('🏆 Creating hackathons (50)...');
+  
+  // Create first hackathon to initialize array type
+  const firstTitle = `${randomChoice(hackathonTitles)} 2024`;
+  const firstSlug = firstTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-0';
+  const firstCategory = randomChoice(categoryRecords);
+  const firstHackathonOrg = randomChoice(organizations);
+  
+  // Generate dates that make most hackathons ACTIVE (registration open, event ongoing or upcoming)
+  const firstRegistrationStart = randomDate(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000));
+  const firstRegistrationEnd = randomDate(new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000), new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
+  const firstStartDate = randomDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
+  const firstEndDate = new Date(firstStartDate.getTime() + randomInt(1, 7) * 24 * 60 * 60 * 1000);
+  const firstJudgingStart = firstEndDate;
+  const firstJudgingEnd = new Date(firstJudgingStart.getTime() + randomInt(3, 7) * 24 * 60 * 60 * 1000);
+  
+  // Determine status: Most should be ACTIVE, some DRAFT/ARCHIVED/CANCELLED
+  let firstStatus: 'DRAFT' | 'ACTIVE' | 'ARCHIVED' | 'CANCELLED' = 'ACTIVE';
+  const statusRoll = Math.random();
+  if (statusRoll < 0.7) {
+    // 70% ACTIVE - registration open and event ongoing/upcoming
+    firstStatus = 'ACTIVE';
+  } else if (statusRoll < 0.85) {
+    // 15% DRAFT - future events
+    firstStatus = 'DRAFT';
+    // Adjust dates to be in the future
+    firstRegistrationStart.setTime(now.getTime() + randomInt(10, 30) * 24 * 60 * 60 * 1000);
+    firstRegistrationEnd.setTime(firstRegistrationStart.getTime() + randomInt(5, 15) * 24 * 60 * 60 * 1000);
+    firstStartDate.setTime(firstRegistrationEnd.getTime() + randomInt(1, 10) * 24 * 60 * 60 * 1000);
+    firstEndDate.setTime(firstStartDate.getTime() + randomInt(1, 7) * 24 * 60 * 60 * 1000);
+    firstJudgingStart.setTime(firstEndDate.getTime());
+    firstJudgingEnd.setTime(firstJudgingStart.getTime() + randomInt(3, 7) * 24 * 60 * 60 * 1000);
+  } else if (statusRoll < 0.95) {
+    // 10% ARCHIVED - past events
+    firstStatus = 'ARCHIVED';
+    // Adjust dates to be in the past
+    firstRegistrationStart.setTime(now.getTime() - randomInt(60, 90) * 24 * 60 * 60 * 1000);
+    firstRegistrationEnd.setTime(firstRegistrationStart.getTime() + randomInt(10, 20) * 24 * 60 * 60 * 1000);
+    firstStartDate.setTime(now.getTime() - randomInt(30, 60) * 24 * 60 * 60 * 1000);
+    firstEndDate.setTime(now.getTime() - randomInt(20, 30) * 24 * 60 * 60 * 1000);
+    firstJudgingStart.setTime(firstEndDate.getTime());
+    firstJudgingEnd.setTime(now.getTime() - randomInt(10, 20) * 24 * 60 * 60 * 1000);
+  } else {
+    // 5% CANCELLED
+    firstStatus = 'CANCELLED';
+    // Similar to archived but marked as cancelled
+    firstRegistrationStart.setTime(now.getTime() - randomInt(60, 90) * 24 * 60 * 60 * 1000);
+    firstRegistrationEnd.setTime(firstRegistrationStart.getTime() + randomInt(10, 20) * 24 * 60 * 60 * 1000);
+    firstStartDate.setTime(now.getTime() - randomInt(30, 60) * 24 * 60 * 60 * 1000);
+    firstEndDate.setTime(now.getTime() - randomInt(20, 30) * 24 * 60 * 60 * 1000);
+    firstJudgingStart.setTime(firstEndDate.getTime());
+    firstJudgingEnd.setTime(now.getTime() - randomInt(10, 20) * 24 * 60 * 60 * 1000);
+  }
+  
+  const firstIsPrivate = Math.random() > 0.9; // 10% private
+  const firstInvitePasscode = firstIsPrivate ? await bcrypt.hash('PASSCODE123', 10) : null;
+  
+  const firstHackathon = await prisma.hackathon.create({
     data: {
-      title: 'ETH Global Brussels 2025',
-      slug: 'eth-global-brussels-2025',
-      organizationId: ethFoundation.id,
-      categoryId: categoryOpen.id,
-      banner: 'https://placehold.co/1200x400/627EEA/FFFFFF?text=ETH+Global+Brussels+2025',
-      tagline: 'The largest Ethereum hackathon in Europe',
-      description: `# ETH Global Brussels 2025
-
-Welcome to ETH Global Brussels! Join 1000+ hackers for an unforgettable weekend of building on Ethereum.
-
-## 🎯 What to Expect
-- **36-hour hacking** with top builders from around the world
-- **$500,000+ in prizes** across multiple tracks and sponsor bounties
-- **Workshops & talks** from Ethereum core developers
-- **Networking** with VCs, founders, and protocol teams
-
-## 🛠 Tracks
-- DeFi Innovation
-- Public Goods
-- Account Abstraction
-- L2 & Scaling
-- Best Use of Sponsor Technologies
-
-## 📍 Venue
-Brussels Expo, Belgium
-March 15-17, 2025
-
-BUIDL the future with us! 🚀`,
-      type: 'HYBRID',
-      status: 'ACTIVE',
-      tags: ['Ethereum', 'EVM', 'DeFi', 'Public Goods', 'L2', 'Account Abstraction'],
-      prizePool: 500000,
-      prizeToken: 'USD',
-      eligibilityRequirements: 'Open to all developers 18+. In-person attendance requires registration.',
-      submissionGuidelines: `## Submission Requirements
-1. Working prototype deployed on testnet or mainnet
-2. GitHub repository with open-source code
-3. 3-minute video demo
-4. Project writeup explaining the problem and solution`,
-      ressources: `## Developer Resources
-- [Ethereum Docs](https://ethereum.org/developers)
-- [Hardhat](https://hardhat.org)
-- [Foundry](https://book.getfoundry.sh)
-- [wagmi](https://wagmi.sh)`,
-      registrationStart: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000),
-      registrationEnd: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-      startDate: new Date(now.getTime() + 45 * 24 * 60 * 60 * 1000),
-      endDate: new Date(now.getTime() + 47 * 24 * 60 * 60 * 1000),
-      judgingStart: new Date(now.getTime() + 47 * 24 * 60 * 60 * 1000),
-      judgingEnd: new Date(now.getTime() + 50 * 24 * 60 * 60 * 1000),
-      location: { country: 'Belgium', city: 'Brussels', address: 'Brussels Expo' },
-      maxTeamSize: 5,
+      title: firstTitle,
+      slug: firstSlug,
+      organizationId: firstHackathonOrg.id,
+      categoryId: firstCategory.id,
+      banner: `https://placehold.co/1200x400/${niceColors[0]}/FFFFFF?text=${encodeURIComponent(firstTitle)}`,
+      tagline: `Join ${randomInt(100, 1000)}+ builders for ${firstTitle}`,
+      description: `# ${firstTitle}\n\nBuild amazing Web3 projects. Prize pool: $${randomInt(50000, 500000)}.`,
+      type: randomChoice(['ONLINE', 'HYBRID', 'IN_PERSON']),
+      status: firstStatus,
+      tags: Array.from({ length: randomInt(3, 6) }, () => randomChoice(['Ethereum', 'Solana', 'DeFi', 'NFT', 'Web3', 'Blockchain', 'Crypto'])),
+      prizePool: randomInt(50000, 500000),
+      prizeToken: randomChoice(['USD', 'USDC', 'ETH', 'SOL']),
+      eligibilityRequirements: 'Open to all developers 18+.',
+      submissionGuidelines: 'Submit your project with code, demo, and documentation.',
+      ressources: 'Check our developer resources page.',
+      registrationStart: firstRegistrationStart,
+      registrationEnd: firstRegistrationEnd,
+      startDate: firstStartDate,
+      endDate: firstEndDate,
+      judgingStart: firstJudgingStart,
+      judgingEnd: firstJudgingEnd,
+      location: {
+        country: randomChoice(countries),
+        city: randomChoice(cities),
+      },
+      maxTeamSize: randomInt(3, 6),
       minTeamSize: 1,
-      requiresApproval: true, // Requires approval to test registration flow
-      isPrivate: false,
-      requiredSubmissionMaterials: ['VIDEO_DEMO', 'GITHUB_REPOSITORY', 'PITCH_DECK'],
+      requiresApproval: Math.random() > 0.7,
+      isPrivate: firstIsPrivate,
+      invitePasscode: firstInvitePasscode,
+      requiredSubmissionMaterials: randomChoice([
+        ['VIDEO_DEMO', 'GITHUB_REPOSITORY'],
+        ['VIDEO_DEMO', 'GITHUB_REPOSITORY', 'PITCH_DECK'],
+        ['GITHUB_REPOSITORY'],
+      ]),
     },
   });
+  const hackathons = [firstHackathon];
+  // Track the organization owner for this hackathon
+  const firstOrgOwnerId = orgToOwnerMap.get(firstHackathonOrg.id);
+  if (firstOrgOwnerId) {
+    hackathonToOrgOwnerMap.set(firstHackathon.id, firstOrgOwnerId);
+  }
+  
+  for (let i = 1; i < 50; i++) {
+    const title = `${randomChoice(hackathonTitles)} ${2024 + (i % 3)}`;
+    const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + `-${i}`;
+    const category = randomChoice(categoryRecords);
+    const org = randomChoice(organizations);
+    
+    // Generate dates that make most hackathons ACTIVE
+    let registrationStart = randomDate(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000));
+    let registrationEnd = randomDate(new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000), new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
+    let startDate = randomDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
+    let endDate = new Date(startDate.getTime() + randomInt(1, 7) * 24 * 60 * 60 * 1000);
+    let judgingStart = endDate;
+    let judgingEnd = new Date(judgingStart.getTime() + randomInt(3, 7) * 24 * 60 * 60 * 1000);
+    
+    // Determine status: Most should be ACTIVE, some DRAFT/ARCHIVED/CANCELLED
+    let status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED' | 'CANCELLED' = 'ACTIVE';
+    const statusRoll = Math.random();
+    if (statusRoll < 0.7) {
+      // 70% ACTIVE - registration open and event ongoing/upcoming
+      status = 'ACTIVE';
+    } else if (statusRoll < 0.85) {
+      // 15% DRAFT - future events
+      status = 'DRAFT';
+      // Adjust dates to be in the future
+      registrationStart = new Date(now.getTime() + randomInt(10, 30) * 24 * 60 * 60 * 1000);
+      registrationEnd = new Date(registrationStart.getTime() + randomInt(5, 15) * 24 * 60 * 60 * 1000);
+      startDate = new Date(registrationEnd.getTime() + randomInt(1, 10) * 24 * 60 * 60 * 1000);
+      endDate = new Date(startDate.getTime() + randomInt(1, 7) * 24 * 60 * 60 * 1000);
+      judgingStart = endDate;
+      judgingEnd = new Date(judgingStart.getTime() + randomInt(3, 7) * 24 * 60 * 60 * 1000);
+    } else if (statusRoll < 0.95) {
+      // 10% ARCHIVED - past events
+      status = 'ARCHIVED';
+      // Adjust dates to be in the past
+      registrationStart = new Date(now.getTime() - randomInt(60, 90) * 24 * 60 * 60 * 1000);
+      registrationEnd = new Date(registrationStart.getTime() + randomInt(10, 20) * 24 * 60 * 60 * 1000);
+      startDate = new Date(now.getTime() - randomInt(30, 60) * 24 * 60 * 60 * 1000);
+      endDate = new Date(now.getTime() - randomInt(20, 30) * 24 * 60 * 60 * 1000);
+      judgingStart = endDate;
+      judgingEnd = new Date(now.getTime() - randomInt(10, 20) * 24 * 60 * 60 * 1000);
+    } else {
+      // 5% CANCELLED
+      status = 'CANCELLED';
+      // Similar to archived but marked as cancelled
+      registrationStart = new Date(now.getTime() - randomInt(60, 90) * 24 * 60 * 60 * 1000);
+      registrationEnd = new Date(registrationStart.getTime() + randomInt(10, 20) * 24 * 60 * 60 * 1000);
+      startDate = new Date(now.getTime() - randomInt(30, 60) * 24 * 60 * 60 * 1000);
+      endDate = new Date(now.getTime() - randomInt(20, 30) * 24 * 60 * 60 * 1000);
+      judgingStart = endDate;
+      judgingEnd = new Date(now.getTime() - randomInt(10, 20) * 24 * 60 * 60 * 1000);
+    }
+    
+    const isPrivate = Math.random() > 0.9; // 10% private
+    const invitePasscode = isPrivate ? await bcrypt.hash('PASSCODE123', 10) : null;
+    
+    const hackathon = await prisma.hackathon.create({
+      data: {
+        title,
+        slug,
+        organizationId: org.id,
+        categoryId: category.id,
+        banner: `https://placehold.co/1200x400/${niceColors[i % niceColors.length]}/FFFFFF?text=${encodeURIComponent(title)}`,
+        tagline: `Join ${randomInt(100, 1000)}+ builders for ${title}`,
+        description: `# ${title}\n\nBuild amazing Web3 projects. Prize pool: $${randomInt(50000, 500000)}.`,
+        type: randomChoice(['ONLINE', 'HYBRID', 'IN_PERSON']),
+        status,
+        tags: Array.from({ length: randomInt(3, 6) }, () => randomChoice(['Ethereum', 'Solana', 'DeFi', 'NFT', 'Web3', 'Blockchain', 'Crypto'])),
+        prizePool: randomInt(50000, 500000),
+        prizeToken: randomChoice(['USD', 'USDC', 'ETH', 'SOL']),
+        eligibilityRequirements: 'Open to all developers 18+.',
+        submissionGuidelines: 'Submit your project with code, demo, and documentation.',
+        ressources: 'Check our developer resources page.',
+        registrationStart,
+        registrationEnd,
+        startDate,
+        endDate,
+        judgingStart,
+        judgingEnd,
+        location: {
+          country: randomChoice(countries),
+          city: randomChoice(cities),
+        },
+      maxTeamSize: randomInt(3, 6),
+      minTeamSize: 1,
+      requiresApproval: Math.random() > 0.7,
+      isPrivate: isPrivate,
+      invitePasscode: invitePasscode,
+      requiredSubmissionMaterials: randomChoice([
+        ['VIDEO_DEMO', 'GITHUB_REPOSITORY'],
+        ['VIDEO_DEMO', 'GITHUB_REPOSITORY', 'PITCH_DECK'],
+        ['GITHUB_REPOSITORY'],
+      ]),
+    },
+  });
+    hackathons.push(hackathon);
+    // Track the organization owner for this hackathon
+    const orgOwnerId = orgToOwnerMap.get(org.id);
+    if (orgOwnerId) {
+      hackathonToOrgOwnerMap.set(hackathon.id, orgOwnerId);
+    }
+    
+    if ((i + 1) % 10 === 0) {
+      console.log(`   Created ${i + 1}/50 hackathons`);
+    }
+  }
+  console.log(`✅ Created ${hackathons.length} hackathons\n`);
 
-  // Create registration questions for ETH hackathon (separate table)
-  const ethQ1 = await prisma.hackathonRegistrationQuestion.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      label: 'What is your experience level with Ethereum development?',
-      type: 'SELECT',
+  // ============================================
+  // 5. CREATE TRACKS (2-4 per hackathon)
+  // ============================================
+  console.log('🎯 Creating tracks...');
+  let trackCount = 0;
+  for (const hackathon of hackathons) {
+    const trackCountForHackathon = randomInt(2, 4);
+    const trackNames = ['Main Track', 'Innovation Track', 'Best Use Case', 'Community Choice'];
+    
+    for (let i = 0; i < trackCountForHackathon; i++) {
+      await prisma.track.create({
+        data: {
+          hackathonId: hackathon.id,
+          name: trackNames[i] || `Track ${i + 1}`,
+          description: `Track ${i + 1} for ${hackathon.title}`,
+          judgingCriteria: 'Innovation, Technical Implementation, User Experience, Viability',
+          order: i + 1,
+          winnersCount: randomInt(2, 4),
+        },
+      });
+      trackCount++;
+    }
+  }
+  console.log(`✅ Created ${trackCount} tracks\n`);
+
+  // ============================================
+  // 6. CREATE SPONSORS & BOUNTIES
+  // ============================================
+  console.log('💎 Creating sponsors and bounties...');
+  let sponsorCount = 0;
+  let bountyCount = 0;
+  
+  for (const hackathon of hackathons) {
+    // Get the organization for this hackathon
+    const hackathonOrg = organizations.find(o => o.id === hackathon.organizationId);
+    if (!hackathonOrg) continue;
+    
+    // First sponsor is always the organization sponsor (isCurrentOrganization: true)
+    const orgSponsor = await prisma.sponsor.create({
+      data: {
+        hackathonId: hackathon.id,
+        name: hackathonOrg.name,
+        logo: hackathonOrg.logo,
+        isCurrentOrganization: true,
+      },
+    });
+    sponsorCount++;
+    
+    // Create 1-2 bounties for organization sponsor
+    const orgBountyCount = randomInt(1, 2);
+    for (let j = 0; j < orgBountyCount; j++) {
+      await prisma.bounty.create({
+        data: {
+          hackathonId: hackathon.id,
+          sponsorId: orgSponsor.id,
+          title: `${hackathonOrg.name} Main Bounty`,
+          description: `Build innovative solutions with ${hackathonOrg.name} and win prizes!`,
+          rewardAmount: randomInt(10000, 50000),
+          rewardToken: 'USDC',
+          maxWinners: randomInt(2, 5),
+        },
+      });
+      bountyCount++;
+    }
+    
+    // Then create additional external sponsors (isCurrentOrganization: false)
+    const additionalSponsorCount = randomInt(1, 4);
+    const sponsorNames = ['Chainlink', 'The Graph', 'Aave', 'Uniswap', 'Polygon', 'Arbitrum'];
+    
+    for (let i = 0; i < additionalSponsorCount; i++) {
+      const sponsor = await prisma.sponsor.create({
+        data: {
+          hackathonId: hackathon.id,
+          name: sponsorNames[i] || `Sponsor ${i + 1}`,
+          logo: `https://placehold.co/150x150/${niceColors[(sponsorCount + i) % niceColors.length]}/FFFFFF?text=${sponsorNames[i]?.substring(0, 3) || 'SP'}`,
+          isCurrentOrganization: false,
+        },
+      });
+      sponsorCount++;
+      
+      // Create 1-2 bounties per external sponsor
+      const bountyCountForSponsor = randomInt(1, 2);
+      for (let j = 0; j < bountyCountForSponsor; j++) {
+        await prisma.bounty.create({
+          data: {
+            hackathonId: hackathon.id,
+            sponsorId: sponsor.id,
+            title: `Best Use of ${sponsor.name}`,
+            description: `Build with ${sponsor.name} and win prizes!`,
+            rewardAmount: randomInt(5000, 50000),
+            rewardToken: 'USDC',
+            maxWinners: randomInt(2, 5),
+          },
+        });
+        bountyCount++;
+      }
+    }
+  }
+  console.log(`✅ Created ${sponsorCount} sponsors and ${bountyCount} bounties\n`);
+
+  // ============================================
+  // 7. CREATE PRIZES
+  // ============================================
+  console.log('💰 Creating prizes...');
+  let prizeCount = 0;
+  
+  const tracks = await prisma.track.findMany();
+  for (const track of tracks) {
+    const winnersCount = track.winnersCount || 3;
+    for (let i = 1; i <= winnersCount; i++) {
+      await prisma.prize.create({
+        data: {
+          hackathonId: track.hackathonId,
+          trackId: track.id,
+          type: 'TRACK',
+          position: i,
+          name: `${i === 1 ? 'First' : i === 2 ? 'Second' : i === 3 ? 'Third' : `${i}th`} Place`,
+          amount: randomInt(5000, 50000),
+          token: 'USDC',
+        },
+      });
+      prizeCount++;
+    }
+  }
+  
+  const bounties = await prisma.bounty.findMany();
+  for (const bounty of bounties) {
+    const maxWinners = bounty.maxWinners || 3;
+    for (let i = 1; i <= maxWinners; i++) {
+      await prisma.prize.create({
+        data: {
+          hackathonId: bounty.hackathonId,
+          bountyId: bounty.id,
+          type: 'BOUNTY',
+          position: i,
+          name: `${i === 1 ? 'First' : i === 2 ? 'Second' : i === 3 ? 'Third' : `${i}th`} Place`,
+          amount: randomInt(2000, 20000),
+          token: 'USDC',
+        },
+      });
+      prizeCount++;
+    }
+  }
+  console.log(`✅ Created ${prizeCount} prizes\n`);
+
+  // ============================================
+  // 7.5. CREATE REGISTRATION QUESTIONS (for ~20% of hackathons)
+  // ============================================
+  console.log('❓ Creating registration questions...');
+  let questionCount = 0;
+  
+  // Create questions for about 20% of hackathons (10 out of 50)
+  const hackathonsWithQuestions = hackathons.slice(0, 10);
+  const sampleQuestions = [
+    {
+      label: 'What is your experience level?',
+      type: 'SELECT' as const,
       required: true,
       options: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       order: 0,
     },
-  });
-  const ethQ2 = await prisma.hackathonRegistrationQuestion.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      label: 'Which track are you most interested in?',
-      type: 'SELECT',
+    {
+      label: 'Which track interests you most?',
+      type: 'SELECT' as const,
       required: true,
-      options: ['DeFi Innovation', 'Public Goods', 'Account Abstraction', 'L2 & Scaling'],
+      options: ['DeFi', 'NFTs', 'Infrastructure', 'Gaming', 'DAO'],
       order: 1,
     },
-  });
-  const ethQ3 = await prisma.hackathonRegistrationQuestion.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      label: 'Do you have a team already?',
-      type: 'SELECT',
-      required: true,
-      options: ['Yes, complete team', 'Yes, looking for more members', 'No, looking for a team', 'Solo participant'],
+    {
+      label: 'Do you have a team?',
+      type: 'SELECT' as const,
+      required: false,
+      options: ['Yes, complete team', 'Yes, looking for members', 'No, looking for team', 'Solo'],
       order: 2,
     },
-  });
-  const ethQ4 = await prisma.hackathonRegistrationQuestion.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      label: 'Tell us about a project you are proud of',
-      type: 'TEXTAREA',
+    {
+      label: 'Tell us about a project you\'re proud of',
+      type: 'TEXTAREA' as const,
       required: false,
       placeholder: 'Describe a past project...',
       order: 3,
     },
-  });
-  const ethQ5 = await prisma.hackathonRegistrationQuestion.create({
-    data: {
-      hackathonId: ethHackathon.id,
+    {
       label: 'How did you hear about this hackathon?',
-      type: 'SELECT',
+      type: 'SELECT' as const,
       required: false,
-      options: ['Twitter/X', 'Discord', 'Friend referral', 'Newsletter', 'Other'],
+      options: ['Twitter/X', 'Discord', 'Friend', 'Newsletter', 'Other'],
       order: 4,
     },
-  });
-
-  // Hackathon 2: Solana Hackathon (ACTIVE)
-  const solanaHackathon = await prisma.hackathon.create({
-    data: {
-      title: 'Solana Speedrun 2025',
-      slug: 'solana-speedrun-2025',
-      organizationId: solanaLabs.id,
-      categoryId: categoryInfra.id,
-      banner: 'https://placehold.co/1200x400/14F195/000000?text=Solana+Speedrun+2025',
-      tagline: 'Build fast. Ship faster.',
-      description: `# Solana Speedrun 2025
-
-The ultimate Solana hackathon is back! Build the next generation of high-performance dApps.
-
-## 💰 Prize Pool: $300,000
-
-## 🏆 Tracks
-- **Infrastructure** - Tools, SDKs, developer experience
-- **DeFi** - Trading, lending, derivatives
-- **Consumer** - Social, gaming, payments
-- **DePIN** - Decentralized physical infrastructure
-
-## ⚡ Why Solana?
-- 400ms block times
-- $0.00025 average transaction fee
-- 65,000 TPS capacity
-
-Build something amazing in 3 weeks!`,
-      type: 'ONLINE',
-      status: 'ACTIVE',
-      tags: ['Solana', 'Rust', 'Anchor', 'DeFi', 'DePIN', 'High Performance'],
-      prizePool: 300000,
-      prizeToken: 'USDC',
-      eligibilityRequirements: 'Open to all developers worldwide.',
-      submissionGuidelines: `## How to Submit
-1. Deploy on Solana devnet or mainnet
-2. Open source your code
-3. Create a demo video (max 5 minutes)
-4. Write documentation`,
-      ressources: `## Resources
-- [Solana Cookbook](https://solanacookbook.com)
-- [Anchor Framework](https://anchor-lang.com)
-- [Solana Playground](https://beta.solpg.io)`,
-      registrationStart: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
-      registrationEnd: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-      startDate: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
-      endDate: new Date(now.getTime() + 18 * 24 * 60 * 60 * 1000),
-      judgingStart: new Date(now.getTime() + 19 * 24 * 60 * 60 * 1000),
-      judgingEnd: new Date(now.getTime() + 26 * 24 * 60 * 60 * 1000),
-      maxTeamSize: 4,
-      minTeamSize: 1,
-      requiresApproval: false,
-      isPrivate: false,
-      requiredSubmissionMaterials: ['VIDEO_DEMO', 'GITHUB_REPOSITORY'],
-    },
-  });
-
-  // Hackathon 3: ZK Hackathon (ACTIVE)
-  const zkHackathon = await prisma.hackathon.create({
-    data: {
-      title: 'ZK Proof Summer 2025',
-      slug: 'zk-proof-summer-2025',
-      organizationId: polygonDAO.id,
-      categoryId: categoryZK.id,
-      tagline: 'Prove it without revealing it',
-      description: `# ZK Proof Summer 2025
-
-Dive deep into zero-knowledge proofs and build privacy-preserving applications.
-
-## 🔐 What We're Looking For
-- ZK identity solutions
-- Private voting systems
-- ZK rollup innovations
-- Cross-chain ZK bridges
-
-## 🎓 Learning Track
-New to ZK? Join our learning track with workshops on:
-- ZK fundamentals
-- Circom & snarkjs
-- Noir programming
-- PLONK & Groth16
-
-$150,000 in prizes for builders pushing the boundaries of privacy!`,
-      type: 'ONLINE',
-      status: 'ACTIVE',
-      tags: ['ZK', 'Zero Knowledge', 'Privacy', 'Circom', 'Noir', 'SNARK'],
-      prizePool: 150000,
-      prizeToken: 'USDC',
-      eligibilityRequirements: 'Open to all. Beginners welcome!',
-      submissionGuidelines: `## Submission
-1. Working ZK circuit or application
-2. Documentation explaining the ZK system
-3. Video walkthrough
-4. Security considerations document`,
-      ressources: `## ZK Resources
-- [ZK Book](https://www.rareskills.io/zk-book)
-- [Circom](https://docs.circom.io)
-- [Noir](https://noir-lang.org)
-- [PSE Resources](https://pse.dev)`,
-      registrationStart: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
-      registrationEnd: new Date(now.getTime() + 25 * 24 * 60 * 60 * 1000),
-      startDate: new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000),
-      endDate: new Date(now.getTime() + 40 * 24 * 60 * 60 * 1000),
-      maxTeamSize: 3,
-      minTeamSize: 1,
-      requiresApproval: false,
-      isPrivate: false,
-      requiredSubmissionMaterials: ['VIDEO_DEMO', 'GITHUB_REPOSITORY', 'TESTING_INSTRUCTIONS'],
-    },
-  });
-
-  // Hackathon 4: Private Hackathon (for testing registration access control)
-  const privateHackathon = await prisma.hackathon.create({
-    data: {
-      title: 'Private Web3 Builders Summit 2025',
-      slug: 'private-web3-builders-summit-2025',
-      organizationId: ethFoundation.id,
-      categoryId: categoryOpen.id,
-      banner: 'https://placehold.co/1200x400/1A1A1A/FFFFFF?text=Private+Web3+Builders+Summit',
-      tagline: 'Exclusive invite-only hackathon',
-      description: `# Private Web3 Builders Summit 2025
-
-An exclusive, invite-only hackathon for selected Web3 builders.
-
-## 🔒 Private Event
-This hackathon is by invitation only. You need a passcode to register.
-
-## 🎯 Focus Areas
-- Infrastructure & Tooling
-- DeFi Protocols
-- NFT & Gaming
-- DAO Tools
-
-## 💰 Prize Pool: $200,000
-
-Join us for an exclusive building experience!`,
-      type: 'ONLINE',
-      status: 'ACTIVE',
-      tags: ['Private', 'Invite Only', 'Web3', 'Exclusive'],
-      prizePool: 200000,
-      prizeToken: 'USDC',
-      eligibilityRequirements: 'Invitation only. Passcode required.',
-      submissionGuidelines: `## Submission Requirements
-1. Working prototype
-2. GitHub repository
-3. Video demo
-4. Project documentation`,
-      ressources: `## Resources
-- [Web3 Documentation](https://web3.dev)
-- [Developer Tools](https://tools.web3.dev)`,
-      registrationStart: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
-      registrationEnd: new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000),
-      startDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-      endDate: new Date(now.getTime() + 32 * 24 * 60 * 60 * 1000),
-      judgingStart: new Date(now.getTime() + 32 * 24 * 60 * 60 * 1000),
-      judgingEnd: new Date(now.getTime() + 35 * 24 * 60 * 60 * 1000),
-      maxTeamSize: 4,
-      minTeamSize: 1,
-      requiresApproval: false,
-      isPrivate: true,
-      invitePasscode: await bcrypt.hash('PRIVATE2025', 10), // Passcode: PRIVATE2025
-      requiredSubmissionMaterials: ['VIDEO_DEMO', 'GITHUB_REPOSITORY'],
-    },
-  });
-
-  // Create registration questions for private hackathon (separate table)
-  const privateQ1 = await prisma.hackathonRegistrationQuestion.create({
-    data: {
-      hackathonId: privateHackathon.id,
-      label: 'How did you receive your invitation?',
-      type: 'SELECT',
-      required: true,
-      options: ['Email', 'Discord', 'Twitter', 'Friend referral', 'Other'],
-      order: 0,
-    },
-  });
-  const privateQ2 = await prisma.hackathonRegistrationQuestion.create({
-    data: {
-      hackathonId: privateHackathon.id,
-      label: 'What is your primary area of expertise?',
-      type: 'SELECT',
-      required: true,
-      options: ['Smart Contracts', 'Frontend', 'Backend', 'Full Stack', 'Research'],
-      order: 1,
-    },
-  });
-  const privateQ3 = await prisma.hackathonRegistrationQuestion.create({
-    data: {
-      hackathonId: privateHackathon.id,
-      label: 'Why do you want to participate in this private hackathon?',
-      type: 'TEXTAREA',
-      required: false,
-      placeholder: 'Tell us your motivation...',
-      order: 2,
-    },
-  });
-
-  console.log(`✅ Created 4 active hackathons (1 private) with registration questions\n`);
-
-  // ============================================
-  // 5. CREATE HACKATHON CREATION REQUESTS
-  // ============================================
-  console.log('📋 Creating hackathon requests...');
-
-  // Pending request 1
-  await prisma.hackathonCreationRequest.create({
-    data: {
-      hackTitle: 'DeFi Summer Hackathon',
-      hackSlug: 'defi-summer-hackathon-2025',
-      status: 'PENDING',
-      organizationId: solanaLabs.id,
-      hackType: 'ONLINE',
-      hackCategoryId: categoryDeFi.id,
-      focus: 'Building next-generation DeFi protocols - AMMs, lending, derivatives',
-      audience: 'Experienced Solidity/Rust developers interested in DeFi',
-      expectedAttendees: 500,
-      geographicScope: 'GLOBAL',
-      registrationStart: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-      registrationEnd: new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000),
-      startDate: new Date(now.getTime() + 65 * 24 * 60 * 60 * 1000),
-      endDate: new Date(now.getTime() + 95 * 24 * 60 * 60 * 1000),
-      prizePool: 200000,
-      prizeToken: 'USDC',
-      expectedTotalWinners: 20,
-      distributionPlan: '1st: $50k, 2nd: $30k, 3rd: $20k, + bounties',
-      fundingSources: ['SPONSORS', 'SELF_FUNDED'],
-      confirmedSponsors: ['Chainlink', 'Aave', 'Uniswap'],
-      needSponsorsHelp: false,
-      venueSecured: 'NOT_APPLICABLE',
-      needVenueHelp: 'NOT_APPLICABLE',
-      technicalSupport: true,
-      liveStreaming: 'YES',
-      marketingHelp: true,
-      marketingHelpDetails: ['SOCIAL_MEDIA_PROMOTION', 'COMMUNITY_OUTREACH'],
-      existingCommunity: true,
-      estimatedReach: 'BETWEEN_5K_AND_50K',
-      targetRegistrationGoal: 500,
-      needWorkshopsHelp: true,
-      workshopsHelpDetails: 'Need workshops on advanced DeFi concepts',
-      needTechnicalMentors: true,
-      technicalMentorCount: 10,
-      needEducationalContent: false,
-      needSpeakers: true,
-      needJudges: true,
-      judgesCount: 5,
-      judgesProfiles: ['DeFi protocol founders', 'VCs', 'Security auditors'],
-      needJudgingCriteria: false,
-      needEvaluationSystem: true,
-      needEventLogistics: false,
-      needVolunteerCoordinators: false,
-      needCommunitySetup: false,
-      needOnCallSupport: true,
-    },
-  });
-
-  // Pending request 2
-  await prisma.hackathonCreationRequest.create({
-    data: {
-      hackTitle: 'NFT Gaming Jam',
-      hackSlug: 'nft-gaming-jam-2025',
-      status: 'PENDING',
-      organizationId: polygonDAO.id,
-      hackType: 'HYBRID',
-      hackCategoryId: categoryNFT.id,
-      focus: 'Building on-chain games and NFT experiences',
-      audience: 'Game developers, artists, and Web3 builders',
-      expectedAttendees: 300,
-      geographicScope: 'REGIONAL',
-      hackCountry: 'United States',
-      hackCity: 'Los Angeles',
-      hackState: 'California',
-      registrationStart: new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000),
-      registrationEnd: new Date(now.getTime() + 50 * 24 * 60 * 60 * 1000),
-      startDate: new Date(now.getTime() + 55 * 24 * 60 * 60 * 1000),
-      endDate: new Date(now.getTime() + 57 * 24 * 60 * 60 * 1000),
-      prizePool: 100000,
-      prizeToken: 'MATIC',
-      expectedTotalWinners: 15,
-      distributionPlan: 'Main prizes + category prizes for art, gameplay, innovation',
-      fundingSources: ['SPONSORS'],
-      confirmedSponsors: ['OpenSea', 'Immutable'],
-      needSponsorsHelp: true,
-      sponsorLevel: 'BETWEEN_25K_AND_100K',
-      venueSecured: 'NO',
-      needVenueHelp: 'YES',
-      technicalSupport: true,
-      liveStreaming: 'YES',
-      marketingHelp: true,
-      marketingHelpDetails: ['INFLUENCER_PARTNERSHIPS', 'CONTENT_CREATION'],
-      existingCommunity: true,
-      estimatedReach: 'BETWEEN_500_AND_5K',
-      targetRegistrationGoal: 300,
-      needWorkshopsHelp: true,
-      workshopsHelpDetails: 'Unity/Unreal integration with Web3',
-      needTechnicalMentors: true,
-      technicalMentorCount: 8,
-      needEducationalContent: true,
-      needSpeakers: true,
-      needJudges: true,
-      judgesCount: 7,
-      judgesProfiles: ['Game studio founders', 'NFT artists', 'Web3 gaming VCs'],
-      needJudgingCriteria: true,
-      needEvaluationSystem: true,
-      needEventLogistics: true,
-      eventLogisticsDetails: ['REGISTRATION_MANAGEMENT', 'FOOD_CATERING_COORDINATION', 'SWAG_MERCHANDISE'],
-      needVolunteerCoordinators: true,
-      needCommunitySetup: true,
-      needOnCallSupport: true,
-    },
-  });
-
-  // Rejected request
-  await prisma.hackathonCreationRequest.create({
-    data: {
-      hackTitle: 'Memecoin Madness',
-      hackSlug: 'memecoin-madness-2025',
-      status: 'REJECTED',
-      organizationId: solanaLabs.id,
-      hackType: 'ONLINE',
-      hackCategoryId: categoryOpen.id,
-      focus: 'Building the next viral memecoin',
-      audience: 'Degen traders and memecoin enthusiasts',
-      expectedAttendees: 1000,
-      geographicScope: 'GLOBAL',
-      registrationStart: new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000),
-      registrationEnd: new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000),
-      startDate: new Date(now.getTime() + 25 * 24 * 60 * 60 * 1000),
-      endDate: new Date(now.getTime() + 27 * 24 * 60 * 60 * 1000),
-      prizePool: 50000,
-      prizeToken: 'USD',
-      expectedTotalWinners: 5,
-      distributionPlan: 'Winner takes most',
-      fundingSources: ['SELF_FUNDED'],
-      needSponsorsHelp: true,
-      sponsorLevel: 'UNDER_5K',
-      venueSecured: 'NOT_APPLICABLE',
-      needVenueHelp: 'NOT_APPLICABLE',
-      technicalSupport: false,
-      liveStreaming: 'NO',
-      marketingHelp: true,
-      marketingHelpDetails: ['SOCIAL_MEDIA_PROMOTION'],
-      existingCommunity: false,
-      estimatedReach: 'UNDER_500',
-      targetRegistrationGoal: 1000,
-      needWorkshopsHelp: false,
-      needTechnicalMentors: false,
-      needEducationalContent: false,
-      needSpeakers: false,
-      needJudges: false,
-      needJudgingCriteria: false,
-      needEvaluationSystem: false,
-      needEventLogistics: false,
-      needVolunteerCoordinators: false,
-      needCommunitySetup: false,
-      needOnCallSupport: false,
-      rejectedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
-      rejectedById: adminUser.id,
-      rejectedReason: 'Does not align with platform values. We focus on sustainable innovation, not speculative tokens.',
-    },
-  });
-
-  console.log(`✅ Created 3 hackathon requests (2 pending, 1 rejected)\n`);
-
-  // ============================================
-  // 6. CREATE TRACKS
-  // ============================================
-  console.log('🎯 Creating tracks...');
-
-  // ETH Hackathon tracks
-  const ethTrack1 = await prisma.track.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      name: 'DeFi Innovation',
-      description: 'Build novel DeFi primitives - new AMM designs, lending protocols, derivatives, or yield strategies.',
-      judgingCriteria: `## Judging Criteria
-- **Innovation (35%)**: Novel approach to DeFi
-- **Technical Implementation (30%)**: Smart contract quality and security
-- **User Experience (20%)**: Ease of use and design
-- **Viability (15%)**: Market fit and sustainability`,
-      order: 1,
-      winnersCount: 3,
-    },
-  });
-
-  const ethTrack2 = await prisma.track.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      name: 'Public Goods',
-      description: 'Tools and infrastructure that benefit the entire Ethereum ecosystem.',
-      judgingCriteria: `## Judging Criteria
-- **Impact (40%)**: Benefit to the ecosystem
-- **Technical Quality (30%)**: Implementation excellence
-- **Sustainability (20%)**: Long-term viability
-- **Accessibility (10%)**: Ease of adoption`,
-      order: 2,
-      winnersCount: 3,
-    },
-  });
-
-  const ethTrack3 = await prisma.track.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      name: 'Account Abstraction',
-      description: 'Leverage ERC-4337 to build better wallet experiences and user onboarding.',
-      judgingCriteria: `## Judging Criteria
-- **UX Improvement (40%)**: How much easier is Web3?
-- **Technical Innovation (30%)**: Creative use of AA
-- **Security (20%)**: Safe implementation
-- **Completeness (10%)**: Working demo`,
-      order: 3,
-      winnersCount: 2,
-    },
-  });
-
-  // Solana Hackathon tracks
-  const solTrack1 = await prisma.track.create({
-    data: {
-      hackathonId: solanaHackathon.id,
-      name: 'Infrastructure',
-      description: 'Developer tools, SDKs, RPCs, indexers, and infrastructure improvements for Solana.',
-      judgingCriteria: `## Judging Criteria
-- **Developer Impact (35%)**: How useful for builders?
-- **Technical Excellence (35%)**: Code quality and performance
-- **Documentation (15%)**: Clear and comprehensive docs
-- **Innovation (15%)**: Novel approach`,
-      order: 1,
-      winnersCount: 3,
-    },
-  });
-
-  const solTrack2 = await prisma.track.create({
-    data: {
-      hackathonId: solanaHackathon.id,
-      name: 'Consumer Apps',
-      description: 'Social, gaming, payments, and consumer-facing applications on Solana.',
-      judgingCriteria: `## Judging Criteria
-- **User Experience (40%)**: Is it delightful to use?
-- **Technical Implementation (25%)**: Proper use of Solana
-- **Market Potential (20%)**: Could this go mainstream?
-- **Creativity (15%)**: Unique approach`,
-      order: 2,
-      winnersCount: 3,
-    },
-  });
-
-  // ZK Hackathon tracks
-  const zkTrack1 = await prisma.track.create({
-    data: {
-      hackathonId: zkHackathon.id,
-      name: 'ZK Identity',
-      description: 'Privacy-preserving identity solutions using zero-knowledge proofs.',
-      judgingCriteria: `## Judging Criteria
-- **Privacy Guarantees (35%)**: What is proven/hidden?
-- **Technical Soundness (35%)**: Correct ZK implementation
-- **Practicality (20%)**: Real-world applicability
-- **UX (10%)**: User experience`,
-      order: 1,
-      winnersCount: 2,
-    },
-  });
-
-  const zkTrack2 = await prisma.track.create({
-    data: {
-      hackathonId: zkHackathon.id,
-      name: 'ZK Applications',
-      description: 'Any application leveraging ZK proofs - gaming, voting, compliance, etc.',
-      judgingCriteria: `## Judging Criteria
-- **Innovation (30%)**: Creative use of ZK
-- **Technical Quality (30%)**: Circuit efficiency and correctness
-- **Use Case (25%)**: Solves a real problem
-- **Documentation (15%)**: Clear explanation`,
-      order: 2,
-      winnersCount: 3,
-    },
-  });
-
-  console.log(`✅ Created 7 tracks\n`);
-
-  // ============================================
-  // 7. CREATE SPONSORS & BOUNTIES
-  // ============================================
-  console.log('💎 Creating sponsors and bounties...');
-
-  // Sponsors for ETH hackathon
-  const chainlinkSponsor = await prisma.sponsor.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      name: 'Chainlink',
-      logo: 'https://placehold.co/150x150/375BD2/FFFFFF?text=LINK',
-    },
-  });
-
-  const thegraphSponsor = await prisma.sponsor.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      name: 'The Graph',
-      logo: 'https://placehold.co/150x150/6F4CFF/FFFFFF?text=GRT',
-    },
-  });
-
-  const aaveSponsor = await prisma.sponsor.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      name: 'Aave',
-      logo: 'https://placehold.co/150x150/B6509E/FFFFFF?text=AAVE',
-      isCurrentOrganization: false,
-    },
-  });
-
-  // Bounties
-  const chainlinkBounty = await prisma.bounty.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      sponsorId: chainlinkSponsor.id,
-      title: 'Best Use of Chainlink',
-      description: `## Chainlink Bounty - $20,000
-
-Build an application that leverages Chainlink services:
-- **Price Feeds** - Access real-world market data
-- **VRF** - Verifiable random number generation
-- **Automation** - Smart contract automation
-- **CCIP** - Cross-chain interoperability
-
-### Requirements
-- Must use at least one Chainlink service
-- Deployed on testnet with working demo
-- Open source code
-
-### Prizes
-- 1st Place: $10,000
-- 2nd Place: $6,000
-- 3rd Place: $4,000`,
-      rewardAmount: 20000,
-      rewardToken: 'USDC',
-      maxWinners: 3,
-    },
-  });
-
-  await prisma.bounty.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      sponsorId: thegraphSponsor.id,
-      title: 'Best Use of The Graph',
-      description: `## The Graph Bounty - $15,000
-
-Build a dApp powered by The Graph's indexing protocol.
-
-### Ideas
-- Analytics dashboard for DeFi protocols
-- NFT marketplace with advanced search
-- DAO governance explorer
-- Cross-chain data aggregation
-
-### Prizes
-- 1st Place: $8,000
-- 2nd Place: $5,000
-- 3rd Place: $2,000`,
-      rewardAmount: 15000,
-      rewardToken: 'USDC',
-      maxWinners: 3,
-    },
-  });
-
-  await prisma.bounty.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      sponsorId: aaveSponsor.id,
-      title: 'Aave Integration Challenge',
-      description: `## Aave Integration - $25,000
-
-Build innovative applications on top of Aave V3.
-
-### Track 1: New Use Cases ($15k)
-Novel applications of Aave lending/borrowing
-
-### Track 2: UX Improvements ($10k)
-Better interfaces for Aave users`,
-      rewardAmount: 25000,
-      rewardToken: 'USDC',
-      maxWinners: 4,
-    },
-  });
-
-  // Solana sponsor
-  const jupiterSponsor = await prisma.sponsor.create({
-    data: {
-      hackathonId: solanaHackathon.id,
-      name: 'Jupiter',
-      logo: 'https://placehold.co/150x150/8B5CF6/FFFFFF?text=JUP',
-    },
-  });
-
-  await prisma.bounty.create({
-    data: {
-      hackathonId: solanaHackathon.id,
-      sponsorId: jupiterSponsor.id,
-      title: 'Jupiter DCA Integration',
-      description: `## Jupiter Bounty - $30,000
-
-Build applications using Jupiter's swap aggregator and DCA features.
-
-Best integrations win big!`,
-      rewardAmount: 30000,
-      rewardToken: 'USDC',
-      maxWinners: 5,
-    },
-  });
-
-  console.log(`✅ Created 4 sponsors and 4 bounties\n`);
-
-  // ============================================
-  // 8. CREATE PRIZES
-  // ============================================
-  console.log('💰 Creating track prizes...');
-
-  // ETH Hackathon prizes
-  for (const track of [ethTrack1, ethTrack2, ethTrack3]) {
-    await prisma.prize.createMany({
-      data: [
-        { hackathonId: ethHackathon.id, trackId: track.id, type: 'TRACK', position: 1, name: 'First Place', amount: 15000, token: 'USDC' },
-        { hackathonId: ethHackathon.id, trackId: track.id, type: 'TRACK', position: 2, name: 'Second Place', amount: 8000, token: 'USDC' },
-        { hackathonId: ethHackathon.id, trackId: track.id, type: 'TRACK', position: 3, name: 'Third Place', amount: 4000, token: 'USDC' },
-      ],
-    });
+  ];
+  
+  // Map to store questions by hackathon ID: hackathonId -> questions[]
+  const questionsByHackathon = new Map<string, Array<{ id: string; type: string; options?: string[]; required: boolean }>>();
+  
+  for (const hackathon of hackathonsWithQuestions) {
+    const hackathonQuestions: Array<{ id: string; type: string; options?: string[]; required: boolean }> = [];
+    
+    for (const question of sampleQuestions) {
+      const createdQuestion = await prisma.hackathonRegistrationQuestion.create({
+        data: {
+          hackathonId: hackathon.id,
+          label: question.label,
+          type: question.type,
+          required: question.required,
+          options: question.options || [],
+          placeholder: question.placeholder,
+          order: question.order,
+        },
+      });
+      hackathonQuestions.push({
+        id: createdQuestion.id,
+        type: createdQuestion.type,
+        options: createdQuestion.options,
+        required: createdQuestion.required,
+      });
+      questionCount++;
+    }
+    
+    questionsByHackathon.set(hackathon.id, hackathonQuestions);
   }
+  console.log(`✅ Created ${questionCount} registration questions for ${hackathonsWithQuestions.length} hackathons\n`);
 
-  // Solana Hackathon prizes
-  for (const track of [solTrack1, solTrack2]) {
-    await prisma.prize.createMany({
-      data: [
-        { hackathonId: solanaHackathon.id, trackId: track.id, type: 'TRACK', position: 1, name: 'First Place', amount: 20000, token: 'USDC' },
-        { hackathonId: solanaHackathon.id, trackId: track.id, type: 'TRACK', position: 2, name: 'Second Place', amount: 10000, token: 'USDC' },
-        { hackathonId: solanaHackathon.id, trackId: track.id, type: 'TRACK', position: 3, name: 'Third Place', amount: 5000, token: 'USDC' },
-      ],
-    });
+  // ============================================
+  // 8. CREATE REGISTRATIONS (with answers for hackathons with questions)
+  // ============================================
+  console.log('📝 Creating registrations...');
+  let registrationCount = 0;
+  const registrationsWithAnswers: Array<{ registrationId: string; hackathonId: string }> = [];
+  
+  for (const hackathon of hackathons) {
+    // Each hackathon gets 20-50 registrations
+    const registrationCountForHackathon = randomInt(20, 50);
+    // Exclude the organization owner from registering to their own hackathon
+    const orgOwnerId = hackathonToOrgOwnerMap.get(hackathon.id);
+    const eligibleUsers = users.filter(u => u.id !== orgOwnerId);
+    const shuffledUsers = [...eligibleUsers].sort(() => Math.random() - 0.5);
+    
+    const hackathonQuestions = questionsByHackathon.get(hackathon.id);
+    const hasQuestions = hackathonQuestions && hackathonQuestions.length > 0;
+    
+    for (let i = 0; i < Math.min(registrationCountForHackathon, shuffledUsers.length); i++) {
+      // Prepare answers if this hackathon has questions
+      const answersData = hasQuestions
+        ? hackathonQuestions.map((q) => {
+            let answerValue: string[];
+            
+            if (q.type === 'SELECT') {
+              // Pick a random option from the question's options
+              answerValue = [randomChoice(q.options || [])];
+            } else if (q.type === 'TEXTAREA') {
+              // Generate a random text answer
+              const sampleTexts = [
+                'Built a DeFi protocol that processed $1M+ in transactions.',
+                'Created an NFT marketplace with advanced filtering.',
+                'Developed a cross-chain bridge using LayerZero.',
+                'Contributed to multiple open-source Web3 projects.',
+                'Built a DAO governance tool with voting mechanisms.',
+                'Created a yield farming aggregator.',
+                'Developed a privacy-preserving identity solution.',
+                'Built a gaming platform with NFT integration.',
+              ];
+              answerValue = [randomChoice(sampleTexts)];
+            } else {
+              // For other types, use a simple text answer
+              answerValue = ['Sample answer'];
+            }
+            
+            return {
+              questionId: q.id,
+              value: answerValue,
+            };
+          })
+        : undefined;
+      
+      const registration = await prisma.hackathonRegistration.create({
+        data: {
+          hackathonId: hackathon.id,
+          userId: shuffledUsers[i].id,
+          status: 'APPROVED',
+          ...(hasQuestions && answersData
+            ? {
+                answers: {
+                  create: answersData,
+                },
+              }
+            : {}),
+        },
+      });
+      
+      if (hasQuestions) {
+        registrationsWithAnswers.push({
+          registrationId: registration.id,
+          hackathonId: hackathon.id,
+        });
+      }
+      
+      registrationCount++;
+    }
   }
+  console.log(`✅ Created ${registrationCount} registrations`);
+  console.log(`   ${registrationsWithAnswers.length} registrations include answers to questions\n`);
 
-  // ZK Hackathon prizes
-  for (const track of [zkTrack1, zkTrack2]) {
-    await prisma.prize.createMany({
-      data: [
-        { hackathonId: zkHackathon.id, trackId: track.id, type: 'TRACK', position: 1, name: 'First Place', amount: 12000, token: 'USDC' },
-        { hackathonId: zkHackathon.id, trackId: track.id, type: 'TRACK', position: 2, name: 'Second Place', amount: 6000, token: 'USDC' },
-      ],
-    });
+  // ============================================
+  // 9. CREATE TEAMS (200 teams)
+  // ============================================
+  console.log('👥 Creating teams (200)...');
+  const teamMembersData: Array<{
+    teamId: string;
+    userId: string;
+    isLeader: boolean;
+    description: string;
+  }> = [];
+  
+  // Distribute teams across hackathons
+  const registrations = await prisma.hackathonRegistration.findMany({
+    where: { status: 'APPROVED' },
+  });
+  
+  // Group registrations by hackathon (excluding org owners from their own hackathons)
+  const registrationsByHackathon = new Map<string, string[]>();
+  for (const reg of registrations) {
+    // Double-check: exclude org owners from their own hackathons
+    const orgOwnerId = hackathonToOrgOwnerMap.get(reg.hackathonId);
+    if (orgOwnerId && reg.userId === orgOwnerId) continue; // Skip if this is the org owner
+    
+    if (!registrationsByHackathon.has(reg.hackathonId)) {
+      registrationsByHackathon.set(reg.hackathonId, []);
+    }
+    registrationsByHackathon.get(reg.hackathonId)!.push(reg.userId);
   }
-
-  // Bounty prizes
-  await prisma.prize.createMany({
-    data: [
-      { hackathonId: ethHackathon.id, bountyId: chainlinkBounty.id, type: 'BOUNTY', position: 1, name: 'First Place', amount: 10000, token: 'USDC' },
-      { hackathonId: ethHackathon.id, bountyId: chainlinkBounty.id, type: 'BOUNTY', position: 2, name: 'Second Place', amount: 6000, token: 'USDC' },
-      { hackathonId: ethHackathon.id, bountyId: chainlinkBounty.id, type: 'BOUNTY', position: 3, name: 'Third Place', amount: 4000, token: 'USDC' },
-    ],
-  });
-
-  console.log(`✅ Created track and bounty prizes\n`);
+  
+  // Create first team to initialize array type
+  let firstHackathonId = '';
+  let firstUserIds: string[] = [];
+  for (const [hackathonId, userIds] of registrationsByHackathon.entries()) {
+    if (userIds.length >= 2) {
+      firstHackathonId = hackathonId;
+      firstUserIds = userIds;
+      break;
+    }
+  }
+  
+  let teams: Awaited<ReturnType<typeof prisma.team.create>>[] = [];
+  let teamCounter = 0;
+  let usedUserIds = new Set<string>();
+  
+  // Create first team if we have a hackathon with enough registrations
+  if (firstHackathonId && firstUserIds.length >= 2) {
+    const firstTeam = await prisma.team.create({
+      data: {
+        hackathonId: firstHackathonId,
+        name: `${randomChoice(teamNames)} 1`,
+        tagline: `Building the future of ${randomChoice(['DeFi', 'NFTs', 'Web3', 'Blockchain'])}`,
+      },
+    });
+    teams.push(firstTeam);
+    
+    // Add members to first team
+    const firstTeamSize = Math.min(randomInt(2, 4), firstUserIds.length);
+    for (let j = 0; j < firstTeamSize; j++) {
+      teamMembersData.push({
+        teamId: firstTeam.id,
+        userId: firstUserIds[j],
+        isLeader: j === 0,
+        description: j === 0 ? 'Team Lead' : randomChoice(['Developer', 'Designer', 'Product Manager', 'Researcher']),
+      });
+      usedUserIds.add(firstUserIds[j]);
+    }
+    
+    teamCounter = 1;
+  }
+  
+  // Create teams across all hackathons
+  for (const [hackathonId, userIds] of registrationsByHackathon.entries()) {
+    if (teamCounter >= 200) break;
+    
+    // Filter out users already used in teams for this hackathon (allow some overlap)
+    const availableUserIds = userIds.filter(id => !usedUserIds.has(id));
+    if (availableUserIds.length < 2) continue;
+    
+    // Create 2-5 teams per hackathon, but ensure we have enough users
+    const maxTeamsForHackathon = Math.min(randomInt(2, 5), Math.floor(availableUserIds.length / 2));
+    const shuffledUserIds = [...availableUserIds].sort(() => Math.random() - 0.5);
+    
+    let userIndex = 0;
+    for (let i = 0; i < maxTeamsForHackathon && teamCounter < 200 && userIndex < shuffledUserIds.length - 1; i++) {
+      const teamName = `${randomChoice(teamNames)} ${teamCounter + 1}`;
+      const team = await prisma.team.create({
+        data: {
+          hackathonId,
+          name: teamName,
+          tagline: `Building the future of ${randomChoice(['DeFi', 'NFTs', 'Web3', 'Blockchain'])}`,
+        },
+      });
+      teams.push(team);
+      
+      // Add 2-4 members per team
+      const teamSize = Math.min(randomInt(2, 4), shuffledUserIds.length - userIndex);
+      const teamUserIds = shuffledUserIds.slice(userIndex, userIndex + teamSize);
+      
+      for (let j = 0; j < teamUserIds.length; j++) {
+        teamMembersData.push({
+          teamId: team.id,
+          userId: teamUserIds[j],
+          isLeader: j === 0,
+          description: j === 0 ? 'Team Lead' : randomChoice(['Developer', 'Designer', 'Product Manager', 'Researcher']),
+        });
+        usedUserIds.add(teamUserIds[j]);
+      }
+      
+      userIndex += teamSize;
+      teamCounter++;
+    }
+  }
+  
+  // Create remaining teams if needed (allow user overlap)
+  let attempts = 0;
+  while (teamCounter < 200 && attempts < 500) {
+    attempts++;
+    const hackathon = randomChoice(hackathons);
+    const hackathonRegistrations = registrations.filter(r => r.hackathonId === hackathon.id);
+    if (hackathonRegistrations.length < 2) continue;
+    
+    const teamName = `${randomChoice(teamNames)} ${teamCounter + 1}`;
+    const team = await prisma.team.create({
+      data: {
+        hackathonId: hackathon.id,
+        name: teamName,
+        tagline: `Building the future of ${randomChoice(['DeFi', 'NFTs', 'Web3', 'Blockchain'])}`,
+      },
+    });
+    teams.push(team);
+    
+      const teamSize = randomInt(2, 4);
+      // Exclude org owner from teams in their own hackathons
+      const orgOwnerId = hackathonToOrgOwnerMap.get(hackathon.id);
+      const eligibleRegs = hackathonRegistrations.filter(r => r.userId !== orgOwnerId);
+      const shuffledRegs = [...eligibleRegs].sort(() => Math.random() - 0.5);
+      for (let j = 0; j < Math.min(teamSize, shuffledRegs.length); j++) {
+        teamMembersData.push({
+          teamId: team.id,
+          userId: shuffledRegs[j].userId,
+          isLeader: j === 0,
+          description: j === 0 ? 'Team Lead' : randomChoice(['Developer', 'Designer', 'Product Manager']),
+        });
+      }
+    
+    teamCounter++;
+  }
+  
+  console.log(`✅ Created ${teams.length} teams\n`);
 
   // ============================================
-  // 9. CREATE HACKATHON REGISTRATIONS (with answers for ETH hackathon)
-  // ============================================
-  console.log('📝 Creating hackathon registrations...');
-
-  // ETH Hackathon registrations with custom question answers (new table structure)
-  // Note: All registrations are auto-approved (current system behavior)
-  const ethReg1 = await prisma.hackathonRegistration.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      userId: hacker1.id,
-      status: 'APPROVED', // Auto-approved (matches current system behavior)
-      answers: {
-        create: [
-          { questionId: ethQ1.id, value: ['Expert'] },
-          { questionId: ethQ2.id, value: ['DeFi Innovation'] },
-          { questionId: ethQ3.id, value: ['Yes, looking for more members'] },
-          { questionId: ethQ4.id, value: ['Built a DEX aggregator that saved users 15% on gas fees.'] },
-          { questionId: ethQ5.id, value: ['Twitter/X'] },
-        ],
-      },
-    },
-  });
-
-  const ethReg2 = await prisma.hackathonRegistration.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      userId: hacker2.id,
-      status: 'APPROVED', // Auto-approved (matches current system behavior)
-      answers: {
-        create: [
-          { questionId: ethQ1.id, value: ['Advanced'] },
-          { questionId: ethQ2.id, value: ['Public Goods'] },
-          { questionId: ethQ3.id, value: ['No, looking for a team'] },
-          { questionId: ethQ4.id, value: ['Contributed to multiple open-source Solana projects.'] },
-          { questionId: ethQ5.id, value: ['Discord'] },
-        ],
-      },
-    },
-  });
-
-  const ethReg3 = await prisma.hackathonRegistration.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      userId: hacker3.id,
-      status: 'APPROVED', // Auto-approved (matches current system behavior)
-      answers: {
-        create: [
-          { questionId: ethQ1.id, value: ['Expert'] },
-          { questionId: ethQ2.id, value: ['Account Abstraction'] },
-          { questionId: ethQ3.id, value: ['Solo participant'] },
-          { questionId: ethQ4.id, value: ['Published research on ZK-SNARKs optimization.'] },
-          { questionId: ethQ5.id, value: ['Newsletter'] },
-        ],
-      },
-    },
-  });
-
-  const ethReg4 = await prisma.hackathonRegistration.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      userId: hacker4.id,
-      status: 'APPROVED', // Auto-approved (matches current system behavior)
-      answers: {
-        create: [
-          { questionId: ethQ1.id, value: ['Intermediate'] },
-          { questionId: ethQ2.id, value: ['DeFi Innovation'] },
-          { questionId: ethQ3.id, value: ['Yes, complete team'] },
-          { questionId: ethQ4.id, value: ['Working on a yield aggregator for my portfolio.'] },
-          { questionId: ethQ5.id, value: ['Friend referral'] },
-        ],
-      },
-    },
-  });
-
-  // Solana & ZK hackathons (no custom questions, simple registrations)
-  // All auto-approved (matches current system behavior)
-  await prisma.hackathonRegistration.createMany({
-    data: [
-      { hackathonId: solanaHackathon.id, userId: hacker2.id, status: 'APPROVED' },
-      { hackathonId: solanaHackathon.id, userId: hacker5.id, status: 'APPROVED' },
-      { hackathonId: solanaHackathon.id, userId: hacker6.id, status: 'APPROVED' },
-      { hackathonId: zkHackathon.id, userId: hacker3.id, status: 'APPROVED' },
-      { hackathonId: zkHackathon.id, userId: hacker1.id, status: 'APPROVED' },
-    ],
-  });
-
-  // Private hackathon registrations (for testing TODO #2 - registered users can view registrations)
-  const privateReg1 = await prisma.hackathonRegistration.create({
-    data: {
-      hackathonId: privateHackathon.id,
-      userId: hacker1.id,
-      status: 'APPROVED', // Auto-approved (matches current system behavior)
-      answers: {
-        create: [
-          { questionId: privateQ1.id, value: ['Email'] },
-          { questionId: privateQ2.id, value: ['Smart Contracts'] },
-          { questionId: privateQ3.id, value: ['I want to build innovative DeFi solutions with other talented builders.'] },
-        ],
-      },
-    },
-  });
-
-  const privateReg2 = await prisma.hackathonRegistration.create({
-    data: {
-      hackathonId: privateHackathon.id,
-      userId: hacker2.id,
-      status: 'APPROVED', // Auto-approved (matches current system behavior)
-      answers: {
-        create: [
-          { questionId: privateQ1.id, value: ['Discord'] },
-          { questionId: privateQ2.id, value: ['Full Stack'] },
-          { questionId: privateQ3.id, value: ['Looking forward to networking with top Web3 developers.'] },
-        ],
-      },
-    },
-  });
-
-  const privateReg3 = await prisma.hackathonRegistration.create({
-    data: {
-      hackathonId: privateHackathon.id,
-      userId: hacker3.id,
-      status: 'APPROVED', // Auto-approved (matches current system behavior)
-      answers: {
-        create: [
-          { questionId: privateQ1.id, value: ['Twitter'] },
-          { questionId: privateQ2.id, value: ['Research'] },
-          { questionId: privateQ3.id, value: ['Interested in exploring cutting-edge Web3 technologies.'] },
-        ],
-      },
-    },
-  });
-
-  // hacker4 is NOT registered - use this to test that unregistered users cannot view
-  // hacker5 is NOT registered - use this to test that unregistered users cannot view
-
-  console.log(`✅ Created 12 registrations (7 with custom answers, 3 for private hackathon)\n`);
-
-  // ============================================
-  // 10. CREATE TEAMS
-  // ============================================
-  console.log('👥 Creating teams...');
-
-  // ETH Hackathon teams
-  const ethTeam1 = await prisma.team.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      name: 'DeFi Wizards',
-      tagline: 'Making DeFi accessible to everyone',
-    },
-  });
-
-  const ethTeam2 = await prisma.team.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      name: 'ZK Maxi',
-      tagline: 'Privacy is a feature, not a bug',
-    },
-  });
-
-  // Solana teams
-  const solTeam1 = await prisma.team.create({
-    data: {
-      hackathonId: solanaHackathon.id,
-      name: 'Turbo Builders',
-      tagline: 'Fast code, fast chains',
-    },
-  });
-
-  const solTeam2 = await prisma.team.create({
-    data: {
-      hackathonId: solanaHackathon.id,
-      name: 'SOL Sisters',
-      tagline: 'Building the Solana ecosystem together',
-    },
-  });
-
-  // ZK team
-  const zkTeam1 = await prisma.team.create({
-    data: {
-      hackathonId: zkHackathon.id,
-      name: 'Proof Party',
-      tagline: 'We prove things. Privately.',
-    },
-  });
-
-  console.log(`✅ Created 5 teams\n`);
-
-  // ============================================
-  // 11. CREATE TEAM MEMBERS
+  // 10. CREATE TEAM MEMBERS
   // ============================================
   console.log('🤝 Adding team members...');
-
-  await prisma.teamMember.createMany({
-    data: [
-      { teamId: ethTeam1.id, userId: hacker1.id, isLeader: true, description: 'Smart Contract Lead' },
-      { teamId: ethTeam1.id, userId: hacker4.id, isLeader: false, description: 'DeFi Architect' },
-      { teamId: ethTeam2.id, userId: hacker3.id, isLeader: true, description: 'ZK Researcher' },
-      { teamId: solTeam1.id, userId: hacker2.id, isLeader: true, description: 'Rust Developer' },
-      { teamId: solTeam1.id, userId: hacker6.id, isLeader: false, description: 'Infrastructure Lead' },
-      { teamId: solTeam2.id, userId: hacker5.id, isLeader: true, description: 'Full Stack & Gaming' },
-      { teamId: zkTeam1.id, userId: hacker3.id, isLeader: true, description: 'Cryptography Lead' },
-    ],
-  });
-
-  console.log(`✅ Added 7 team members\n`);
+  // Batch create team members
+  const batchSize = 100;
+  for (let i = 0; i < teamMembersData.length; i += batchSize) {
+    const batch = teamMembersData.slice(i, i + batchSize);
+    await prisma.teamMember.createMany({
+      data: batch,
+      skipDuplicates: true,
+    });
+  }
+  console.log(`✅ Added ${teamMembersData.length} team members\n`);
 
   // ============================================
-  // 12. CREATE SUBMISSIONS
+  // 11. CREATE SUBMISSIONS (150-200 submissions)
   // ============================================
-  console.log('📦 Creating submissions...');
-
-  await prisma.submission.create({
-    data: {
-      hackathonId: solanaHackathon.id,
-      teamId: solTeam1.id,
-      creatorId: hacker2.id,
-      trackId: solTrack1.id,
-      title: 'SolanaScope',
-      tagline: 'Real-time Solana network analytics',
-      description: `# SolanaScope
-
-A comprehensive analytics dashboard for the Solana network.
-
-## Features
-- Real-time TPS monitoring
-- Validator performance tracking
-- Program usage analytics
-- Transaction cost trends
-
-## Tech Stack
-- Next.js frontend
-- Rust backend
-- Helius RPC
-- The Graph subgraph`,
-      status: 'DRAFT',
-      demoUrl: 'https://solanascope.demo.com',
-      repoUrl: 'https://github.com/turbo-builders/solanascope',
-      technologies: ['Rust', 'Next.js', 'TypeScript', 'Helius'],
-    },
+  console.log('📦 Creating submissions (150-200)...');
+  let submissionCount = 0;
+  const targetSubmissions = randomInt(150, 200);
+  
+  const tracksWithHackathons = await prisma.track.findMany({
+    include: { hackathon: true },
   });
-
-  await prisma.submission.create({
-    data: {
-      hackathonId: solanaHackathon.id,
-      teamId: solTeam2.id,
-      creatorId: hacker5.id,
-      trackId: solTrack2.id,
-      title: 'PlayChain',
-      tagline: 'On-chain game state for mobile games',
-      description: `# PlayChain
-
-Bringing blockchain to casual mobile games.
-
-## What it does
-- Stores game progress on-chain
-- NFT achievements
-- Cross-game asset portability
-
-Built with Anchor and Unity.`,
-      status: 'DRAFT',
-      repoUrl: 'https://github.com/sol-sisters/playchain',
-      technologies: ['Anchor', 'Unity', 'TypeScript', 'Mobile'],
-    },
-  });
-
-  console.log(`✅ Created 2 submissions\n`);
-
-  // ============================================
-  // 13. CREATE NOTIFICATIONS
-  // ============================================
-  console.log('🔔 Creating notifications...');
-
-  await prisma.notification.createMany({
-    data: [
-      {
-        toUserId: hacker4.id,
-        fromUserId: hacker1.id,
-        type: 'TEAM_INVITE',
-        content: 'You have been invited to join team "DeFi Wizards" for ETH Global Brussels 2025',
-        payload: { teamId: ethTeam1.id, hackathonId: ethHackathon.id },
-        isRead: false,
-      },
-      {
-        toUserId: hacker1.id,
-        type: 'REGISTRATION_APPROVED',
-        content: 'Your registration for ETH Global Brussels 2025 has been approved!',
-        payload: { hackathonId: ethHackathon.id },
-        isRead: true,
-      },
-      {
-        toUserId: hacker2.id,
-        type: 'HACKATHON_STARTING',
-        content: 'Solana Speedrun 2025 starts in 3 days! Get ready to build.',
-        payload: { hackathonId: solanaHackathon.id },
-        isRead: false,
-      },
-      {
-        toUserId: hacker3.id,
-        fromUserId: adminUser.id,
-        type: 'ANNOUNCEMENT',
-        content: 'New ZK workshop added: "Introduction to Noir" - Register now!',
-        payload: { hackathonId: zkHackathon.id },
-        isRead: false,
-      },
-    ],
-  });
-
-  console.log(`✅ Created 4 notifications\n`);
-
-  // ============================================
-  // 14. CREATE TEAM INVITATIONS
-  // ============================================
-  console.log('✉️ Creating team invitations...');
-
-  await prisma.teamInvitation.createMany({
-    data: [
-      {
-        teamId: ethTeam1.id,
-        invitedUserId: hacker2.id,
-        inviterUserId: hacker1.id,
-        status: 'PENDING',
-      },
-      {
-        teamId: zkTeam1.id,
-        invitedUserId: hacker1.id,
-        inviterUserId: hacker3.id,
-        status: 'PENDING',
-      },
-    ],
-  });
-
-  console.log(`✅ Created 2 team invitations\n`);
-
-  // ============================================
-  // 15. CREATE FAQ THREADS & REPLIES
-  // ============================================
-  console.log('❓ Creating FAQ threads and replies...');
-
-  // FAQ Thread 1: Technical question about ETH hackathon (with attachments)
-  const faqThread1 = await prisma.hackathonQuestionThread.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      userId: hacker4.id,
-      title: 'Can we use Layer 2 solutions for our project?',
-      content: `Hi team! I'm planning to build a DeFi application and wondering if we can deploy on L2s like Arbitrum, Optimism, or Base instead of mainnet?
-
-Also, will there be any bonus points for multi-chain deployments?
-
-Here's a diagram of my proposed architecture:
-[Architecture diagram showing multi-chain deployment]
-
-Thanks!`,
-      attachments: [
-        'https://placehold.co/800x600/627EEA/FFFFFF?text=Multi-chain+Architecture',
-      ],
-    },
-  });
-
-  // Reply from organizer
-  const organizerReply1 = await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: faqThread1.id,
-      userId: adminUser.id,
-      content: `Great question! Yes, absolutely! We encourage deployments on any EVM-compatible chain including:
-- Ethereum Mainnet
-- Arbitrum One / Nova
-- Optimism
-- Base
-- Polygon
-- zkSync Era
-
-Multi-chain deployments are definitely a plus and will be considered during judging! 🚀`,
-    },
-  });
-
-  // Follow-up from another user
-  const faqReply1 = await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: faqThread1.id,
-      userId: hacker1.id,
-      content: `Adding to this - for the Account Abstraction track, I'd recommend using Base or Optimism as they have great AA infrastructure with Pimlico and Alchemy.`,
-    },
-  });
-
-  // Nested reply (reply to reply)
-  const nestedReply1 = await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: faqThread1.id,
-      userId: hacker4.id,
-      parentId: faqReply1.id,
-      content: `Thanks for the tip! I'll look into Base. Do you know if they provide any testnet faucets?`,
-    },
-  });
-
-  // Another nested reply (reply to nested reply)
-  await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: faqThread1.id,
-      userId: hacker1.id,
-      parentId: nestedReply1.id,
-      content: `Yes! Base has a testnet faucet at https://www.coinbase.com/faucets/base-ethereum-goerli-faucet. You can also use the Sepolia testnet faucet.`,
-    },
-  });
-
-  // FAQ Thread 2: Team formation question
-  const faqThread2 = await prisma.hackathonQuestionThread.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      userId: hacker2.id,
-      title: 'Looking for team members - Full stack dev available',
-      content: `Hey everyone! 👋
-
-I'm a full-stack developer with experience in:
-- React/Next.js frontend
-- Node.js/Express backend
-- Basic Solidity (learning more!)
-
-Looking for:
-- Smart contract developer
-- UI/UX designer
-
-DM me on Discord: satoshi_dev#1234`,
-    },
-  });
-
-  await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: faqThread2.id,
-      userId: hacker3.id,
-      content: `Hey! I'm a ZK researcher but also do Solidity. Would love to team up if you're interested in building something privacy-focused! Let me know.`,
-    },
-  });
-
-  // FAQ Thread 3: Question without title (testing optional title)
-  const faqThread3 = await prisma.hackathonQuestionThread.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      userId: hacker5.id,
-      title: null,
-      content: `Quick question - what's the deadline for submissions? I want to make sure I have enough time to polish my project.`,
-    },
-  });
-
-  await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: faqThread3.id,
-      userId: adminUser.id,
-      content: `Submissions are due on March 17, 2025 at 11:59 PM UTC. Make sure to submit before the deadline - late submissions won't be accepted!`,
-    },
-  });
-
-  // FAQ Thread 4: Question with multiple replies and attachments
-  const faqThread4 = await prisma.hackathonQuestionThread.create({
-    data: {
-      hackathonId: ethHackathon.id,
-      userId: hacker6.id,
-      title: 'What APIs and tools are available?',
-      content: `I'm building a DeFi project and need to know what APIs, SDKs, and developer tools are available during the hackathon.
-
-Specifically interested in:
-- Price oracles
-- Wallet integrations
-- Indexing services
-
-Thanks!`,
-    },
-  });
-
-  const replyWithAttachments = await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: faqThread4.id,
-      userId: adminUser.id,
-      content: `Great question! Here's a comprehensive list of available tools and APIs:
-
-**Oracles:**
-- Chainlink Price Feeds
-- Chainlink VRF
-- Chainlink Automation
-
-**Wallet SDKs:**
-- WalletConnect v2
-- Web3Modal
-- RainbowKit
-
-**Indexing:**
-- The Graph (subgraph hosting available)
-- Alchemy API
-- Infura API
-
-Check out our developer resources page for more details!`,
-      attachments: [
-        'https://placehold.co/600x400/627EEA/FFFFFF?text=Developer+Tools+Guide',
-      ],
-    },
-  });
-
-  // Reply to the organizer's reply
-  await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: faqThread4.id,
-      userId: hacker6.id,
-      parentId: replyWithAttachments.id,
-      content: `Perfect! Thanks for the info. Do we get free API credits for Alchemy/Infura?`,
-    },
-  });
-
-  // FAQ Thread for Solana hackathon
-  const solanaFaqThread = await prisma.hackathonQuestionThread.create({
-    data: {
-      hackathonId: solanaHackathon.id,
-      userId: hacker5.id,
-      title: 'Anchor vs Native Solana - which is preferred?',
-      content: `For the Infrastructure track, is there a preference between using Anchor framework vs native Solana programs?
-
-I'm more comfortable with Anchor but want to make sure it won't affect judging.`,
-    },
-  });
-
-  await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: solanaFaqThread.id,
-      userId: orgOwner.id,
-      content: `Both are perfectly fine! Use whatever you're most productive with. 
-
-That said, if you're building developer tools, supporting both Anchor and native programs could be a nice feature to have. But it's not required at all.
-
-Ship fast! ⚡`,
-    },
-  });
-
-  // FAQ Thread for ZK hackathon
-  const zkFaqThread = await prisma.hackathonQuestionThread.create({
-    data: {
-      hackathonId: zkHackathon.id,
-      userId: hacker1.id,
-      title: 'Are there workshops for ZK beginners?',
-      content: `I'm new to ZK development. Will there be any introductory workshops or resources for beginners?
-
-I have strong experience with Solidity but never worked with circuits before.`,
-    },
-  });
-
-  await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: zkFaqThread.id,
-      userId: adminUser.id,
-      content: `Yes! We'll have a full learning track for beginners:
-
-📚 **Workshop Schedule:**
-- Day 1: ZK Fundamentals & Math Basics
-- Day 2: Circom & snarkjs Hands-on
-- Day 3: Introduction to Noir
-- Day 4: Building Your First ZK App
-
-All workshops will be recorded and available on our YouTube channel.
-
-Don't worry about being a beginner - this hackathon is designed to be accessible! 🎓`,
-    },
-  });
-
-  // FAQ Threads for Private Hackathon (to test access control)
-  const privateFaqThread1 = await prisma.hackathonQuestionThread.create({
-    data: {
-      hackathonId: privateHackathon.id,
-      userId: hacker1.id, // hacker1 is registered and approved
-      title: 'What is the submission deadline?',
-      content: `I'm working on my project and want to make sure I have enough time. When exactly is the submission deadline?`,
-    },
-  });
-
-  await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: privateFaqThread1.id,
-      userId: adminUser.id, // Admin reply
-      content: `Submissions are due on the hackathon end date. Make sure to submit before the deadline - late submissions won't be accepted!`,
-    },
-  });
-
-  const privateFaqThread2 = await prisma.hackathonQuestionThread.create({
-    data: {
-      hackathonId: privateHackathon.id,
-      userId: hacker2.id, // hacker2 is registered and approved
-      title: 'Can we use external APIs?',
-      content: `Are we allowed to use external APIs and services in our projects? I'm planning to integrate with some third-party services.`,
-      attachments: ['https://placehold.co/600x400/1A1A1A/FFFFFF?text=API+Integration+Diagram'],
-    },
-  });
-
-  await prisma.hackathonQuestionReply.create({
-    data: {
-      threadId: privateFaqThread2.id,
-      userId: adminUser.id,
-      content: `Yes, external APIs are allowed! Just make sure to:
-- Document all external dependencies
-- Include API keys in your README (for judges to test)
-- Handle rate limits gracefully
-- Consider fallback options if APIs go down`,
-    },
-  });
-
-  // hacker3 is NOT registered for private hackathon - this thread shouldn't exist in seed
-  // but if hacker3 tries to create one, it should fail with 403
-
-  console.log(`✅ Created FAQ threads with replies for all hackathons (including private hackathon)\n`);
-
-  // ============================================
-  // 16. CREATE ANNOUNCEMENTS
-  // ============================================
-  console.log('📢 Creating announcements...');
-
-  await prisma.announcement.createMany({
-    data: [
-      {
-        hackathonId: ethHackathon.id,
-        createdById: adminUser.id,
-        title: 'Registration Now Open! 🎉',
-        message: `We're thrilled to announce that registration for ETH Global Brussels 2025 is now open!
-
-## Key Dates
-- **Registration Deadline**: 30 days from now
-- **Hackathon Start**: March 15, 2025
-- **Submissions Due**: March 17, 2025
-
-## What to Prepare
-1. Update your profile with your skills
-2. Start forming your team
-3. Review the tracks and bounties
-
-See you in Brussels! 🇧🇪`,
-        visibility: 'PUBLIC',
-        targetType: 'ALL',
-        isPinned: true,
-      },
-      {
-        hackathonId: ethHackathon.id,
-        createdById: adminUser.id,
-        title: 'New Sponsor Bounty: Chainlink',
-        message: `Exciting news! Chainlink has joined as a sponsor with a $20,000 bounty pool!
-
-Build with Chainlink services:
-- Price Feeds
-- VRF (Randomness)
-- Automation
-- CCIP (Cross-chain)
-
-Check the bounties tab for full details.`,
-        visibility: 'PUBLIC',
-        targetType: 'REGISTERED',
-      },
-      {
-        hackathonId: solanaHackathon.id,
-        createdById: orgOwner.id,
-        title: 'Hackathon Has Started! ⚡',
-        message: `The Solana Speedrun 2025 is officially LIVE!
-
-You have 3 weeks to build something amazing. Remember:
-- Deploy on devnet or mainnet
-- Open source your code
-- Submit before the deadline
-
-Questions? Ask in the FAQ section or join our Discord.
-
-LFG! 🚀`,
-        visibility: 'PUBLIC',
-        targetType: 'ALL',
-        isPinned: true,
-      },
-      {
-        hackathonId: zkHackathon.id,
-        createdById: adminUser.id,
-        title: 'Workshop Schedule Released',
-        message: `The full workshop schedule for ZK Proof Summer is now available!
-
-Week 1: Fundamentals
-Week 2: Circom Deep Dive
-Week 3: Noir & Advanced Topics
-Week 4: Building & Shipping
-
-All sessions will be recorded. Links will be shared with registered participants.`,
-        visibility: 'REGISTERED_ONLY',
-        targetType: 'REGISTERED',
-      },
-    ],
-  });
-
-  console.log(`✅ Created 4 announcements\n`);
+  
+  for (const team of teams) {
+    if (submissionCount >= targetSubmissions) break;
+    
+    // 70-80% of teams have submissions
+    if (Math.random() > 0.25) {
+      const hackathonTracks = tracksWithHackathons.filter(t => t.hackathonId === team.hackathonId);
+      if (hackathonTracks.length === 0) continue;
+      
+      const track = randomChoice(hackathonTracks);
+      const teamMembers = await prisma.teamMember.findMany({
+        where: { teamId: team.id },
+      });
+      if (teamMembers.length === 0) continue;
+      
+      const creator = randomChoice(teamMembers);
+      const projectTitle = `${randomChoice(projectTitles)} ${submissionCount + 1}`;
+      
+      await prisma.submission.create({
+        data: {
+          hackathonId: team.hackathonId,
+          teamId: team.id,
+          creatorId: creator.userId,
+          trackId: track.id,
+          title: projectTitle,
+          tagline: `Revolutionary ${randomChoice(['DeFi', 'NFT', 'Web3', 'Blockchain'])} solution`,
+          description: `# ${projectTitle}\n\n${randomChoice(['A cutting-edge', 'An innovative', 'A revolutionary'])} ${randomChoice(['DeFi', 'NFT', 'Web3', 'blockchain'])} project.`,
+          status: randomChoice(['DRAFT', 'SUBMITTED', 'UNDER_REVIEW']),
+          demoUrl: `https://demo.example.com/${team.id}`,
+          repoUrl: `https://github.com/team/${team.id}`,
+          technologies: Array.from({ length: randomInt(3, 6) }, () => randomChoice(technologies)),
+        },
+      });
+      submissionCount++;
+    }
+  }
+  console.log(`✅ Created ${submissionCount} submissions\n`);
 
   // ============================================
   // SUMMARY
   // ============================================
   console.log('═'.repeat(60));
-  console.log('🎉 Database seeded successfully!');
+  console.log('🎉 MAX Database seeded successfully!');
   console.log('═'.repeat(60));
   console.log('\n📊 Summary:');
-  console.log(`   • Users: 8 (1 admin, 7 hackers/org owners)`);
-  console.log(`   • Categories: 7`);
-  console.log(`   • Organizations: 3`);
-  console.log(`   • Hackathons: 3 (all ACTIVE)`);
-  console.log(`   • Hackathon Requests: 3 (2 pending, 1 rejected)`);
-  console.log(`   • Tracks: 7`);
-  console.log(`   • Sponsors: 4`);
-  console.log(`   • Bounties: 4`);
-  console.log(`   • Prizes: 28`);
-  console.log(`   • Teams: 5`);
-  console.log(`   • Team Members: 7`);
-  console.log(`   • Registrations: 9 (4 with custom answers)`);
-  console.log(`   • Registration Answers: 4`);
-  console.log(`   • Submissions: 2 (drafts)`);
-  console.log(`   • Notifications: 4`);
-  console.log(`   • Team Invitations: 2`);
-  console.log(`   • FAQ Threads: 4`);
-  console.log(`   • FAQ Replies: 7 (including nested)`);
-  console.log(`   • Announcements: 4`);
+  console.log(`   • Users: ${users.length}`);
+  console.log(`   • Categories: ${categoryRecords.length}`);
+  console.log(`   • Organizations: ${organizations.length}`);
+  console.log(`   • Hackathons: ${hackathons.length}`);
+  console.log(`   • Tracks: ${trackCount}`);
+  console.log(`   • Sponsors: ${sponsorCount}`);
+  console.log(`   • Bounties: ${bountyCount}`);
+  console.log(`   • Prizes: ${prizeCount}`);
+  console.log(`   • Registrations: ${registrationCount}`);
+  console.log(`   • Teams: ${teams.length}`);
+  console.log(`   • Team Members: ${teamMembersData.length}`);
+  console.log(`   • Submissions: ${submissionCount}`);
   console.log('\n🔐 Test Credentials (all use Password123!):');
-  console.log(`   Admin:     admin@4hacks.io`);
-  console.log(`   Hacker 1:  vitalik@example.com (Solidity dev)`);
-  console.log(`   Hacker 2:  satoshi@example.com (Rust/Solana)`);
-  console.log(`   Hacker 3:  ada@example.com (ZK researcher)`);
-  console.log(`   Hacker 4:  charlie@example.com (DeFi dev)`);
-  console.log(`   Hacker 5:  diana@example.com (NFT/Gaming)`);
-  console.log(`   Hacker 6:  ethan@example.com (Infrastructure)`);
-  console.log(`   Org Owner: founder@solanalabs.io`);
-  console.log('\n📋 Test Data for Upcoming Tasks:');
-  console.log(`   • ETH Hackathon has 5 custom registration questions`);
-  console.log(`   • 4 registrations have answers to test form API`);
-  console.log(`   • 4 FAQ threads with replies to test FAQ endpoints`);
-  console.log(`   • Nested replies included for threaded discussion test\n`);
+  console.log(`   Admin: admin@4hacks.io`);
+  console.log(`   Organization Owners:`);
+  for (const orgOwner of orgOwners) {
+    const orgNameShort = orgOwner.orgName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    console.log(`     - org_owner_${orgNameShort}@4hacks.io (${orgOwner.orgName})`);
+  }
+  console.log(`   Regular Users: user1@example.com through user${totalRegularUsers}@example.com`);
+  console.log('\n📌 Note: Organization owners do NOT register, create teams, or submit to their own hackathons (logically correct!)');
+  console.log('\n');
 }
 
 main()
