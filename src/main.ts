@@ -53,6 +53,7 @@ async function bootstrap() {
       'Endpoints related to user profile management',
     )
     .addTag('Notifications', 'Endpoints related to notifications management')
+    .addTag('Users', 'Public endpoints for searching users')
     .addTag('Organizations', 'Endpoints related to organization management')
     .addTag(
       'Categories',
@@ -74,6 +75,10 @@ async function bootstrap() {
     )
     .addTag('Hackathon FAQ / Q&A', 'Endpoints related to hackathon FAQ / Q&A')
     .addTag('Hackathon Registration', 'Endpoints for hackathon registrations')
+    .addTag(
+      'Hackathon Registration Questions',
+      'Endpoints for managing custom registration questions for hackathons',
+    )
     .addTag('Hackathon Teams', 'Endpoints for hackathon teams')
     .addTag(
       'Hackathon Team Positions',

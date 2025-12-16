@@ -17,6 +17,7 @@ import { HackathonRequestModule } from './hackathon-request/hackathon-request.mo
 import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CategoriesModule } from './categories/categories.module';
+import { UsersModule } from './users/users.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { CustomThrottlerGuard } from './common/guards/customThrottlerGuard.guard';
@@ -54,6 +55,7 @@ import { CustomThrottlerGuard } from './common/guards/customThrottlerGuard.guard
     AdminModule,
     NotificationsModule,
     CategoriesModule,
+    UsersModule,
     ThrottlerModule.forRoot({
       throttlers: [
         {

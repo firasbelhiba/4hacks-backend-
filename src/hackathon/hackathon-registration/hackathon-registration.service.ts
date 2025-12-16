@@ -10,10 +10,10 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterForHackathonDto } from './dto/register.dto';
 import { FindHackathonRegistrationsDto } from './dto/find-registrations.dto';
 import * as bcrypt from 'bcrypt';
-import { RegistrationQuestionDto } from '../dto/update.dto';
 import {
   HackathonRegistrationStatus,
   HackathonStatus,
+  RegistrationQuestionType,
   UserRole,
 } from '@prisma/client';
 
@@ -26,16 +26,19 @@ export class HackathonRegistrationService {
   async registerForHackathon(
     hackathonId: string,
     user: UserMin,
-    RegisterForHackathonDto: RegisterForHackathonDto,
+    registerDto: RegisterForHackathonDto,
   ) {
-    const { passCode } = RegisterForHackathonDto;
+    const { passCode, answers } = registerDto;
 
-    // Check if hackathon exists
+    // Check if hackathon exists with registration questions
     const hackathon = await this.prismaService.hackathon.findUnique({
       where: { id: hackathonId },
       include: {
         organization: {
           select: { name: true, slug: true, ownerId: true },
+        },
+        registrationQuestions: {
+          orderBy: { order: 'asc' },
         },
       },
     });
@@ -101,30 +104,60 @@ export class HackathonRegistrationService {
       }
     }
 
-    //  Check if hackathon has questions to be answered before registration
-    const hackathonQuestions =
-      hackathon.registrationQuestions as unknown as RegistrationQuestionDto[];
+    // Validate answers against registration questions
+    const questions = hackathon.registrationQuestions;
 
-    if (hackathonQuestions && hackathonQuestions.length > 0) {
+    if (questions && questions.length > 0) {
       this.logger.log(
-        `Hackathon ${hackathonId} has registration questions. User ${user.id} must answer them before completing registration.`,
+        `Hackathon ${hackathonId} has ${questions.length} registration questions. User ${user.id} must answer required ones.`,
       );
-      const { registrationAnswers } = RegisterForHackathonDto;
 
-      for (const question of hackathonQuestions) {
-        const answer = registrationAnswers?.find(
-          (ans) => ans.questionId === question.id,
-        );
+      // Create a map of answers for easy lookup
+      const answersMap = new Map(
+        (answers || []).map((a) => [a.questionId, a.value]),
+      );
 
-        if (question.required && (!answer || !answer.answer.trim())) {
+      for (const question of questions) {
+        const answerValue = answersMap.get(question.id);
+        const hasAnswer =
+          answerValue && answerValue.length > 0 && answerValue[0].trim() !== '';
+
+        // Check required questions
+        if (question.required && !hasAnswer) {
           throw new BadRequestException(
-            `Answer to question "${question.content}" is required for registration.`,
+            `Answer to question "${question.label}" is required for registration.`,
           );
+        }
+
+        // Validate SELECT/MULTISELECT answers against options
+        if (
+          hasAnswer &&
+          (question.type === RegistrationQuestionType.SELECT ||
+            question.type === RegistrationQuestionType.MULTISELECT)
+        ) {
+          const invalidOptions = answerValue.filter(
+            (v) => !question.options.includes(v),
+          );
+          if (invalidOptions.length > 0) {
+            throw new BadRequestException(
+              `Invalid option(s) "${invalidOptions.join(', ')}" for question "${question.label}". Valid options are: ${question.options.join(', ')}`,
+            );
+          }
+
+          // SELECT should have only one answer
+          if (
+            question.type === RegistrationQuestionType.SELECT &&
+            answerValue.length > 1
+          ) {
+            throw new BadRequestException(
+              `Question "${question.label}" only allows one answer.`,
+            );
+          }
         }
       }
     }
 
-    // Create registration
+    // Create registration with answers
     const registration = await this.prismaService.$transaction(async (tx) => {
       // Create the registration entry
       const newRegistration = await tx.hackathonRegistration.create({
@@ -135,15 +168,16 @@ export class HackathonRegistrationService {
         },
       });
 
-      // Store the answers to the registration questions
-      await tx.hackathonRegistrationAnswer.create({
-        data: {
-          registrationId: newRegistration.id,
-          answers: JSON.stringify(
-            RegisterForHackathonDto.registrationAnswers ?? [],
-          ),
-        },
-      });
+      // Store individual answers for each question
+      if (answers && answers.length > 0) {
+        await tx.hackathonRegistrationAnswer.createMany({
+          data: answers.map((a) => ({
+            registrationId: newRegistration.id,
+            questionId: a.questionId,
+            value: a.value,
+          })),
+        });
+      }
 
       // Store the registration activity in user activity log
       await tx.userActivityLog.create({
@@ -263,10 +297,14 @@ export class HackathonRegistrationService {
           ...(hasSpecialAccess
             ? {
                 answers: {
-                  select: {
-                    id: true,
-                    answers: true,
-                    submittedAt: true,
+                  include: {
+                    question: {
+                      select: {
+                        id: true,
+                        label: true,
+                        type: true,
+                      },
+                    },
                   },
                 },
               }

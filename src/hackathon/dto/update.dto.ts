@@ -335,28 +335,30 @@ export class UpdateHackathonDto {
   otherLocations?: LocationDto[];
 
   @ApiPropertyOptional({
-    description: 'Dynamic registration questions',
-    example: [
-      {
-        id: 'q1',
-        content: 'What is your experience level?',
-        required: true,
-      },
-    ],
+    description:
+      'Registration questions to create/update. Use dedicated question endpoints for more control.',
+    type: () => [HackathonRegistrationQuestionInputDto],
   })
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => HackathonRegistrationQuestionInputDto)
   @IsOptional()
-  registrationQuestions?: RegistrationQuestionDto[];
+  registrationQuestions?: HackathonRegistrationQuestionInputDto[];
 }
 
-export class RegistrationQuestionDto {
-  @ApiProperty({
-    description: 'Unique identifier for the question',
-    example: 'q1',
+/**
+ * Input DTO for registration questions when creating/updating hackathon
+ * For more control, use the dedicated /hackathon/:id/registration/questions endpoints
+ */
+export class HackathonRegistrationQuestionInputDto {
+  @ApiPropertyOptional({
+    description:
+      'Question ID (for updates). If not provided, a new question will be created.',
+    example: 'clx1abc123',
   })
   @IsString()
-  @IsNotEmpty()
-  id: string;
+  @IsOptional()
+  id?: string;
 
   @ApiProperty({
     description: 'Label or text of the question',
@@ -364,12 +366,59 @@ export class RegistrationQuestionDto {
   })
   @IsString()
   @IsNotEmpty()
-  content: string;
+  label: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
+    description: 'Additional description/context for the question',
+    example: 'This helps us match you with appropriate mentors',
+  })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiPropertyOptional({
+    description: 'Type of the question input',
+    enum: ['TEXT', 'TEXTAREA', 'SELECT', 'MULTISELECT', 'CHECKBOX'],
+    default: 'TEXT',
+  })
+  @IsString()
+  @IsOptional()
+  type?: string;
+
+  @ApiPropertyOptional({
     description: 'Whether the question is required',
     example: true,
+    default: false,
   })
   @IsBoolean()
-  required: boolean;
+  @IsOptional()
+  required?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Placeholder text for TEXT/TEXTAREA inputs',
+    example: 'Enter your answer here...',
+  })
+  @IsString()
+  @IsOptional()
+  placeholder?: string;
+
+  @ApiPropertyOptional({
+    description: 'Options for SELECT/MULTISELECT questions',
+    example: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  options?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Order of the question (for sorting)',
+    example: 0,
+    minimum: 0,
+  })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  order?: number;
 }
