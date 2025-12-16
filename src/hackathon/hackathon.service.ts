@@ -628,6 +628,7 @@ export class HackathonService {
         bounties: true,
         prizes: true,
         category: true,
+        registrationQuestions: true,
         organization: {
           include: {
             owner: {
@@ -642,20 +643,37 @@ export class HackathonService {
       throw new NotFoundException('Hackathon not found or access denied');
     }
 
-    const returnedHackathon = { ...hackathon } as typeof hackathon & {
-      isRegistered?: boolean;
-    };
-
-    // If hackathon is active, return if the user is registered on it
-    if (hackathon.status === HackathonStatus.ACTIVE && userId) {
-      const isRegistered = await this.prisma.hackathonRegistration.findFirst({
-        where: { hackathonId: hackathon.id, userId },
-        select: { id: true },
-      });
-      returnedHackathon.isRegistered = !!isRegistered;
+    // If hackathon is not active or no userId, return it as is
+    if (hackathon.status !== HackathonStatus.ACTIVE || !userId) {
+      return hackathon;
     }
 
-    return returnedHackathon;
+    const [registration, submission] = await Promise.all([
+      this.prisma.hackathonRegistration.findFirst({
+        where: {
+          hackathonId: hackathon.id,
+          userId,
+        },
+        select: { id: true },
+      }),
+      this.prisma.submission.findFirst({
+        where: {
+          hackathonId: hackathon.id,
+          team: {
+            members: {
+              some: { userId },
+            },
+          },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    return {
+      ...hackathon,
+      isRegistered: Boolean(registration),
+      hasSubmission: Boolean(submission),
+    };
   }
 
   async manageSponsors(
