@@ -1067,6 +1067,16 @@ export class TeamsService {
             },
             orderBy: [{ isLeader: 'desc' }, { joinedAt: 'asc' }],
           },
+          teamPositions: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              status: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
           _count: {
             select: { members: true },
           },
@@ -1091,6 +1101,7 @@ export class TeamsService {
           joinedAt: member.joinedAt,
           user: member.user,
         })),
+        teamPositions: team.teamPositions,
       })),
       meta: {
         page,
