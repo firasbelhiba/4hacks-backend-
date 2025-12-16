@@ -72,6 +72,10 @@ export class NotificationGateway
    * Emit notification to a specific user
    */
   sendNotificationEventToUser(userId: string, payload: any) {
-    this.server.to(userId).emit('notification', payload);
+    try {
+      this.server.to(userId).emit('notification', payload);
+    } catch (err) {
+      console.error('Failed to send notification to user', userId, err);
+    }
   }
 }
