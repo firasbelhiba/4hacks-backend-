@@ -24,6 +24,7 @@ import {
   TeamInvitationAcceptedEmailTemplateHtml,
   TeamInvitationDeclinedEmailTemplateHtml,
 } from 'src/common/templates/emails/team.emails';
+import { NotificationGateway } from 'src/notifications/notifications.gateway';
 
 @Injectable()
 export class TeamsService {
@@ -33,6 +34,7 @@ export class TeamsService {
     private readonly prisma: PrismaService,
     private readonly fileUploadService: FileUploadService,
     private readonly emailService: EmailService,
+    private readonly notificationGateway: NotificationGateway,
   ) {}
 
   async createTeam(
@@ -330,7 +332,7 @@ export class TeamsService {
       });
 
       // Sent a notification to the invited user
-      await tx.notification.create({
+      const notif = await tx.notification.create({
         data: {
           toUserId: userToAdd.id,
           fromUserId: requesterUser.id,
@@ -343,6 +345,9 @@ export class TeamsService {
           },
         },
       });
+
+      // Send the invite using websocket
+      this.notificationGateway.sendNotificationEventToUser(userToAdd.id, notif);
 
       return teamInvitation;
     });
