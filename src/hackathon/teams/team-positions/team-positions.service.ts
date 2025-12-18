@@ -345,7 +345,7 @@ export class TeamPositionsService {
         // create new notification for the team leader
         await tx.notification.create({
           data: {
-            toUserId: teamLeader.id,
+            toUserId: teamLeader.user.id,
             type: 'TEAM_POSITION_APPLICATION',
             content: `New application for team position ${teamPosition.title} for team ${teamPosition.team.name}`,
             payload: {
