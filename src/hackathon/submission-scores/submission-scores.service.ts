@@ -371,10 +371,10 @@ export class SubmissionScoresService {
           },
           submissionBounties: {
             select: {
-              bounty: {
-                select: {
-                  id: true,
-                  title: true,
+          bounty: {
+            select: {
+              id: true,
+              title: true,
                 },
               },
             },
@@ -446,7 +446,7 @@ export class SubmissionScoresService {
           submittedAt: submission.submittedAt,
           team: submission.team,
           track: submission.track,
-          bounty: submission.bounty,
+          bounties: submission.submissionBounties.map((sb: any) => sb.bounty),
         },
         scores,
         missingJudges,

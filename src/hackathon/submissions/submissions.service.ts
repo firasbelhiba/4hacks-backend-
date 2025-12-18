@@ -271,12 +271,56 @@ export class SubmissionsService {
         })),
       });
 
-      return newSubmission;
+      // Fetch created submission with bounties (inside transaction for consistency)
+      return await tx.submission.findUnique({
+        where: { id: newSubmission.id },
+        select: {
+          id: true,
+          hackathonId: true,
+          teamId: true,
+          creatorId: true,
+          trackId: true,
+          title: true,
+          tagline: true,
+          description: true,
+          logo: true,
+          status: true,
+          submittedAt: true,
+          submissionReviewedAt: true,
+          reviewReason: true,
+          submissionReviewedById: true,
+          demoUrl: true,
+          videoUrl: true,
+          repoUrl: true,
+          pitchUrl: true,
+          technologies: true,
+          isWinner: true,
+          createdAt: true,
+          updatedAt: true,
+          submissionBounties: {
+            select: {
+              bounty: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      });
     });
+
+    // Transform submissionBounties to bounties array
+    const { submissionBounties, ...rest } = submission as any;
+    const transformedSubmission = {
+      ...rest,
+      bounties: submissionBounties?.map((sb: any) => sb.bounty) || [],
+    };
 
     return {
       message: 'Submission created successfully',
-      data: submission,
+      data: transformedSubmission,
     };
   }
 
@@ -618,50 +662,92 @@ export class SubmissionsService {
     if (otherUpdates.technologies !== undefined)
       updateData.technologies = otherUpdates.technologies;
 
-    // Update submission
-    const updatedSubmission = await this.prismaService.$transaction(
-      async (tx) => {
-        const updated = await tx.submission.update({
-          where: { id: submissionId },
-          data: updateData,
+    // Update submission and fetch with bounties in one go
+    const updatedSubmission = await this.prismaService.$transaction(async (tx) => {
+      await tx.submission.update({
+        where: { id: submissionId },
+        data: updateData,
+      });
+
+      // Update bounty associations if bountyIds is provided
+      if (bountyIds !== undefined) {
+        // Delete existing bounty associations
+        await tx.submissionBounty.deleteMany({
+          where: { submissionId },
         });
 
-        // Update bounty associations if bountyIds is provided
-        if (bountyIds !== undefined) {
-          // Delete existing bounty associations
-          await tx.submissionBounty.deleteMany({
-            where: { submissionId },
+        // Create new bounty associations
+        if (bountyIds.length > 0) {
+          await tx.submissionBounty.createMany({
+            data: bountyIds.map((bountyId) => ({
+              submissionId,
+              bountyId,
+            })),
           });
-
-          // Create new bounty associations
-          if (bountyIds.length > 0) {
-            await tx.submissionBounty.createMany({
-              data: bountyIds.map((bountyId) => ({
-                submissionId,
-                bountyId,
-              })),
-            });
-          }
         }
+      }
 
-        // Store the User Activity Log
-        await tx.userActivityLog.create({
-          data: {
-            userId: requesterUser.id,
-            action: 'UPDATE_HACKATHON_SUBMISSION',
-            targetType: ActivityTargetType.SUBMISSION.toString(),
-            targetId: submission.id,
-            description: `updated submission ${submission.title} for hackathon ${hackathon.slug}`,
+      // Store the User Activity Log
+      await tx.userActivityLog.create({
+        data: {
+          userId: requesterUser.id,
+          action: 'UPDATE_HACKATHON_SUBMISSION',
+          targetType: ActivityTargetType.SUBMISSION.toString(),
+          targetId: submission.id,
+          description: `updated submission ${submission.title} for hackathon ${hackathon.slug}`,
+        },
+      });
+
+      // Fetch updated submission with bounties (inside transaction for consistency)
+      return await tx.submission.findUnique({
+        where: { id: submissionId },
+        select: {
+          id: true,
+          hackathonId: true,
+          teamId: true,
+          creatorId: true,
+          trackId: true,
+          title: true,
+          tagline: true,
+          description: true,
+          logo: true,
+          status: true,
+          submittedAt: true,
+          submissionReviewedAt: true,
+          reviewReason: true,
+          submissionReviewedById: true,
+          demoUrl: true,
+          videoUrl: true,
+          repoUrl: true,
+          pitchUrl: true,
+          technologies: true,
+          isWinner: true,
+          createdAt: true,
+          updatedAt: true,
+          submissionBounties: {
+            select: {
+              bounty: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
           },
-        });
+        },
+      });
+    });
 
-        return updated;
-      },
-    );
+    // Transform submissionBounties to bounties array
+    const { submissionBounties, ...rest } = updatedSubmission as any;
+    const transformedSubmission = {
+      ...rest,
+      bounties: submissionBounties?.map((sb: any) => sb.bounty) || [],
+    };
 
     return {
       message: 'Submission updated successfully',
-      data: updatedSubmission,
+      data: transformedSubmission,
     };
   }
 
@@ -774,9 +860,16 @@ export class SubmissionsService {
       );
     }
 
+    // Transform submissionBounties to bounties array for response
+    const { submissionBounties, ...rest } = submission as any;
+    const transformedSubmission = {
+      ...rest,
+      bounties: submissionBounties?.map((sb: any) => sb.bounty) || [],
+    };
+
     return {
       message: 'Submission retrieved successfully',
-      data: submission,
+      data: transformedSubmission,
     };
   }
 
@@ -1032,8 +1125,17 @@ export class SubmissionsService {
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
+    // Transform submissionBounties to bounties array for response
+    const transformedSubmissions = submissions.map((submission: any) => {
+      const { submissionBounties, ...rest } = submission;
+      return {
+        ...rest,
+        bounties: submissionBounties?.map((sb: any) => sb.bounty) || [],
+      };
+    });
+
     return {
-      data: submissions,
+      data: transformedSubmissions,
       meta: {
         page,
         limit,

@@ -640,7 +640,7 @@ export class PrizesService {
         trackId: true,
         submissionBounties: {
           select: {
-            bountyId: true,
+        bountyId: true,
           },
         },
         status: true,

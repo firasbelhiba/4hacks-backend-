@@ -785,7 +785,7 @@ Only the organization owner can archive their hackathons.
                 id: 'clx2222333344',
                 name: 'DeFi Track',
               },
-              bounty: null,
+              bounties: [],
             },
           },
         ],

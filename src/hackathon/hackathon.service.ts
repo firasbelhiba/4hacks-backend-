@@ -1435,10 +1435,14 @@ export class HackathonService {
                 name: true,
               },
             },
+            submissionBounties: {
+              select: {
             bounty: {
               select: {
                 id: true,
                 title: true,
+                  },
+                },
               },
             },
           },
@@ -1458,6 +1462,21 @@ export class HackathonService {
       ],
     });
 
+    // Transform submissionBounties to bounties array in each winner's submission
+    const transformedWinners = prizeWinners.map((winner: any) => {
+      if (winner.submission?.submissionBounties) {
+        const { submissionBounties, ...submissionRest } = winner.submission;
+        return {
+          ...winner,
+          submission: {
+            ...submissionRest,
+            bounties: submissionBounties.map((sb: any) => sb.bounty),
+          },
+        };
+      }
+      return winner;
+    });
+
     return {
       hackathon: {
         id: hackathon.id,
@@ -1465,8 +1484,8 @@ export class HackathonService {
         slug: hackathon.slug,
         organization: hackathon.organization,
       },
-      winners: prizeWinners,
-      totalWinners: prizeWinners.length,
+      winners: transformedWinners,
+      totalWinners: transformedWinners.length,
     };
   }
 

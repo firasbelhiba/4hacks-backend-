@@ -44,7 +44,7 @@ export class HackathonSubmissionsController {
     description: 'Submission created successfully',
   })
   @ApiNotFoundResponse({
-    description: 'Hackathon, team, track, or bounty not found',
+    description: 'Hackathon, team, track, or one of the bounties not found',
   })
   @ApiBadRequestResponse({
     description: 'Invalid submission data',
@@ -121,7 +121,7 @@ export class HackathonSubmissionsController {
     description: 'Submission updated successfully',
   })
   @ApiNotFoundResponse({
-    description: 'Hackathon, submission, team, track, or bounty not found',
+    description: 'Hackathon, submission, team, track, or one of the bounties not found',
   })
   @ApiBadRequestResponse({
     description:

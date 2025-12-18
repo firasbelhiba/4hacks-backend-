@@ -75,7 +75,7 @@ export class PrizesController {
       'Allows the hackathon organizer or admin to specify which submission won a particular prize. ' +
       'The submission must be in SUBMITTED status and must belong to the same hackathon. ' +
       'For track prizes, the submission must be participating in the same track. ' +
-      'For bounty prizes, the submission must be for the same bounty. ' +
+      'For bounty prizes, the submission must be applying to the same bounty (submissions can apply to multiple bounties). ' +
       'This endpoint will create a PrizeWinner record and mark the submission as a winner.',
   })
   @ApiResponse({
@@ -121,7 +121,7 @@ export class PrizesController {
       '1) Submission does not belong to the same hackathon as the prize, ' +
       '2) Submission status is not SUBMITTED (could be DRAFT, REJECTED, or WITHDRAWN), ' +
       '3) For track prizes: submission is not participating in the same track, ' +
-      '4) For bounty prizes: submission is not for the same bounty, ' +
+      '4) For bounty prizes: submission is not applying to the same bounty, ' +
       '5) This submission is already set as the winner for this prize',
   })
   @UseGuards(JwtAuthGuard)
