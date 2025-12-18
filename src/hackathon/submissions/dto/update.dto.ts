@@ -11,12 +11,15 @@ export class UpdateSubmissionDto {
   trackId?: string;
 
   @ApiPropertyOptional({
-    description: 'ID of the bounty the submission is for',
-    example: 'bounty_12345',
+    description:
+      'IDs of the bounties the submission is applying for. Replaces all existing bounty associations. A submission can apply to multiple bounties.',
+    example: ['bounty_12345', 'bounty_67890'],
+    type: [String],
   })
   @IsOptional()
-  @IsString()
-  bountyId?: string;
+  @IsArray()
+  @IsString({ each: true })
+  bountyIds?: string[];
 
   @ApiPropertyOptional({
     description: 'Title of the submission',

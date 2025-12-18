@@ -60,7 +60,8 @@ export class QuerySubmissionsDto {
   trackId?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter by bounty ID',
+    description:
+      'Filter by bounty ID - returns submissions that are applying to this bounty',
     example: 'cm4wd2xyz0000abc789',
   })
   @IsOptional()
@@ -217,19 +218,21 @@ export class SubmissionListItemDto {
     name: string;
   } | null;
 
-  @ApiPropertyOptional({
-    description: 'Bounty info',
-    nullable: true,
-    type: 'object',
-    properties: {
-      id: { type: 'string' },
-      title: { type: 'string' },
+  @ApiProperty({
+    description: 'Bounties this submission is applying for',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        title: { type: 'string' },
+      },
     },
   })
-  bounty: {
+  bounties: Array<{
     id: string;
     title: string;
-  } | null;
+  }>;
 
   @ApiProperty({
     description: 'Creator info',

@@ -333,7 +333,9 @@ export class SubmissionScoresService {
     }
 
     if (bountyId) {
-      whereConditions.bountyId = bountyId;
+      whereConditions.submissionBounties = {
+        some: { bountyId },
+      };
     }
 
     if (search) {
@@ -367,10 +369,14 @@ export class SubmissionScoresService {
               name: true,
             },
           },
-          bounty: {
+          submissionBounties: {
             select: {
-              id: true,
-              title: true,
+              bounty: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
             },
           },
           submissionScores: {

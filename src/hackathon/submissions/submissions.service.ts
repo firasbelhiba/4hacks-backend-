@@ -45,7 +45,7 @@ export class SubmissionsService {
     const {
       teamId,
       trackId,
-      bountyId,
+      bountyIds,
       title,
       tagline,
       description,
@@ -106,10 +106,11 @@ export class SubmissionsService {
       throw new ForbiddenException('You are not the leader of the team');
     }
 
-    // Check if track and bounty are not both provided
-    if (!trackId && !bountyId) {
+    // Check if track or at least one bounty is provided
+    const hasBounties = bountyIds && bountyIds.length > 0;
+    if (!trackId && !hasBounties) {
       throw new BadRequestException(
-        'You must provide either a track or a bounty or both',
+        'You must provide either a track or at least one bounty (or both)',
       );
     }
 
@@ -124,14 +125,23 @@ export class SubmissionsService {
       }
     }
 
-    // Check if bounty exists for hackathon
-    if (bountyId) {
-      const bounty = await this.prismaService.bounty.findUnique({
-        where: { id: bountyId, hackathonId: hackathon.id },
+    // Check if all bounties exist for hackathon
+    if (hasBounties) {
+      const bounties = await this.prismaService.bounty.findMany({
+        where: {
+          id: { in: bountyIds },
+          hackathonId: hackathon.id,
+        },
+        select: { id: true },
       });
 
-      if (!bounty) {
-        throw new NotFoundException('Bounty not found for this hackathon');
+      const foundBountyIds = new Set(bounties.map((b) => b.id));
+      const missingBounties = bountyIds.filter((id) => !foundBountyIds.has(id));
+
+      if (missingBounties.length > 0) {
+        throw new NotFoundException(
+          `Bounties not found for this hackathon: ${missingBounties.join(', ')}`,
+        );
       }
     }
 
@@ -195,7 +205,6 @@ export class SubmissionsService {
           teamId,
           creatorId: requesterUser.id,
           trackId,
-          bountyId,
           title,
           tagline,
           description,
@@ -212,6 +221,16 @@ export class SubmissionsService {
           submissionReviewedAt: hackathon.requiresApproval ? null : new Date(),
         },
       });
+
+      // Create bounty associations if any bounties were provided
+      if (hasBounties) {
+        await tx.submissionBounty.createMany({
+          data: bountyIds.map((bountyId) => ({
+            submissionId: newSubmission.id,
+            bountyId,
+          })),
+        });
+      }
 
       // Store the User Activity Log
       await tx.userActivityLog.create({
@@ -475,7 +494,7 @@ export class SubmissionsService {
       );
     }
 
-    const { trackId, bountyId, ...otherUpdates } = updateSubmissionDto;
+    const { trackId, bountyIds, ...otherUpdates } = updateSubmissionDto;
 
     // Validate track if provided
     if (trackId !== undefined) {
@@ -490,25 +509,40 @@ export class SubmissionsService {
       }
     }
 
-    // Validate bounty if provided
-    if (bountyId !== undefined) {
-      if (bountyId) {
-        const bounty = await this.prismaService.bounty.findUnique({
-          where: { id: bountyId, hackathonId: hackathon.id },
-        });
+    // Validate bounties if provided
+    if (bountyIds !== undefined && bountyIds.length > 0) {
+      const bounties = await this.prismaService.bounty.findMany({
+        where: {
+          id: { in: bountyIds },
+          hackathonId: hackathon.id,
+        },
+        select: { id: true },
+      });
 
-        if (!bounty) {
-          throw new NotFoundException('Bounty not found for this hackathon');
-        }
+      const foundBountyIds = new Set(bounties.map((b) => b.id));
+      const missingBounties = bountyIds.filter((id) => !foundBountyIds.has(id));
+
+      if (missingBounties.length > 0) {
+        throw new NotFoundException(
+          `Bounties not found for this hackathon: ${missingBounties.join(', ')}`,
+        );
       }
     }
 
-    // Check if at least track or bounty will remain after update
-    const finalTrackId = trackId !== undefined ? trackId : submission.trackId;
-    const finalBountyId =
-      bountyId !== undefined ? bountyId : submission.bountyId;
+    // Get current bounty associations if bountyIds not provided in update
+    let currentBountyCount = 0;
+    if (bountyIds === undefined) {
+      currentBountyCount = await this.prismaService.submissionBounty.count({
+        where: { submissionId },
+      });
+    }
 
-    if (!finalTrackId && !finalBountyId) {
+    // Check if at least track or bounties will remain after update
+    const finalTrackId = trackId !== undefined ? trackId : submission.trackId;
+    const finalHasBounties =
+      bountyIds !== undefined ? bountyIds.length > 0 : currentBountyCount > 0;
+
+    if (!finalTrackId && !finalHasBounties) {
       throw new BadRequestException(
         'Submission must have at least a track or a bounty',
       );
@@ -567,7 +601,6 @@ export class SubmissionsService {
     const updateData: any = {};
 
     if (trackId !== undefined) updateData.trackId = trackId;
-    if (bountyId !== undefined) updateData.bountyId = bountyId;
     if (otherUpdates.title !== undefined) updateData.title = otherUpdates.title;
     if (otherUpdates.tagline !== undefined)
       updateData.tagline = otherUpdates.tagline;
@@ -592,6 +625,24 @@ export class SubmissionsService {
           where: { id: submissionId },
           data: updateData,
         });
+
+        // Update bounty associations if bountyIds is provided
+        if (bountyIds !== undefined) {
+          // Delete existing bounty associations
+          await tx.submissionBounty.deleteMany({
+            where: { submissionId },
+          });
+
+          // Create new bounty associations
+          if (bountyIds.length > 0) {
+            await tx.submissionBounty.createMany({
+              data: bountyIds.map((bountyId) => ({
+                submissionId,
+                bountyId,
+              })),
+            });
+          }
+        }
 
         // Store the User Activity Log
         await tx.userActivityLog.create({
@@ -669,13 +720,17 @@ export class SubmissionsService {
             description: true,
           },
         },
-        bounty: {
+        submissionBounties: {
           select: {
-            id: true,
-            title: true,
-            description: true,
-            rewardAmount: true,
-            rewardToken: true,
+            bounty: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                rewardAmount: true,
+                rewardToken: true,
+              },
+            },
           },
         },
         creator: {
@@ -888,7 +943,11 @@ export class SubmissionsService {
     }
 
     if (bountyId) {
-      whereConditions.AND.push({ bountyId });
+      whereConditions.AND.push({
+        submissionBounties: {
+          some: { bountyId },
+        },
+      });
     }
 
     if (status) {
@@ -945,10 +1004,14 @@ export class SubmissionsService {
               name: true,
             },
           },
-          bounty: {
+          submissionBounties: {
             select: {
-              id: true,
-              title: true,
+              bounty: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
             },
           },
           creator: {

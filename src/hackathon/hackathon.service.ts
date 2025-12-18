@@ -911,7 +911,7 @@ export class HackathonService {
 
     // Execute in transaction
     await this.prisma.$transaction(async (tx) => {
-      // Delete (submissions will have bountyId set to null due to onDelete: SetNull)
+      // Delete (submission-bounty associations will be cascade deleted)
       if (bountiesToDelete.length > 0) {
         await tx.bounty.deleteMany({
           where: {

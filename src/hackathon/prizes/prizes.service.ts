@@ -638,7 +638,11 @@ export class PrizesService {
         id: true,
         hackathonId: true,
         trackId: true,
-        bountyId: true,
+        submissionBounties: {
+          select: {
+            bountyId: true,
+          },
+        },
         status: true,
         title: true,
         hackathon: {
@@ -682,9 +686,12 @@ export class PrizesService {
       }
     }
 
-    // For bounty prizes, ensure submission is for the same bounty
+    // For bounty prizes, ensure submission is participating in the same bounty
     if (prize.type === PrizeType.BOUNTY && prize.bountyId) {
-      if (submission.bountyId !== prize.bountyId) {
+      const isParticipatingInBounty = submission.submissionBounties.some(
+        (sb) => sb.bountyId === prize.bountyId,
+      );
+      if (!isParticipatingInBounty) {
         throw new BadRequestException(
           'Submission is not participating in the same bounty as this prize',
         );

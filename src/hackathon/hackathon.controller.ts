@@ -325,7 +325,7 @@ export class HackathonController {
       'Manage all bounties for a hackathon (create, update, delete). Send the full list of desired bounties. Each bounty must have a valid sponsorId that exists for the hackathon. Bounties not in this list will be deleted. Hackathon can be identified by ID or slug. Organization owner only.\n\n' +
       '**Important Notes:**\n' +
       '- Each bounty **must** have a `sponsorId` that exists for this hackathon\n' +
-      '- If a bounty is deleted, any submissions associated with it will have their `bountyId` set to `null` (consistent with track deletion behavior)\n' +
+      '- If a bounty is deleted, any submission-bounty associations will be removed (submissions can apply to multiple bounties)\n' +
       '- `maxWinners` can be set to `0` to represent unlimited winners\n' +
       '- Bounties with an `id` will be updated, bounties without an `id` will be created',
   })
