@@ -21,6 +21,7 @@ import {
   HackathonStatus,
   Provider,
   SessionStatus,
+  TeamApplicationStatus,
   UserRole,
 } from '@prisma/client';
 import {
@@ -768,5 +769,200 @@ export class ProfileService {
       newEmail: newEmail.toLowerCase(),
       isEmailVerified: false,
     };
+  }
+
+  /**
+   * Retrieves all teams the user is a member of across all hackathons.
+   * Includes team details, hackathon info, and member list.
+   */
+  async getUserTeams(username: string, requesterUser?: UserMin) {
+    const user = await this.prisma.users.findUnique({
+      where: { username },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Profile not found');
+    }
+
+    // TODO: Check access control what teams should appear if the one calling the endpoint is not the same as the profile username
+
+    const teamMemberships = await this.prisma.teamMember.findMany({
+      where: { userId: user.id },
+      include: {
+        team: {
+          include: {
+            hackathon: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+                status: true,
+                banner: true,
+                startDate: true,
+                endDate: true,
+                organization: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    logo: true,
+                  },
+                },
+              },
+            },
+            members: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    image: true,
+                  },
+                },
+              },
+              orderBy: [{ isLeader: 'desc' }, { joinedAt: 'asc' }],
+            },
+            submissions: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                submittedAt: true,
+              },
+            },
+            _count: {
+              select: { members: true },
+            },
+          },
+        },
+      },
+      orderBy: { joinedAt: 'desc' },
+    });
+
+    return teamMemberships.map((membership) => ({
+      id: membership.team.id,
+      name: membership.team.name,
+      tagline: membership.team.tagline,
+      image: membership.team.image,
+      isLeader: membership.isLeader,
+      joinedAt: membership.joinedAt,
+      memberCount: membership.team._count.members,
+      hackathon: membership.team.hackathon,
+      members: membership.team.members.map((m) => ({
+        id: m.id,
+        isLeader: m.isLeader,
+        joinedAt: m.joinedAt,
+        user: m.user,
+      })),
+      submission: membership.team.submissions[0] || null,
+    }));
+  }
+
+  /**
+   * Retrieves all pending team applications for teams where the user is a leader.
+   * Includes position details, applicant info, and team details.
+   * @param userId - The ID of the authenticated user (must be a team leader).
+   * @returns List of pending applications for the user's teams.
+   */
+  async getPendingTeamApplications(userId: string) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Find all teams where the user is a leader
+    const leaderMemberships = await this.prisma.teamMember.findMany({
+      where: {
+        userId,
+        isLeader: true,
+      },
+      select: { teamId: true },
+    });
+
+    const teamIds = leaderMemberships.map((m) => m.teamId);
+
+    if (teamIds.length === 0) {
+      return [];
+    }
+
+    // Get all pending applications for positions in those teams
+    const applications = await this.prisma.teamApplication.findMany({
+      where: {
+        status: TeamApplicationStatus.PENDING,
+        position: {
+          teamId: { in: teamIds },
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            email: true,
+            image: true,
+            bio: true,
+            skills: true,
+            github: true,
+            linkedin: true,
+          },
+        },
+        position: {
+          include: {
+            team: {
+              include: {
+                hackathon: {
+                  select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    status: true,
+                  },
+                },
+                members: {
+                  select: {
+                    id: true,
+                    userId: true,
+                    isLeader: true,
+                  },
+                },
+                _count: {
+                  select: { members: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return applications.map((app) => ({
+      id: app.id,
+      message: app.message,
+      status: app.status,
+      createdAt: app.createdAt,
+      applicant: app.user,
+      position: {
+        id: app.position.id,
+        title: app.position.title,
+        description: app.position.description,
+        requiredSkills: app.position.requiredSkills,
+        status: app.position.status,
+      },
+      team: {
+        id: app.position.team.id,
+        name: app.position.team.name,
+        tagline: app.position.team.tagline,
+        image: app.position.team.image,
+        memberCount: app.position.team._count.members,
+      },
+      hackathon: app.position.team.hackathon,
+    }));
   }
 }

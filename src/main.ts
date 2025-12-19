@@ -52,8 +52,8 @@ async function bootstrap() {
       'Profile Management',
       'Endpoints related to user profile management',
     )
+    .addTag('Users', 'Endpoints related to users management')
     .addTag('Notifications', 'Endpoints related to notifications management')
-    .addTag('Users', 'Public endpoints for searching users')
     .addTag('Organizations', 'Endpoints related to organization management')
     .addTag(
       'Categories',

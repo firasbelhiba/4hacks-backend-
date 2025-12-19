@@ -624,6 +624,81 @@ export class ProfileController {
   }
 
   @ApiOperation({
+    summary: 'Get all user teams',
+    description:
+      'Retrieves all teams the authenticated user is a member of across all hackathons. Includes team details, hackathon info, member list, and submission status.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of teams the user belongs to.',
+    schema: {
+      example: [
+        {
+          id: 'team_123',
+          name: 'Blockchain Builders',
+          tagline: 'Building the future of Web3',
+          image: 'https://example.com/team-image.png',
+          isLeader: true,
+          joinedAt: '2025-01-15T10:30:00.000Z',
+          memberCount: 3,
+          hackathon: {
+            id: 'hack_456',
+            title: 'Web3 Hackathon 2025',
+            slug: 'web3-hackathon-2025',
+            status: 'ACTIVE',
+            banner: 'https://example.com/banner.png',
+            startDate: '2025-02-01T00:00:00.000Z',
+            endDate: '2025-02-28T23:59:59.000Z',
+            organization: {
+              id: 'org_789',
+              name: 'Web3 Foundation',
+              slug: 'web3-foundation',
+              logo: 'https://example.com/logo.png',
+            },
+          },
+          members: [
+            {
+              id: 'member_1',
+              isLeader: true,
+              joinedAt: '2025-01-15T10:30:00.000Z',
+              user: {
+                id: 'user_1',
+                username: 'johndoe',
+                name: 'John Doe',
+                image: 'https://example.com/avatar.png',
+              },
+            },
+          ],
+          submission: {
+            id: 'sub_123',
+            title: 'DeFi Dashboard',
+            status: 'SUBMITTED',
+            submittedAt: '2025-02-20T15:00:00.000Z',
+          },
+        },
+      ],
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found.',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':username/teams')
+  async getUserTeams(
+    @Param('username') username: string,
+    @CurrentUser() requesterUser?: UserMin,
+  ) {
+    console.log('requester User', requesterUser);
+    return await this.profileService.getUserTeams(username, requesterUser);
+  }
+
+  @ApiOperation({
     summary: 'Request 2FA disable code',
     description:
       'Sends a 6-digit verification code to the user email to disable two-factor authentication.',
