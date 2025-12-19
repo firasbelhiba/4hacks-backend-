@@ -14,6 +14,13 @@ import {
 import { ActivityTargetType, UserMin } from 'src/common/types';
 import { EmailService } from 'src/email/email.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import {
+  PaginatedTeamApplicationsDto,
+  QueryTeamApplicationsDto,
+  SortOrder,
+  TeamApplicationSortField,
+} from './dto/query-team-applications.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class TeamApplicationsService {
@@ -23,6 +30,125 @@ export class TeamApplicationsService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
   ) {}
+
+  async findAll(
+    query: QueryTeamApplicationsDto,
+  ): Promise<PaginatedTeamApplicationsDto> {
+    const {
+      page = 1,
+      limit = 10,
+      hackathonId,
+      teamId,
+      userId,
+      teamLeaderId,
+      status,
+      sortBy,
+      sortOrder,
+    } = query;
+
+    const where: Prisma.TeamApplicationWhereInput = {
+      ...(status && { status }),
+      ...(userId && { userId }),
+      ...(teamId && { position: { teamId } }),
+      ...(hackathonId && { position: { team: { hackathonId } } }),
+      ...(teamLeaderId && {
+        position: {
+          team: {
+            members: {
+              some: {
+                userId: teamLeaderId,
+                isLeader: true,
+              },
+            },
+          },
+        },
+      }),
+    };
+
+    // Sorting logic
+    let orderBy:
+      | Prisma.TeamApplicationOrderByWithRelationInput
+      | Prisma.TeamApplicationOrderByWithRelationInput[];
+
+    if (sortBy) {
+      orderBy = { [sortBy]: sortOrder || SortOrder.DESC };
+    } else {
+      // Default sort: Prioritize PENDING, then CreatedAt DESC
+      // Enum order in Prisma/Postgres: PENDING, ACCEPTED, REJECTED, WITHDRAWN
+      // ASC status means PENDING comes first.
+      orderBy = [{ status: 'asc' }, { createdAt: 'desc' }];
+    }
+
+    // TODO: Manage access control of what he can see and what not
+
+    const [total, data] = await Promise.all([
+      this.prisma.teamApplication.count({ where }),
+      this.prisma.teamApplication.findMany({
+        where,
+        take: limit,
+        skip: (page - 1) * limit,
+        orderBy,
+        include: {
+          position: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              team: {
+                select: {
+                  id: true,
+                  name: true,
+                  hackathonId: true,
+                },
+              },
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              email: true,
+              image: true,
+            },
+          },
+          decidedBy: {
+            select: {
+              id: true,
+              username: true,
+              name: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      data: data.map((app) => ({
+        id: app.id,
+        message: app.message,
+        status: app.status,
+        createdAt: app.createdAt,
+        decidedAt: app.decidedAt,
+        decidedById: app.decidedById,
+        user: app.user,
+        position: {
+          id: app.position.id,
+          title: app.position.title,
+          description: app.position.description,
+        },
+        team: app.position.team,
+      })),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
 
   async acceptApplication(applicationId: string, requesterUser: UserMin) {
     // Find the application with all necessary relations

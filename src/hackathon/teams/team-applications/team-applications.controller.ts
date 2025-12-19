@@ -1,4 +1,4 @@
-import { Controller, Post } from '@nestjs/common';
+import { Controller, Post, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { TeamApplicationsService } from './team-applications.service';
 import {
@@ -15,6 +15,10 @@ import { Param } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { UserMin } from 'src/common/types';
+import {
+  PaginatedTeamApplicationsDto,
+  QueryTeamApplicationsDto,
+} from './dto/query-team-applications.dto';
 
 @ApiTags('Hackathon Team Applications')
 @Controller('team-applications')
@@ -22,6 +26,23 @@ export class TeamApplicationsController {
   constructor(
     private readonly teamApplicationsService: TeamApplicationsService,
   ) {}
+
+  @ApiOperation({
+    summary: 'Get all team applications',
+    description:
+      'Retrieve a paginated list of team applications with filtering and sorting options. By default, pending applications are prioritized.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of team applications',
+    type: PaginatedTeamApplicationsDto,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async findAll(@Query() query: QueryTeamApplicationsDto) {
+    return await this.teamApplicationsService.findAll(query);
+  }
 
   @ApiOperation({
     summary: 'Accept a team position application',
