@@ -27,6 +27,7 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
 import { ManageSponsorsDto } from './dto/sponsor.dto';
+import { ManageBountiesDto } from './dto/bounty.dto';
 import {
   QueryHackathonsDto,
   PaginatedHackathonsDto,
@@ -316,6 +317,173 @@ export class HackathonController {
     @CurrentUser() user?: UserMin,
   ) {
     return await this.hackathonService.getSponsors(hackathonIdentifier, user);
+  }
+
+  @ApiOperation({
+    summary: 'Manage bounties',
+    description:
+      'Manage all bounties for a hackathon (create, update, delete). Send the full list of desired bounties. Each bounty must have a valid sponsorId that exists for the hackathon. Bounties not in this list will be deleted. Hackathon can be identified by ID or slug. Organization owner only.\n\n' +
+      '**Important Notes:**\n' +
+      '- Each bounty **must** have a `sponsorId` that exists for this hackathon\n' +
+      '- If a bounty is deleted, any submission-bounty associations will be removed (submissions can apply to multiple bounties)\n' +
+      '- `maxWinners` can be set to `0` to represent unlimited winners\n' +
+      '- Bounties with an `id` will be updated, bounties without an `id` will be created',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiBody({
+    type: ManageBountiesDto,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Bounties updated successfully.',
+    example: {
+      message: 'Bounties updated successfully',
+      data: [
+        {
+          id: 'cuid-1',
+          hackathonId: 'hackathon-id',
+          sponsorId: 'sponsor-id-1',
+          title: 'Best DeFi Innovation',
+          description: 'Build an innovative DeFi solution',
+          rewardAmount: 1000,
+          rewardToken: 'USD',
+          maxWinners: 3,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          sponsor: {
+            id: 'sponsor-id-1',
+            name: 'Acme Corporation',
+            logo: 'https://example.com/logo.png',
+            isCurrentOrganization: false,
+          },
+        },
+        {
+          id: 'cuid-2',
+          hackathonId: 'hackathon-id',
+          sponsorId: 'sponsor-id-2',
+          title: 'Best NFT Project',
+          description: 'Create an innovative NFT project',
+          rewardAmount: 500,
+          rewardToken: 'USD',
+          maxWinners: 0, // 0 means unlimited winners
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          sponsor: {
+            id: 'sponsor-id-2',
+            name: 'NFT Company',
+            logo: 'https://example.com/nft-logo.png',
+            isCurrentOrganization: false,
+          },
+        },
+      ],
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - User is not the organization owner',
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid sponsorId - sponsor does not exist for this hackathon',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Put(':identifier/bounties')
+  async manageBounties(
+    @Param('identifier') hackathonIdentifier: string,
+    @CurrentUser('id') userId: string,
+    @Body() manageBountiesDto: ManageBountiesDto,
+  ) {
+    return await this.hackathonService.manageBounties(
+      hackathonIdentifier,
+      userId,
+      manageBountiesDto,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Get all bounties',
+    description:
+      'Get all bounties for a specific hackathon. Hackathon can be identified by ID or slug. Each bounty includes its associated sponsor information.\n\n' +
+      '**Authorization:**\n' +
+      '- Admin: Always allowed\n' +
+      '- Organization owner: Always allowed\n' +
+      '- Public: Allowed if hackathon status is ACTIVE\n' +
+      '- Otherwise: Access denied\n\n' +
+      '**Response includes:**\n' +
+      '- Full bounty details (title, description, rewardAmount, rewardToken, maxWinners)\n' +
+      '- Sponsor information (id, name, logo, isCurrentOrganization)\n' +
+      '- Note: `maxWinners` of `0` means unlimited winners',
+  })
+  @ApiParam({
+    name: 'identifier',
+    description: 'ID or slug of the hackathon',
+    required: true,
+    type: String,
+    example: 'web3-innovation-hackathon',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Bounties retrieved successfully.',
+    example: {
+      data: [
+        {
+          id: 'cuid-1',
+          hackathonId: 'hackathon-id',
+          sponsorId: 'sponsor-id-1',
+          title: 'Best DeFi Innovation',
+          description: 'Build an innovative DeFi solution',
+          rewardAmount: 1000,
+          rewardToken: 'USD',
+          maxWinners: 3,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          sponsor: {
+            id: 'sponsor-id-1',
+            name: 'Acme Corporation',
+            logo: 'https://example.com/logo.png',
+            isCurrentOrganization: false,
+          },
+        },
+        {
+          id: 'cuid-2',
+          hackathonId: 'hackathon-id',
+          sponsorId: 'sponsor-id-2',
+          title: 'Best NFT Project',
+          description: 'Create an innovative NFT project',
+          rewardAmount: 500,
+          rewardToken: 'USD',
+          maxWinners: 0, // 0 means unlimited winners
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          sponsor: {
+            id: 'sponsor-id-2',
+            name: 'NFT Company',
+            logo: 'https://example.com/nft-logo.png',
+            isCurrentOrganization: false,
+          },
+        },
+      ],
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Hackathon not found or access denied',
+  })
+  @ApiBearerAuth()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':identifier/bounties')
+  async getBounties(
+    @Param('identifier') hackathonIdentifier: string,
+    @CurrentUser() user?: UserMin,
+  ) {
+    return await this.hackathonService.getBounties(hackathonIdentifier, user);
   }
 
   @ApiOperation({
@@ -617,7 +785,7 @@ Only the organization owner can archive their hackathons.
                 id: 'clx2222333344',
                 name: 'DeFi Track',
               },
-              bounty: null,
+              bounties: [],
             },
           },
         ],

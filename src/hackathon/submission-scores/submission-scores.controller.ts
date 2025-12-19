@@ -98,7 +98,7 @@ export class SubmissionScoresController {
             submittedAt: '2025-12-10T14:30:00.000Z',
             team: { id: 'team123', name: 'Team Alpha', image: null },
             track: { id: 'track123', name: 'DeFi' },
-            bounty: null,
+            bounties: [],
           },
           scores: [
             {

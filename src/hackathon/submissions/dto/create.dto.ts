@@ -25,12 +25,15 @@ export class CreateSubmissionDto {
   trackId?: string;
 
   @ApiPropertyOptional({
-    description: 'ID of the bounty the submission is for',
-    example: 'bounty_12345',
+    description:
+      'IDs of the bounties the submission is applying for. A submission can apply to multiple bounties.',
+    example: ['bounty_12345', 'bounty_67890'],
+    type: [String],
   })
   @IsOptional()
-  @IsString()
-  bountyId?: string;
+  @IsArray()
+  @IsString({ each: true })
+  bountyIds?: string[];
 
   @ApiProperty({
     description: 'Title of the submission',

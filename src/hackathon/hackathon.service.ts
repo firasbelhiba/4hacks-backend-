@@ -10,6 +10,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateHackathonDto } from './dto/update.dto';
 import { ManageTracksDto } from './dto/track.dto';
 import { ManageSponsorsDto } from './dto/sponsor.dto';
+import { ManageBountiesDto } from './dto/bounty.dto';
 import {
   QueryHackathonsDto,
   PaginatedHackathonsDto,
@@ -843,6 +844,185 @@ export class HackathonService {
     };
   }
 
+  async manageBounties(
+    hackathonIdentifier: string,
+    userId: string,
+    manageBountiesDto: ManageBountiesDto,
+  ) {
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
+      },
+      include: { organization: true },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    if (hackathon.organization.ownerId !== userId) {
+      throw new UnauthorizedException(
+        'You are not authorized to manage bounties for this hackathon',
+      );
+    }
+
+    const { bounties } = manageBountiesDto;
+    const hackathonId = hackathon.id;
+
+    // Get existing sponsors for validation
+    const existingSponsors = await this.prisma.sponsor.findMany({
+      where: { hackathonId },
+      select: { id: true },
+    });
+
+    const sponsorIds = new Set(existingSponsors.map((s) => s.id));
+
+    // Validate all sponsorIds exist for this hackathon
+    for (const bounty of bounties) {
+      if (!sponsorIds.has(bounty.sponsorId)) {
+        throw new BadRequestException(
+          `Sponsor with ID "${bounty.sponsorId}" does not exist for this hackathon`,
+        );
+      }
+    }
+
+    // Get existing bounties
+    const existingBounties = await this.prisma.bounty.findMany({
+      where: { hackathonId },
+    });
+
+    const existingBountyIds = existingBounties.map((b) => b.id);
+    const incomingBountyIds = bounties
+      .filter((b) => b.id)
+      .map((b) => b.id as string);
+
+    // Identify bounties to delete (exist in DB but not in incoming list)
+    const bountiesToDelete = existingBountyIds.filter(
+      (id) => !incomingBountyIds.includes(id),
+    );
+
+    // Identify bounties to update (exist in both)
+    const bountiesToUpdate = bounties.filter(
+      (b) => b.id && existingBountyIds.includes(b.id),
+    );
+
+    // Identify bounties to create (no id)
+    const bountiesToCreate = bounties.filter((b) => !b.id);
+
+    // Execute in transaction
+    await this.prisma.$transaction(async (tx) => {
+      // Delete (submission-bounty associations will be cascade deleted)
+      if (bountiesToDelete.length > 0) {
+        await tx.bounty.deleteMany({
+          where: {
+            id: { in: bountiesToDelete },
+            hackathonId, // Safety check
+          },
+        });
+      }
+
+      // Update
+      for (const bounty of bountiesToUpdate) {
+        await tx.bounty.update({
+          where: { id: bounty.id },
+          data: {
+            title: bounty.title,
+            description: bounty.description || '',
+            sponsorId: bounty.sponsorId,
+            rewardAmount: bounty.rewardAmount ?? 0,
+            rewardToken: bounty.rewardToken || 'USD',
+            maxWinners: bounty.maxWinners ?? 1,
+          },
+        });
+      }
+
+      // Create
+      if (bountiesToCreate.length > 0) {
+        await tx.bounty.createMany({
+          data: bountiesToCreate.map((b) => ({
+            hackathonId,
+            title: b.title,
+            description: b.description || '',
+            sponsorId: b.sponsorId,
+            rewardAmount: b.rewardAmount ?? 0,
+            rewardToken: b.rewardToken || 'USD',
+            maxWinners: b.maxWinners ?? 1,
+          })),
+        });
+      }
+    });
+
+    // Return updated list with sponsor info
+    const updatedBounties = await this.prisma.bounty.findMany({
+      where: { hackathonId },
+      include: {
+        sponsor: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            isCurrentOrganization: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      message: 'Bounties updated successfully',
+      data: updatedBounties,
+    };
+  }
+
+  async getBounties(hackathonIdentifier: string, user?: UserMin) {
+    const userId = user ? user.id : undefined;
+    const isAdmin = user ? user.role === UserRole.ADMIN : false;
+
+    // Find hackathon by id or slug
+    const hackathon = await this.prisma.hackathon.findFirst({
+      where: {
+        OR: [{ id: hackathonIdentifier }, { slug: hackathonIdentifier }],
+      },
+      select: {
+        id: true,
+        status: true,
+        organization: { select: { ownerId: true } },
+      },
+    });
+
+    if (!hackathon) {
+      throw new NotFoundException('Hackathon not found');
+    }
+
+    // Check authorization
+    const isOwner = userId ? userId === hackathon.organization.ownerId : false;
+    const isActive = hackathon.status === HackathonStatus.ACTIVE;
+
+    // Allow: admin, owner, or anyone if it is active
+    if (!isAdmin && !isOwner && !isActive) {
+      throw new NotFoundException('Hackathon access denied');
+    }
+
+    const bounties = await this.prisma.bounty.findMany({
+      where: { hackathonId: hackathon.id },
+      include: {
+        sponsor: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            isCurrentOrganization: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      data: bounties,
+    };
+  }
+
   async publishHackathon(hackathonIdentifier: string, userId: string) {
     // Find hackathon by id or slug
     const hackathon = await this.prisma.hackathon.findFirst({
@@ -1255,10 +1435,14 @@ export class HackathonService {
                 name: true,
               },
             },
+            submissionBounties: {
+              select: {
             bounty: {
               select: {
                 id: true,
                 title: true,
+                  },
+                },
               },
             },
           },
@@ -1278,6 +1462,21 @@ export class HackathonService {
       ],
     });
 
+    // Transform submissionBounties to bounties array in each winner's submission
+    const transformedWinners = prizeWinners.map((winner: any) => {
+      if (winner.submission?.submissionBounties) {
+        const { submissionBounties, ...submissionRest } = winner.submission;
+        return {
+          ...winner,
+          submission: {
+            ...submissionRest,
+            bounties: submissionBounties.map((sb: any) => sb.bounty),
+          },
+        };
+      }
+      return winner;
+    });
+
     return {
       hackathon: {
         id: hackathon.id,
@@ -1285,8 +1484,8 @@ export class HackathonService {
         slug: hackathon.slug,
         organization: hackathon.organization,
       },
-      winners: prizeWinners,
-      totalWinners: prizeWinners.length,
+      winners: transformedWinners,
+      totalWinners: transformedWinners.length,
     };
   }
 

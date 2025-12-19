@@ -333,7 +333,9 @@ export class SubmissionScoresService {
     }
 
     if (bountyId) {
-      whereConditions.bountyId = bountyId;
+      whereConditions.submissionBounties = {
+        some: { bountyId },
+      };
     }
 
     if (search) {
@@ -367,10 +369,14 @@ export class SubmissionScoresService {
               name: true,
             },
           },
+          submissionBounties: {
+            select: {
           bounty: {
             select: {
               id: true,
               title: true,
+                },
+              },
             },
           },
           submissionScores: {
@@ -440,7 +446,7 @@ export class SubmissionScoresService {
           submittedAt: submission.submittedAt,
           team: submission.team,
           track: submission.track,
-          bounty: submission.bounty,
+          bounties: submission.submissionBounties.map((sb: any) => sb.bounty),
         },
         scores,
         missingJudges,

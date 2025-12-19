@@ -672,17 +672,17 @@ enum RegistrationQuestionType {
 model HackathonRegistrationQuestion {
   id          String                   @id @default(cuid())
   hackathonId String
-  label       String                   // "What is your experience level?"
-  description String?                  // Optional additional context for the question
+  label       String // "What is your experience level?"
+  description String? // Optional additional context for the question
   type        RegistrationQuestionType @default(TEXT)
   required    Boolean                  @default(false)
-  placeholder String?                  // For TEXT/TEXTAREA
+  placeholder String? // For TEXT/TEXTAREA
   options     String[]                 @default([]) // For SELECT/MULTISELECT: ["Beginner", "Advanced"]
   order       Int                      @default(0)
   createdAt   DateTime                 @default(now())
   updatedAt   DateTime                 @updatedAt
 
-  hackathon Hackathon                   @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  hackathon Hackathon                     @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   answers   HackathonRegistrationAnswer[]
 
   @@index([hackathonId])
@@ -699,8 +699,8 @@ model HackathonRegistrationAnswer {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  registration HackathonRegistration          @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  question     HackathonRegistrationQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  registration HackathonRegistration         @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  question     HackathonRegistrationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@unique([registrationId, questionId])
   @@index([registrationId])
@@ -851,13 +851,30 @@ model Bounty {
   hackathon Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
   sponsor   Sponsor   @relation(fields: [sponsorId], references: [id])
 
-  prizes        Prize[]        @relation("BountyPrizes")
-  submissions   Submission[]
-  announcements Announcement[]
+  prizes             Prize[]            @relation("BountyPrizes")
+  submissionBounties SubmissionBounty[]
+  announcements      Announcement[]
 
   @@index([hackathonId])
   @@index([sponsorId])
   @@map("bounties")
+}
+
+// Junction table for many-to-many relationship between Submission and Bounty
+// A submission can apply to multiple bounties, and a bounty can have multiple submissions
+model SubmissionBounty {
+  id           String   @id @default(cuid())
+  submissionId String
+  bountyId     String
+  createdAt    DateTime @default(now())
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  bounty     Bounty     @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, bountyId]) // Prevent duplicate associations
+  @@index([submissionId])
+  @@index([bountyId])
+  @@map("submission_bounties")
 }
 
 model Sponsor {
@@ -888,10 +905,10 @@ enum HackathonRegistrationStatus {
 }
 
 model HackathonRegistration {
-  id          String                      @id @default(cuid())
+  id          String                        @id @default(cuid())
   hackathonId String
   userId      String
-  status      HackathonRegistrationStatus @default(PENDING)
+  status      HackathonRegistrationStatus   @default(PENDING)
   answers     HackathonRegistrationAnswer[] // Answers provided during registration (one per question)
 
   registeredAt DateTime  @default(now())
@@ -915,7 +932,6 @@ model Submission {
   teamId      String
   creatorId   String
   trackId     String?
-  bountyId    String?
 
   title       String
   tagline     String?
@@ -944,13 +960,13 @@ model Submission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  hackathon        Hackathon         @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
-  team             Team?             @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  creator          users             @relation(fields: [creatorId], references: [id], onDelete: Restrict)
-  track            Track?            @relation(fields: [trackId], references: [id], onDelete: SetNull)
-  bounty           Bounty?           @relation(fields: [bountyId], references: [id], onDelete: SetNull)
-  prizeWinners     PrizeWinner[]
-  submissionScores SubmissionScore[]
+  hackathon          Hackathon          @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  team               Team?              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator            users              @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  track              Track?             @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  submissionBounties SubmissionBounty[] // Many-to-many: a submission can apply to multiple bounties
+  prizeWinners       PrizeWinner[]
+  submissionScores   SubmissionScore[]
 
   @@unique([teamId, hackathonId])
   @@index([hackathonId, status])
@@ -958,7 +974,6 @@ model Submission {
   @@index([trackId])
   @@index([creatorId])
   @@index([submittedAt])
-  @@index([bountyId])
   @@index([hackathonId, teamId])
   @@index([trackId, status])
   @@map("submissions")

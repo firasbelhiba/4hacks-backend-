@@ -114,6 +114,7 @@ async function main() {
   await prisma.teamInvitation.deleteMany();
   await prisma.teamMember.deleteMany();
   await prisma.prizeWinner.deleteMany();
+  await prisma.submissionBounty.deleteMany();
   await prisma.submission.deleteMany();
   await prisma.team.deleteMany();
   await prisma.hackathonRegistration.deleteMany();
@@ -1040,6 +1041,54 @@ async function main() {
   console.log(`✅ Created ${submissionCount} submissions\n`);
 
   // ============================================
+  // 12. CREATE SUBMISSION BOUNTY ASSOCIATIONS
+  // ============================================
+  console.log('🔗 Creating submission-bounty associations...');
+  let submissionBountyCount = 0;
+  
+  // Get all submissions and bounties grouped by hackathon
+  const allSubmissions = await prisma.submission.findMany({
+    select: { id: true, hackathonId: true },
+  });
+  
+  const allBounties = await prisma.bounty.findMany({
+    select: { id: true, hackathonId: true },
+  });
+  
+  // Group bounties by hackathon for easy lookup
+  const bountiesByHackathon = new Map<string, string[]>();
+  for (const bounty of allBounties) {
+    if (!bountiesByHackathon.has(bounty.hackathonId)) {
+      bountiesByHackathon.set(bounty.hackathonId, []);
+    }
+    bountiesByHackathon.get(bounty.hackathonId)!.push(bounty.id);
+  }
+  
+  // For each submission, randomly associate with 0-3 bounties from the same hackathon
+  for (const submission of allSubmissions) {
+    const hackathonBounties = bountiesByHackathon.get(submission.hackathonId) || [];
+    if (hackathonBounties.length === 0) continue;
+    
+    // 60% chance to have bounties, 0-3 bounties per submission
+    if (Math.random() > 0.4) {
+      const numBounties = Math.min(randomInt(1, 3), hackathonBounties.length);
+      const shuffledBounties = [...hackathonBounties].sort(() => Math.random() - 0.5);
+      const selectedBounties = shuffledBounties.slice(0, numBounties);
+      
+      for (const bountyId of selectedBounties) {
+        await prisma.submissionBounty.create({
+          data: {
+            submissionId: submission.id,
+            bountyId,
+          },
+        });
+        submissionBountyCount++;
+      }
+    }
+  }
+  console.log(`✅ Created ${submissionBountyCount} submission-bounty associations\n`);
+
+  // ============================================
   // SUMMARY
   // ============================================
   console.log('═'.repeat(60));
@@ -1053,6 +1102,7 @@ async function main() {
   console.log(`   • Tracks: ${trackCount}`);
   console.log(`   • Sponsors: ${sponsorCount}`);
   console.log(`   • Bounties: ${bountyCount}`);
+  console.log(`   • Submission-Bounty Associations: ${submissionBountyCount}`);
   console.log(`   • Prizes: ${prizeCount}`);
   console.log(`   • Registrations: ${registrationCount}`);
   console.log(`   • Teams: ${teams.length}`);
