@@ -96,6 +96,7 @@ export class ProfileService {
         walletAddress: true,
         createdAt: true,
         updatedAt: true,
+
         // Private fields (only shown to owner)
         ...(isOwner
           ? {
@@ -111,6 +112,38 @@ export class ProfileService {
               bannedReason: true,
             }
           : {}),
+        submissions: {
+          take: 10,
+          where: isOwner
+            ? {}
+            : {
+                hackathon: {
+                  isPrivate: false,
+                },
+              },
+          select: {
+            id: true,
+            title: true,
+            tagline: true,
+            description: true,
+            logo: true,
+            demoUrl: true,
+            videoUrl: true,
+            repoUrl: true,
+            pitchUrl: true,
+            technologies: true,
+            status: true,
+            submittedAt: true,
+            isWinner: true,
+            hackathon: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+              },
+            },
+          },
+        },
       },
     });
 

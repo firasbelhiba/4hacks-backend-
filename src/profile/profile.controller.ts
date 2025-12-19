@@ -694,7 +694,6 @@ export class ProfileController {
     @Param('username') username: string,
     @CurrentUser() requesterUser?: UserMin,
   ) {
-    console.log('requester User', requesterUser);
     return await this.profileService.getUserTeams(username, requesterUser);
   }
 
