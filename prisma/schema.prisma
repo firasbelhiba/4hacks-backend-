@@ -560,6 +560,7 @@ model Hackathon {
   requiresApproval          Boolean  @default(false) // If true, participants need approval to submit their project
   isPrivate                 Boolean  @default(false) // If true, hackathon can be accessed by invite only (participants need an invite passcode)
   invitePasscode            String? // Required if isPrivate is true, should be hashed using bcrypt before storing
+  areSubmissionsPublic      Boolean  @default(true) // If false, only organizer, judges, and submitting team can see submissions
   isProjectWhiteListEnabled Boolean  @default(false) // If true, only whitelisted emails can submit submissions
   projectWhitelistEmails    String[] @default([]) // List of whitelisted emails for project submission
 

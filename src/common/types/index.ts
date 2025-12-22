@@ -42,6 +42,7 @@ export type HackathonMin = {
   endDate: Date;
   isPrivate: boolean;
   requiresApproval: boolean;
+  areSubmissionsPublic: boolean;
   requiredSubmissionMaterials: HackathonRequiredMaterials[];
   status: HackathonStatus;
   organizationId: string;

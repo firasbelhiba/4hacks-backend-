@@ -789,6 +789,7 @@ export class SubmissionsService {
             status: true,
             requiredSubmissionMaterials: true,
             isPrivate: true,
+            areSubmissionsPublic: true,
             organization: {
               select: {
                 id: true,
@@ -842,8 +843,23 @@ export class SubmissionsService {
       requesterUser &&
       submission.team?.members.some((m) => m.userId === requesterUser.id);
 
-    // Check if user has special access (admin, org owner, or team member)
-    const hasSpecialAccess = isAdmin || isOrganizationOwner || isTeamMember;
+    // Check if user is a judge for this hackathon
+    let isJudge = false;
+    if (requesterUser) {
+      const judgeRecord = await this.prismaService.hackathonJudge.findUnique({
+        where: {
+          hackathonId_userId: {
+            hackathonId: submission.hackathonId,
+            userId: requesterUser.id,
+          },
+        },
+      });
+      isJudge = !!judgeRecord;
+    }
+
+    // Check if user has special access (admin, org owner, judge, or team member)
+    const hasSpecialAccess =
+      isAdmin || isOrganizationOwner || isJudge || isTeamMember;
 
     // If hackathon is private and user doesn't have special access, deny access
     if (submission.hackathon.isPrivate && !hasSpecialAccess) {
@@ -852,8 +868,15 @@ export class SubmissionsService {
       );
     }
 
+    // If submissions are not public, only allow access to admins, org owners, judges, and team members
+    if (!submission.hackathon.areSubmissionsPublic && !hasSpecialAccess) {
+      throw new ForbiddenException(
+        'Submissions for this hackathon are currently private. Only organizers, judges, and team members can view them.',
+      );
+    }
+
     // If submission is not approved (UNDER_REVIEW, REJECTED, DRAFT, WITHDRAWN)
-    // only allow access to admins, org owners, and team members
+    // only allow access to admins, org owners, judges, and team members
     if (submission.status !== SubmissionStatus.SUBMITTED && !hasSpecialAccess) {
       throw new ForbiddenException(
         'You do not have permission to view this submission',
@@ -910,11 +933,12 @@ export class SubmissionsService {
       const orConditions: any[] = [];
 
       if (!requesterUser) {
-        // Anonymous users: only SUBMITTED submissions from public hackathons
+        // Anonymous users: only SUBMITTED submissions from public hackathons with public submissions
         orConditions.push({
           status: SubmissionStatus.SUBMITTED,
           hackathon: {
             isPrivate: false,
+            areSubmissionsPublic: true,
           },
         });
       } else {
@@ -961,36 +985,37 @@ export class SubmissionsService {
 
         const userTeamIds = userTeams.map((t) => t.teamId);
 
-        // Condition 1: SUBMITTED submissions from public hackathons
+        // Condition 1: SUBMITTED submissions from public hackathons with public submissions
         orConditions.push({
           status: SubmissionStatus.SUBMITTED,
           hackathon: {
             isPrivate: false,
+            areSubmissionsPublic: true,
           },
         });
 
-        // Condition 2: SUBMITTED submissions from private hackathons where user is registered
+        // Condition 2: SUBMITTED submissions from private hackathons where user is registered AND submissions are public
         if (registeredHackathonIds.length > 0) {
           orConditions.push({
             status: SubmissionStatus.SUBMITTED,
             hackathon: {
               isPrivate: true,
+              areSubmissionsPublic: true,
               id: { in: registeredHackathonIds },
             },
           });
         }
 
-        // Condition 3: ALL submissions from private hackathons where user is a judge
+        // Condition 3: ALL submissions from hackathons where user is a judge (regardless of areSubmissionsPublic)
         if (judgeHackathonIds.length > 0) {
           orConditions.push({
             hackathon: {
-              isPrivate: true,
               id: { in: judgeHackathonIds },
             },
           });
         }
 
-        // Condition 4: ALL submissions from hackathons where user is the organization owner
+        // Condition 4: ALL submissions from hackathons where user is the organization owner (regardless of areSubmissionsPublic)
         if (ownedOrgIds.length > 0) {
           orConditions.push({
             hackathon: {
@@ -999,7 +1024,7 @@ export class SubmissionsService {
           });
         }
 
-        // Condition 5: ALL submissions where user is a team member
+        // Condition 5: ALL submissions where user is a team member (regardless of areSubmissionsPublic)
         if (userTeamIds.length > 0) {
           orConditions.push({
             teamId: { in: userTeamIds },
@@ -1082,6 +1107,7 @@ export class SubmissionsService {
               title: true,
               slug: true,
               isPrivate: true,
+              areSubmissionsPublic: true,
             },
           },
           team: {
