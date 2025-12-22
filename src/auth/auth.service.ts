@@ -455,6 +455,58 @@ export class AuthService {
   async getUserDetails(userId: string) {
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
+      include: {
+        submissions: {
+          include: {
+            hackathon: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+              },
+            },
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            track: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            submissionBounties: {
+              include: {
+                bounty: {
+                  select: {
+                    id: true,
+                    title: true,
+                    rewardAmount: true,
+                    rewardToken: true,
+                    description: true,
+                  },
+                },
+              },
+            },
+            prizeWinners: {
+              include: {
+                prize: {
+                  select: {
+                    id: true,
+                    name: true,
+                    amount: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
     });
 
     if (!user) {
