@@ -365,7 +365,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiResponse({
     status: 200,
-    description: 'Returns the currently authenticated user.',
+    description:
+      'Returns the currently authenticated user with their submissions, bounties, and prizes.',
     schema: {
       example: {
         id: 'clxsu9vgo0000lmk7z9h8f1q',
@@ -374,6 +375,74 @@ export class AuthController {
         email: 'ahmed@gmail.com',
         role: 'USER',
         createdAt: '2025-10-01T12:34:56.789Z',
+        submissions: [
+          {
+            id: 'clxyz1234567890',
+            hackathonId: 'clxhack1234',
+            teamId: 'clxteam1234',
+            creatorId: 'clxsu9vgo0000lmk7z9h8f1q',
+            trackId: 'clxtrack1234',
+            title: 'My Awesome Project',
+            tagline: 'A cool hackathon submission',
+            description: 'Full project description here...',
+            logo: 'https://example.com/logo.png',
+            status: 'SUBMITTED',
+            submittedAt: '2025-10-05T14:30:00.000Z',
+            submissionReviewedAt: null,
+            reviewReason: null,
+            submissionReviewedById: null,
+            demoUrl: 'https://demo.example.com',
+            videoUrl: 'https://youtube.com/watch?v=xyz',
+            repoUrl: 'https://github.com/user/project',
+            pitchUrl: 'https://pitch.example.com',
+            technologies: ['React', 'Node.js', 'Solidity'],
+            isWinner: false,
+            createdAt: '2025-10-01T12:34:56.789Z',
+            updatedAt: '2025-10-05T14:30:00.000Z',
+            hackathon: {
+              id: 'clxhack1234',
+              title: 'Cool Hackathon 2025',
+              slug: 'cool-hackathon-2025',
+            },
+            team: {
+              id: 'clxteam1234',
+              name: 'Team Awesome',
+            },
+            track: {
+              id: 'clxtrack1234',
+              name: 'Web3 Track',
+            },
+            submissionBounties: [
+              {
+                id: 'clxsb1234',
+                submissionId: 'clxyz1234567890',
+                bountyId: 'clxbounty1234',
+                createdAt: '2025-10-03T10:00:00.000Z',
+                bounty: {
+                  id: 'clxbounty1234',
+                  title: 'Best AI Integration',
+                  rewardAmount: 5000,
+                  rewardToken: 'USD',
+                  description: 'Prize for best AI integration',
+                },
+              },
+            ],
+            prizeWinners: [
+              {
+                id: 'clxpw1234',
+                prizeId: 'clxprize1234',
+                submissionId: 'clxyz1234567890',
+                createdAt: '2025-10-10T18:00:00.000Z',
+                updatedAt: '2025-10-10T18:00:00.000Z',
+                prize: {
+                  id: 'clxprize1234',
+                  name: 'First Place',
+                  amount: 10000,
+                },
+              },
+            ],
+          },
+        ],
       },
     },
   })
