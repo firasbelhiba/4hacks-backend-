@@ -271,6 +271,16 @@ export class UpdateHackathonDto {
   invitePasscode?: string;
 
   @ApiPropertyOptional({
+    description:
+      'Whether submissions are publicly visible. When false, only the organizer, judges, and the submitting team can view submissions. This can be toggled at any time to control submission visibility during different phases of the hackathon.',
+    example: true,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  areSubmissionsPublic?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Enable project submission whitelist',
     example: false,
   })

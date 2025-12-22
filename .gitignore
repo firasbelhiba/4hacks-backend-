@@ -68,3 +68,6 @@ docs
 
 # Helpful documents for development
 /dev-docs
+
+# Docker compose (local development only)
+docker-compose.yml

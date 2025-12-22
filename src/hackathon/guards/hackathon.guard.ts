@@ -28,6 +28,7 @@ export class HackathonContextGuard implements CanActivate {
           status: true,
           isPrivate: true,
           requiresApproval: true,
+          areSubmissionsPublic: true,
           requiredSubmissionMaterials: true,
           organizationId: true,
           registrationStart: true,
