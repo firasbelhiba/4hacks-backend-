@@ -10,7 +10,10 @@ import { JwtService } from '@nestjs/jwt';
 @WebSocketGateway({
   namespace: '/notifications',
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      'https://4hacksdb-front.vercel.app',
+    ],
     credentials: true,
   },
 })
