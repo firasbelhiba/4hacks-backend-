@@ -216,7 +216,8 @@ export class HackathonController {
   @ApiOperation({
     summary: 'Manage sponsors',
     description:
-      'Manage all sponsors for a hackathon (create, update, delete). The first sponsor is always the organization creating the hackathon and only its logo can be updated. Hackathon can be identified by ID or slug.',
+      'Manage all sponsors for a hackathon (create, update, delete). The first sponsor is always the organization creating the hackathon and only its logo can be updated. Hackathon can be identified by ID or slug.\n\n' +
+      '**Important:** Sponsors must be created before bounties. Use the sponsor `id` returned from this endpoint when creating bounties via `/hackathon/:identifier/bounties`.',
   })
   @ApiParam({
     name: 'identifier',
@@ -324,7 +325,9 @@ export class HackathonController {
     description:
       'Manage all bounties for a hackathon (create, update, delete). Send the full list of desired bounties. Each bounty must have a valid sponsorId that exists for the hackathon. Bounties not in this list will be deleted. Hackathon can be identified by ID or slug. Organization owner only.\n\n' +
       '**Important Notes:**\n' +
+      '- **You must create sponsors first** using the `/hackathon/:identifier/sponsors` endpoint before creating bounties\n' +
       '- Each bounty **must** have a `sponsorId` that exists for this hackathon\n' +
+      '- **The same sponsor can have multiple bounties** - one sponsor can create multiple different challenges/bounties\n' +
       '- If a bounty is deleted, any submission-bounty associations will be removed (submissions can apply to multiple bounties)\n' +
       '- `maxWinners` can be set to `0` to represent unlimited winners\n' +
       '- Bounties with an `id` will be updated, bounties without an `id` will be created',

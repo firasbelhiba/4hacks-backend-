@@ -45,7 +45,7 @@ export class BountiesPrizesController {
       },
     ],
   })
-  @ApiNotFoundResponse({ description: 'Track not found' })
+  @ApiNotFoundResponse({ description: 'Bounty not found' })
   @ApiForbiddenResponse({ description: 'Forbidden' })
   @UseGuards(OptionalJwtAuthGuard)
   @Get()
@@ -56,24 +56,35 @@ export class BountiesPrizesController {
     return this.prizesService.getBountyPrizes(bountyId, user);
   }
 
-  @ApiOperation({ summary: 'Manage prizes for a track' })
+  @ApiOperation({
+    summary: 'Manage prizes for a bounty',
+    description:
+      'Replace all prizes for a bounty. This endpoint uses a "replace all" pattern - you must send the complete list of desired prizes.\n\n' +
+      '**Important:**\n' +
+      '- Include ALL existing prizes you want to keep (with their `id` field)\n' +
+      '- Prizes with an `id` will be updated\n' +
+      '- Prizes without an `id` will be created\n' +
+      '- Prizes not included in the request will be deleted\n' +
+      '- `token` field is optional (defaults to "USD" if omitted)\n' +
+      '- Organization owner only',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Prizes for the track',
+    description: 'Updated list of prizes for the bounty',
     example: [
       {
         id: '1',
         position: 1,
         name: 'First Place',
-        type: 'TRACK',
-        trackId: '1',
+        type: 'BOUNTY',
+        bountyId: '1',
         amount: 100,
         token: 'USD',
       },
     ],
   })
-  @ApiNotFoundResponse({ description: 'Track not found' })
-  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Bounty not found' })
+  @ApiForbiddenResponse({ description: 'Forbidden - Only organization owner can manage prizes' })
   @UseGuards(JwtAuthGuard)
   @Put()
   async managePrizes(

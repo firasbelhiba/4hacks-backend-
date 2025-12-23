@@ -10,17 +10,20 @@ import {
 } from 'class-validator';
 
 export class TrackPrizeItemDto {
-  @ApiPropertyOptional({ description: 'Prize ID (if updating existing prize)' })
+  @ApiPropertyOptional({
+    description:
+      'Prize ID - Required if updating an existing prize. Omit this field for new prizes.',
+  })
   @IsOptional()
   @IsString()
   id?: string;
 
-  @ApiProperty({ description: 'Prize position (e.g., 1 for 1st place)' })
+  @ApiProperty({ description: 'Prize position (e.g., 1 for 1st place, 2 for 2nd place)' })
   @IsNumber()
   @Min(1)
   position: number;
 
-  @ApiProperty({ description: 'Prize name (e.g., "First Place")' })
+  @ApiProperty({ description: 'Prize name (e.g., "First Place", "Second Place")' })
   @IsString()
   name: string;
 
@@ -29,7 +32,9 @@ export class TrackPrizeItemDto {
   @Min(0)
   amount: number;
 
-  @ApiPropertyOptional({ description: 'Prize token (default: USD)' })
+  @ApiPropertyOptional({
+    description: 'Prize token/currency (defaults to "USD" if omitted)',
+  })
   @IsOptional()
   @IsString()
   token?: string;
@@ -38,7 +43,8 @@ export class TrackPrizeItemDto {
 export class ManageTrackPrizesDto {
   @ApiProperty({
     type: [TrackPrizeItemDto],
-    description: 'List of track prizes to manage',
+    description:
+      'Complete list of prizes for this track. This replaces all existing prizes. Include existing prizes with their `id` to keep them, omit `id` for new prizes. Prizes not in this list will be deleted.',
   })
   @IsArray()
   @ValidateNested({ each: true })

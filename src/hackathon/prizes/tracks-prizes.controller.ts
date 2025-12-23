@@ -55,10 +55,21 @@ export class TracksPrizesController {
     return this.prizesService.getTrackPrizes(trackId, user);
   }
 
-  @ApiOperation({ summary: 'Manage prizes for a track' })
+  @ApiOperation({
+    summary: 'Manage prizes for a track',
+    description:
+      'Replace all prizes for a track. This endpoint uses a "replace all" pattern - you must send the complete list of desired prizes.\n\n' +
+      '**Important:**\n' +
+      '- Include ALL existing prizes you want to keep (with their `id` field)\n' +
+      '- Prizes with an `id` will be updated\n' +
+      '- Prizes without an `id` will be created\n' +
+      '- Prizes not included in the request will be deleted\n' +
+      '- `token` field is optional (defaults to "USD" if omitted)\n' +
+      '- Organization owner only',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Prizes for the track',
+    description: 'Updated list of prizes for the track',
     example: [
       {
         id: '1',
@@ -72,7 +83,7 @@ export class TracksPrizesController {
     ],
   })
   @ApiNotFoundResponse({ description: 'Track not found' })
-  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiForbiddenResponse({ description: 'Forbidden - Only organization owner can manage prizes' })
   @UseGuards(JwtAuthGuard)
   @Put()
   async managePrizes(
