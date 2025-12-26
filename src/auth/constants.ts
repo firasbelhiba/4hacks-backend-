@@ -9,6 +9,7 @@ export const refreshTokenConstants = {
 
 export const authCookiesNames = {
   refreshToken: 'refreshToken',
+  accessToken: 'accessToken',
 };
 
 export const API_PREFIX = process.env.API_PREFIX || 'api';

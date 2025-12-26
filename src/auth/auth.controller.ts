@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Post,
   Req,
@@ -150,6 +151,16 @@ export class AuthController {
       priority: 'high',
     });
 
+    // Set access token as HttpOnly cookie
+    res.cookie(authCookiesNames.accessToken, result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes (matching JWT expiration)
+      path: '/',
+      priority: 'high',
+    });
+
     return {
       message: result.message,
       token: result.accessToken,
@@ -193,6 +204,16 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: '/',
+      priority: 'high',
+    });
+
+    // Set access token as HttpOnly cookie
+    res.cookie(authCookiesNames.accessToken, result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes (matching JWT expiration)
       path: '/',
       priority: 'high',
     });
@@ -268,6 +289,16 @@ export class AuthController {
       priority: 'high',
     });
 
+    // Set access token as HttpOnly cookie
+    res.cookie(authCookiesNames.accessToken, result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes (matching JWT expiration)
+      path: '/',
+      priority: 'high',
+    });
+
     return {
       message: result.message,
       token: result.accessToken,
@@ -319,6 +350,15 @@ export class AuthController {
       priority: 'high',
     });
 
+    // Clear the access token cookie
+    res.clearCookie(authCookiesNames.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      priority: 'high',
+    });
+
     return {
       message: 'User logged out successfully',
     };
@@ -347,6 +387,15 @@ export class AuthController {
 
     // Clear the Current refresh token cookie
     res.clearCookie(authCookiesNames.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      priority: 'high',
+    });
+
+    // Clear the access token cookie
+    res.clearCookie(authCookiesNames.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
@@ -642,6 +691,16 @@ export class AuthController {
       priority: 'high',
     });
 
+    // Set access token as HttpOnly cookie
+    res.cookie(authCookiesNames.accessToken, result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes (matching JWT expiration)
+      path: '/',
+      priority: 'high',
+    });
+
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
   }
 
@@ -677,6 +736,16 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: refreshTokenConstants.expirationSeconds * 1000,
+      path: '/',
+      priority: 'high',
+    });
+
+    // Set access token as HttpOnly cookie
+    res.cookie(authCookiesNames.accessToken, result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes (matching JWT expiration)
       path: '/',
       priority: 'high',
     });
@@ -720,6 +789,16 @@ export class AuthController {
       priority: 'high',
     });
 
+    // Set access token as HttpOnly cookie
+    res.cookie(authCookiesNames.accessToken, result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes (matching JWT expiration)
+      path: '/',
+      priority: 'high',
+    });
+
     res.redirect(`${FRONTEND_URL}?token=${result.accessToken}`);
   }
 
@@ -737,8 +816,114 @@ export class AuthController {
       priority: 'high',
     });
 
+    res.clearCookie(authCookiesNames.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      priority: 'high',
+    });
+
     return {
       message: 'User logged out successfully',
     };
+  }
+
+  @ApiOperation({
+    summary: 'Set access token in httpOnly cookie',
+    description:
+      'Stores the access token in a secure httpOnly cookie. This prevents XSS attacks from accessing the token.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        token: { type: 'string', description: 'The JWT access token' },
+      },
+      required: ['token'],
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Token cookie set successfully',
+    schema: {
+      example: { message: 'Token cookie set successfully' },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Token is required',
+    schema: {
+      example: { statusCode: 400, message: 'Token is required', error: 'Bad Request' },
+    },
+  })
+  @Post('set-token')
+  async setTokenCookie(
+    @Body('token') token: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!token) {
+      throw new BadRequestException('Token is required');
+    }
+
+    res.cookie(authCookiesNames.accessToken, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes (matching JWT expiration)
+      path: '/',
+      priority: 'high',
+    });
+
+    return { message: 'Token cookie set successfully' };
+  }
+
+  @ApiOperation({
+    summary: 'Get access token from httpOnly cookie',
+    description:
+      'Retrieves the access token from the httpOnly cookie. Use this when you need the token for API calls.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Token retrieved successfully',
+    schema: {
+      example: { token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'No token found',
+    schema: {
+      example: { token: null },
+    },
+  })
+  @Get('get-token')
+  async getTokenFromCookie(@Req() req: Request) {
+    const token = req.cookies[authCookiesNames.accessToken] || null;
+    return { token };
+  }
+
+  @ApiOperation({
+    summary: 'Clear access token cookie',
+    description: 'Removes the access token from the httpOnly cookie. Use this for logout.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Token cookie cleared successfully',
+    schema: {
+      example: { message: 'Token cookie cleared successfully' },
+    },
+  })
+  @Delete('set-token')
+  async clearTokenCookie(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie(authCookiesNames.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      priority: 'high',
+    });
+
+    return { message: 'Token cookie cleared successfully' };
   }
 }
