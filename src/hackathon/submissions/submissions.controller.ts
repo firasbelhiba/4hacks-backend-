@@ -1,7 +1,8 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOperation,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/swagger';
 import { SubmissionsService } from './submissions.service';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/opt-jwt.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
 import { UserMin } from 'src/common/types';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import {
@@ -70,6 +72,59 @@ export class SubmissionsController {
   }
 
   @ApiOperation({
+    summary: "Get user's bookmarked submissions",
+    description:
+      "Retrieves all submissions bookmarked by the authenticated user with pagination. Returns submissions the user has bookmarked, including full submission details.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Bookmarked submissions retrieved successfully',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'clx1234567890',
+            title: 'Awesome Project',
+            tagline: 'A cool hackathon submission',
+            description: 'Full project description...',
+            status: 'SUBMITTED',
+            hackathon: {
+              id: 'hack_123',
+              title: 'Web3 Hackathon 2025',
+              slug: 'web3-hackathon-2025',
+            },
+            bookmarkedAt: '2025-01-15T10:30:00.000Z',
+          },
+        ],
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('bookmarks')
+  getBookmarkedSubmissions(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @CurrentUser('id') userId: string,
+  ) {
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = Math.min(parseInt(limit, 10) || 10, 100);
+    return this.submissionsService.getUserBookmarkedSubmissions(
+      userId,
+      pageNum,
+      limitNum,
+    );
+  }
+
+  @ApiOperation({
     summary: 'Get a submission by ID',
     description:
       'Retrieves a submission by its ID.\n\n' +
@@ -102,4 +157,81 @@ export class SubmissionsController {
   ) {
     return this.submissionsService.getSubmissionById(submissionId, user);
   }
+
+  @ApiOperation({
+    summary: 'Bookmark a submission',
+    description:
+      'Bookmarks a submission for the authenticated user. Users can only bookmark submissions they have permission to view. The user must be able to see the submission based on hackathon visibility settings, private hackathon registration, and submission status. Users cannot bookmark their own submissions (either as creator or team member).',
+  })
+  @ApiParam({
+    name: 'submissionId',
+    description: 'ID of the submission to bookmark',
+    example: 'clx1234567890',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Submission bookmarked successfully',
+    schema: {
+      example: {
+        message: 'Submission bookmarked successfully',
+        bookmarked: true,
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Submission not found',
+  })
+  @ApiBadRequestResponse({
+    description: 'User cannot bookmark their own submission',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'User does not have permission to bookmark this submission (e.g., submission is private, user not registered to private hackathon, etc.)',
+  })
+  @ApiConflictResponse({
+    description: 'Submission is already bookmarked',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':submissionId/bookmark')
+  bookmarkSubmission(
+    @Param('submissionId') submissionId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.submissionsService.bookmarkSubmission(submissionId, userId);
+  }
+
+  @ApiOperation({
+    summary: 'Unbookmark a submission',
+    description:
+      'Removes a bookmark from a submission for the authenticated user.',
+  })
+  @ApiParam({
+    name: 'submissionId',
+    description: 'ID of the submission to unbookmark',
+    example: 'clx1234567890',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Submission unbookmarked successfully',
+    schema: {
+      example: {
+        message: 'Submission unbookmarked successfully',
+        bookmarked: false,
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Bookmark not found',
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete(':submissionId/bookmark')
+  unbookmarkSubmission(
+    @Param('submissionId') submissionId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.submissionsService.unbookmarkSubmission(submissionId, userId);
+  }
+
 }

@@ -883,11 +883,18 @@ export class SubmissionsService {
       );
     }
 
+    // Check if submission is bookmarked by the user
+    const isBookmarked =
+      requesterUser?.id
+        ? await this.isSubmissionBookmarked(submissionId, requesterUser.id)
+        : false;
+
     // Transform submissionBounties to bounties array for response
     const { submissionBounties, ...rest } = submission as any;
     const transformedSubmission = {
       ...rest,
       bounties: submissionBounties?.map((sb: any) => sb.bounty) || [],
+      isBookmarked,
     };
 
     return {
@@ -1151,12 +1158,34 @@ export class SubmissionsService {
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
+    // Get all bookmark IDs for the user if authenticated
+    let bookmarkedSubmissionIds: Set<string> = new Set();
+    if (requesterUser?.id && submissions.length > 0) {
+      const userBookmarks = await this.prismaService.submissionBookmark.findMany(
+        {
+          where: {
+            userId: requesterUser.id,
+            submissionId: {
+              in: submissions.map((s: any) => s.id),
+            },
+          },
+          select: {
+            submissionId: true,
+          },
+        },
+      );
+      bookmarkedSubmissionIds = new Set(
+        userBookmarks.map((b) => b.submissionId),
+      );
+    }
+
     // Transform submissionBounties to bounties array for response
     const transformedSubmissions = submissions.map((submission: any) => {
       const { submissionBounties, ...rest } = submission;
       return {
         ...rest,
         bounties: submissionBounties?.map((sb: any) => sb.bounty) || [],
+        isBookmarked: bookmarkedSubmissionIds.has(submission.id),
       };
     });
 
@@ -1171,5 +1200,378 @@ export class SubmissionsService {
         hasPrevPage,
       },
     };
+  }
+
+  /**
+   * Helper method to check if a user can view a submission
+   * This is used for bookmark validation
+   */
+  private async canUserViewSubmission(
+    submissionId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const submission = await this.prismaService.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        hackathon: {
+          select: {
+            id: true,
+            isPrivate: true,
+            areSubmissionsPublic: true,
+            organization: {
+              select: {
+                ownerId: true,
+              },
+            },
+          },
+        },
+        team: {
+          include: {
+            members: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      return false;
+    }
+
+    const user = await this.prismaService.users.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (!user) {
+      return false;
+    }
+
+    const isAdmin = user.role === UserRole.ADMIN;
+    const isOrganizationOwner =
+      userId === submission.hackathon.organization.ownerId;
+    const isTeamMember =
+      submission.team?.members.some((m) => m.userId === userId) || false;
+
+    // Check if user is a judge
+    let isJudge = false;
+    const judgeRecord = await this.prismaService.hackathonJudge.findUnique({
+      where: {
+        hackathonId_userId: {
+          hackathonId: submission.hackathonId,
+          userId,
+        },
+      },
+    });
+    isJudge = !!judgeRecord;
+
+    const hasSpecialAccess =
+      isAdmin || isOrganizationOwner || isJudge || isTeamMember;
+
+    // If hackathon is private and user doesn't have special access, check registration
+    if (submission.hackathon.isPrivate && !hasSpecialAccess) {
+      const registration =
+        await this.prismaService.hackathonRegistration.findUnique({
+          where: {
+            hackathonId_userId: {
+              hackathonId: submission.hackathonId,
+              userId,
+            },
+          },
+        });
+
+      // User must be registered and approved to see submissions in private hackathons
+      if (
+        !registration ||
+        registration.status !== HackathonRegistrationStatus.APPROVED
+      ) {
+        return false;
+      }
+    }
+
+    // If submissions are not public, only allow special access
+    // (For private hackathons, registered users can only see submissions if they are public)
+    if (!submission.hackathon.areSubmissionsPublic && !hasSpecialAccess) {
+      return false;
+    }
+
+    // If submission is not SUBMITTED, only allow special access
+    // (Registered users in private hackathons can only see SUBMITTED submissions)
+    if (submission.status !== SubmissionStatus.SUBMITTED && !hasSpecialAccess) {
+      return false;
+    }
+
+    return true;
+  }
+
+  async bookmarkSubmission(
+    submissionId: string,
+    userId: string,
+  ): Promise<{ message: string; bookmarked: boolean }> {
+    this.logger.log(
+      `User ${userId} attempting to bookmark submission ${submissionId}`,
+    );
+
+    // Check if submission exists
+    const submission = await this.prismaService.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        team: {
+          include: {
+            members: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found');
+    }
+
+    // Prevent users from bookmarking their own submissions
+    const isCreator = submission.creatorId === userId;
+    const isTeamMember =
+      submission.team?.members.some((m) => m.userId === userId) || false;
+
+    if (isCreator || isTeamMember) {
+      throw new BadRequestException(
+        'You cannot bookmark your own submission',
+      );
+    }
+
+    // Check if user can view this submission (authorization check)
+    const canView = await this.canUserViewSubmission(submissionId, userId);
+    if (!canView) {
+      throw new ForbiddenException(
+        'You do not have permission to bookmark this submission',
+      );
+    }
+
+    // Check if already bookmarked
+    const existingBookmark =
+      await this.prismaService.submissionBookmark.findUnique({
+        where: {
+          userId_submissionId: {
+            userId,
+            submissionId,
+          },
+        },
+      });
+
+    if (existingBookmark) {
+      throw new ConflictException('Submission is already bookmarked');
+    }
+
+    // Create bookmark
+    await this.prismaService.submissionBookmark.create({
+      data: {
+        userId,
+        submissionId,
+      },
+    });
+
+    this.logger.log(
+      `User ${userId} successfully bookmarked submission ${submissionId}`,
+    );
+
+    return {
+      message: 'Submission bookmarked successfully',
+      bookmarked: true,
+    };
+  }
+
+  async unbookmarkSubmission(
+    submissionId: string,
+    userId: string,
+  ): Promise<{ message: string; bookmarked: boolean }> {
+    this.logger.log(
+      `User ${userId} attempting to unbookmark submission ${submissionId}`,
+    );
+
+    // Check if bookmark exists
+    const bookmark = await this.prismaService.submissionBookmark.findUnique({
+      where: {
+        userId_submissionId: {
+          userId,
+          submissionId,
+        },
+      },
+    });
+
+    if (!bookmark) {
+      throw new NotFoundException('Bookmark not found');
+    }
+
+    // Delete bookmark
+    await this.prismaService.submissionBookmark.delete({
+      where: {
+        userId_submissionId: {
+          userId,
+          submissionId,
+        },
+      },
+    });
+
+    this.logger.log(
+      `User ${userId} successfully unbookmarked submission ${submissionId}`,
+    );
+
+    return {
+      message: 'Submission unbookmarked successfully',
+      bookmarked: false,
+    };
+  }
+
+  async getUserBookmarkedSubmissions(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    data: any[];
+    meta: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  }> {
+    this.logger.log(`Getting bookmarked submissions for user ${userId}`);
+
+    // First, get all bookmarks for the user (we'll filter by access, then paginate)
+    const allBookmarks = await this.prismaService.submissionBookmark.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        submission: {
+          include: {
+            hackathon: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+                isPrivate: true,
+                areSubmissionsPublic: true,
+                organization: {
+                  select: {
+                    ownerId: true,
+                  },
+                },
+              },
+            },
+            team: {
+              include: {
+                members: {
+                  select: {
+                    userId: true,
+                  },
+                },
+              },
+            },
+            track: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            submissionBounties: {
+              select: {
+                bounty: {
+                  select: {
+                    id: true,
+                    title: true,
+                  },
+                },
+              },
+            },
+            creator: {
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Filter bookmarks to only include submissions the user can currently view
+    // This ensures users don't see bookmarks for submissions they've lost access to
+    // (e.g., if submission visibility changed, registration revoked, etc.)
+    const accessibleBookmarks = [];
+    for (const bookmark of allBookmarks) {
+      const canView = await this.canUserViewSubmission(
+        bookmark.submissionId,
+        userId,
+      );
+      if (canView) {
+        accessibleBookmarks.push(bookmark);
+      }
+    }
+
+    // Calculate pagination on filtered results
+    const total = accessibleBookmarks.length;
+    const skip = (page - 1) * limit;
+    const paginatedBookmarks = accessibleBookmarks.slice(skip, skip + limit);
+
+    // Transform submissions
+    const submissions = paginatedBookmarks.map((bookmark: any) => {
+      const { submission, createdAt: bookmarkedAt } = bookmark;
+      const { submissionBounties, ...rest } = submission;
+      return {
+        ...rest,
+        bounties: submissionBounties?.map((sb: any) => sb.bounty) || [],
+        bookmarkedAt,
+      };
+    });
+
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return {
+      data: submissions,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
+      },
+    };
+  }
+
+  /**
+   * Check if a submission is bookmarked by a user
+   */
+  async isSubmissionBookmarked(
+    submissionId: string,
+    userId: string | null,
+  ): Promise<boolean> {
+    if (!userId) {
+      return false;
+    }
+
+    const bookmark = await this.prismaService.submissionBookmark.findUnique({
+      where: {
+        userId_submissionId: {
+          userId,
+          submissionId,
+        },
+      },
+    });
+
+    return !!bookmark;
   }
 }

@@ -120,6 +120,7 @@ model users {
   teamPositions                     TeamPosition[]
   teamApplications                  TeamApplication[]          @relation("TeamApplications")
   decidedTeamApplications           TeamApplication[]          @relation("TeamApplicationsDecidedBy")
+  submissionBookmarks               SubmissionBookmark[]
 
   @@index([email])
   @@index([username])
@@ -968,6 +969,7 @@ model Submission {
   submissionBounties SubmissionBounty[] // Many-to-many: a submission can apply to multiple bounties
   prizeWinners       PrizeWinner[]
   submissionScores   SubmissionScore[]
+  bookmarks          SubmissionBookmark[]
 
   @@unique([teamId, hackathonId])
   @@index([hackathonId, status])
@@ -1195,4 +1197,21 @@ model SubmissionScore {
   @@index([submissionId])
   @@index([hackathonJudgeId])
   @@map("submission_scores")
+}
+
+model SubmissionBookmark {
+  id           String   @id @default(cuid())
+  userId       String
+  submissionId String
+
+  createdAt DateTime @default(now())
+
+  user       users      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, submissionId]) // Prevent duplicate bookmarks
+  @@index([userId])
+  @@index([submissionId])
+  @@index([userId, submissionId])
+  @@map("submission_bookmarks")
 }
